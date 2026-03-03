@@ -54,7 +54,8 @@ def main(args=None):
         node = PCA9685Node()
         rclpy.spin(node)
 
-    except (KeyboardInterrupt, ExternalShutdownException): pass
+    except (KeyboardInterrupt, ExternalShutdownException): 
+        print("Shutdown signal received, exiting...")
 
     # Destroy node (now) and gracefully exit
     finally:

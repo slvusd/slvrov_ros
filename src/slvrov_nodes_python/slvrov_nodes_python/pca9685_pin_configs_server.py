@@ -11,7 +11,7 @@ from .submersed_globals import PCA9685_PIN_CONFIG_PATH
 class PinConfigsServer(Node):
     def __init__(self):
 
-        super().__init__("pin_configs_server")
+        super().__init__("pca9685_pin_configs_server")
 
         self.configs_path = PCA9685_PIN_CONFIG_PATH
         self.add_configs_service = self.create_service(AddPCA9685PinConfigs, "add_pca9685_pin_configs", self.add_configs_callback)
@@ -19,7 +19,18 @@ class PinConfigsServer(Node):
 
     def add_configs_callback(self, req, resp):
         try:
-            config = PCA9685_Pin_Config(req.id, list(req.pins), req.minimum, req.pwm_default, req.maximum)
+            try:
+                config = PCA9685_Pin_Config(req.id, list(req.pins), req.minimum, req.pwm_default, req.maximum)
+            
+            # This catches NameError from the PCA9685_Pin_Config constructor. 
+            # We want to avoid logging it as an unexpected server error.
+            except NameError as name_error:
+                resp.success = False
+                resp.msg = "Id/Name already exists"
+
+                self.get_logger().warning(f"{name_error}")
+                return resp
+
             append_pca9685_pin_configs([config], self.configs_path)
 
             resp.success = True
@@ -27,13 +38,7 @@ class PinConfigsServer(Node):
             
             self.get_logger().info(f"Adding Id: {req.id}, Pins: {list(req.pins)}, Min, Def, Max: {req.minimum, req.pwm_default, req.maximum}")
 
-        #except NameError as name_error:
-        #    resp.success = False
-        #    resp.msg = "Id/Name already exists"
-
-        #   self.get_logger().warning(f"{name_error}")
-
-        except Exception as exception:  # Will also catch NameError from add_pca9685_pin_configs
+        except Exception as exception:
             resp.success = False
             resp.msg = "An unknown server side error occurred."
 
@@ -78,7 +83,8 @@ def main(args=None):
         node = PinConfigsServer()
         rclpy.spin(node)
 
-    except (KeyboardInterrupt, ExternalShutdownException): pass
+    except (KeyboardInterrupt, ExternalShutdownException): 
+        print("Shutdown signal received, exiting...")
 
     # Destroy node (now) and gracefully exit
     finally:
