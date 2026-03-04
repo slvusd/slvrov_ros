@@ -63,9 +63,9 @@ class PinConfigsServer(Node):
 
         except FileNotFoundError as e:
             resp.success = False
-            resp.configs = f"Pin configs file not found: {self.configs_path}"
+            resp.configs = f"Pin configs file not found: {self.configs_path}. This is a server error."
 
-            self.get_logger().warning(f"Pin configs file not found. This is a server error.")
+            self.get_logger().warning(f"Pin configs file not found.")
 
         except Exception as e:
             resp.success = False
