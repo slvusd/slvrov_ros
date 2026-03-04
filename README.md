@@ -1,15 +1,15 @@
 # SLVROV ROS 2 Stack
 
 ## Packages
-- `slvrov_nodes_python` – ROS 2 nodes
+- `slvrov_nodes_python` – ROS2 nodes written in python
 - `slvrov_interfaces` – Messages and interfaces
-- `slvrov_tools` – Shared tools (vendored PyPI package)
+- `slvrov_tools` – Shared python tools (submodule)
 
 ## Build
 ```bash
-mkdir -p ~/slvrov_ws/src
-cd ~/slvrov_ws/src
 git clone --recurse-submodules https://github.com/LegionaryOfLogic/slvrov_ros.git
-cd ..
-colcon build --symlink-install
+cd ./slvrov_ros/src/slvrov_tools_vendor/slvrov_tools
+make
+cd ./../../..
+colcon build
 source install/setup.bash
