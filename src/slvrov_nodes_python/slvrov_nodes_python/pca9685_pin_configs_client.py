@@ -24,27 +24,40 @@ from slvrov_interfaces.srv import AddPCA9685PinConfigs, GetPCA9685PinConfigs
 
 
 class PinConfigsClient(Node):
+    """Provide an interactive client for PCA9685 pin-config services."""
+
     def __init__(self):
+        """Connect to config services and start the terminal REPL thread."""
         
         super().__init__("pca9685_pin_configs_client")
 
         self.add_configs_service = self.create_client(AddPCA9685PinConfigs, "add_pca9685_pin_configs")
         self.get_configs_service = self.create_client(GetPCA9685PinConfigs, "get_pca9685_pin_configs")
 
-        # I chose to wait for each service in its own loop
-        # Doing otherwise would require threading or async calls, which I wanted to avoid for simplicity
+        # Wait for both services before starting the REPL so user commands never
+        # queue against a server that is still coming up.
         while not self.add_configs_service.wait_for_service(timeout_sec=3.0):
             self.get_logger().info("Waiting for add_pca9685_pin_configs service...")
 
         while not self.get_configs_service.wait_for_service(timeout_sec=3.0):
             self.get_logger().info("Waiting for get_pca9685_pin_configs service...")
 
-        # Start a separate thread to handle user input and service calls, allowing the main thread to spin and process responses without blocking on input()
+        # input() blocks the calling thread, so the REPL runs separately while
+        # the executor keeps spinning to receive service responses.
         self.shutdown_repl = False
         self.spin_repl_thread = threading.Thread(target=self.spin_repl, daemon=True)
         self.spin_repl_thread.start()
 
     def add_configs_request(self, id_name: str, pins: list[int], minimum: int, pwm_default: int, maximum: int):
+        """Send an asynchronous request to append a new pin config.
+
+        Args:
+            id_name: Logical name for the pin configuration entry.
+            pins: PCA9685 channel indices that should receive the same command.
+            minimum: Duty cycle used for full reverse or minimum travel.
+            pwm_default: Neutral duty cycle for the controlled device.
+            maximum: Duty cycle used for full forward or maximum travel.
+        """
         req = AddPCA9685PinConfigs.Request()
         req.id = id_name
         req.pins = pins
@@ -58,6 +71,12 @@ class PinConfigsClient(Node):
         self.future.add_done_callback(self.add_configs_response_callback)
     
     def add_configs_response_callback(self, future):
+        """Log the result of an add-config service call.
+
+        Args:
+            future: Asynchronous ROS future that resolves to the service
+                response.
+        """
         try:
             resp = future.result()
 
@@ -68,6 +87,7 @@ class PinConfigsClient(Node):
             self.get_logger().error(f"Service call failed: {e}")
 
     def get_configs_request(self):
+        """Send an asynchronous request to fetch all stored pin configs."""
         req = GetPCA9685PinConfigs.Request()
         self.get_logger().info("Sending get configs request")
 
@@ -75,6 +95,12 @@ class PinConfigsClient(Node):
         self.future.add_done_callback(self.get_configs_response_callback)
 
     def get_configs_response_callback(self, future):
+        """Log the result of a get-configs service call.
+
+        Args:
+            future: Asynchronous ROS future that resolves to the service
+                response.
+        """
         try:
             resp = future.result()
 
@@ -85,6 +111,7 @@ class PinConfigsClient(Node):
             self.get_logger().error(f"Service call failed: {e}")
 
     def spin_repl(self):
+        """Run the interactive command loop for config management."""
         while not self.shutdown_repl:       
             try:
                 self.get_logger().info("Enter 'add' to add pin configs, 'get' to retrieve configs, or 'exit' to quit:")
@@ -103,6 +130,7 @@ class PinConfigsClient(Node):
                             self.get_logger().warning("No valid pins provided. Please enter at least one pin.")
                             continue
 
+                        # The PCA9685 exposes 16 channels indexed 0-15.
                         for pin in pins:
                             if pin < 0 or pin > 15:
                                 self.get_logger().warning(f"Invalid pin number: {pin}. Pins must be between 0 and 15.")
@@ -142,6 +170,8 @@ def main(args=None):
         rclpy.init()
         node = PinConfigsClient()
 
+        # Multi-threaded spinning keeps ROS callbacks responsive while the REPL
+        # thread waits on terminal input.
         executor = MultiThreadedExecutor()
         executor.add_node(node)
 

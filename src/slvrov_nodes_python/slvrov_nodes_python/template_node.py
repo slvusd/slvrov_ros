@@ -5,7 +5,11 @@ from rclpy.node import Node
 
 
 class TemplateNode(Node):
+    """Minimal example node used as a starting point for new ROS2 nodes."""
+
     def __init__(self):
+        """Initialize the placeholder ROS2 node name."""
+        # Minimal skeleton for new ROS2 Python nodes in this package.
         super().__init__("node_name")
         
 
