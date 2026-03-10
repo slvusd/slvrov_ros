@@ -13,6 +13,8 @@ from sensor_msgs.msg import Joy
 
 @dataclass
 class JoystickMapping:
+    """Describe how a joystick input maps to a logical control action."""
+
     action: str
     topic: str
     source: str          # "axis" or "button"
@@ -24,6 +26,8 @@ class JoystickMapping:
 
 @dataclass
 class ControlState:
+    """Store the normalized logical control values for the vehicle and claw."""
+
     forward: float = 0.0
     strafe: float = 0.0
     yaw: float = 0.0
@@ -35,11 +39,27 @@ class ControlState:
 
 
 class JoyMapper:
+    """Convert raw Joy messages into a merged logical control state."""
+
     def __init__(self, mappings: Sequence[JoystickMapping]) -> None:
+        """Initialize the mapper with the configured joystick bindings.
+
+        Args:
+            mappings: Sequence of logical action bindings to evaluate.
+        """
         self._mappings = list(mappings)
 
     @staticmethod
     def apply_deadzone(value: float, deadzone: float) -> float:
+        """Suppress small axis movement and rescale the remaining range.
+
+        Args:
+            value: Raw joystick axis value in the range [-1.0, 1.0].
+            deadzone: Magnitude below which the input is treated as zero.
+
+        Returns:
+            The deadzone-adjusted axis value.
+        """
         if deadzone < 0.0 or deadzone >= 1.0: raise ValueError(f"deadzone must be in [0.0, 1.0), got {deadzone}")
 
         if abs(value) < deadzone: return 0.0
@@ -49,16 +69,43 @@ class JoyMapper:
 
     @staticmethod
     def _get_axis(msg: Joy, index: int) -> float:
+        """Read an axis value safely, defaulting to zero when out of range.
+
+        Args:
+            msg: ROS Joy message to read from.
+            index: Axis index to fetch.
+
+        Returns:
+            The requested axis value or `0.0` when unavailable.
+        """
         if index < 0 or index >= len(msg.axes): return 0.0
         return float(msg.axes[index])
 
     @staticmethod
     def _get_button(msg: Joy, index: int) -> float:
+        """Read a button value safely, defaulting to zero when out of range.
+
+        Args:
+            msg: ROS Joy message to read from.
+            index: Button index to fetch.
+
+        Returns:
+            The requested button value or `0.0` when unavailable.
+        """
         if index < 0 or index >= len(msg.buttons):
             return 0.0
         return float(msg.buttons[index])
 
     def read_mapping(self, msg: Joy, mapping: JoystickMapping) -> float:
+        """Extract one normalized action value from a Joy message.
+
+        Args:
+            msg: ROS Joy message containing raw axes and buttons.
+            mapping: Binding description for the logical action to read.
+
+        Returns:
+            A clipped logical value in the range [-1.0, 1.0].
+        """
         if mapping.source == "axis":
             value = self._get_axis(msg, mapping.index)
             value = self.apply_deadzone(value, mapping.deadzone)
@@ -74,6 +121,15 @@ class JoyMapper:
         return float(np.clip(value, -1.0, 1.0))
 
     def merge_messages(self, messages_by_topic: Dict[str, Optional[Joy]]) -> ControlState:
+        """Merge the latest messages from all topics into one control state.
+
+        Args:
+            messages_by_topic: Latest Joy messages keyed by topic name. Missing
+                or stale topics should map to `None`.
+
+        Returns:
+            The combined logical control state.
+        """
         state = ControlState()
 
         # Last write wins if duplicate actions exist. The validator in the node
@@ -108,14 +164,17 @@ class JoyMapper:
 
 
 class ROVController:
-    """
-    Converts logical control state into thruster outputs.
-
-    Control order:
-      [forward, strafe, yaw, heave, roll]
-    """
+    """Convert a logical control state into mixed thruster commands."""
 
     def __init__(self, mixing_matrix: np.ndarray, axis_gains: np.ndarray, thruster_inversions: np.ndarray) -> None:
+        """Initialize the thruster mixer and per-axis scaling.
+
+        Args:
+            mixing_matrix: Thruster mixing matrix in control order
+                `[forward, strafe, yaw, heave, roll]`.
+            axis_gains: Per-axis gain multipliers applied before mixing.
+            thruster_inversions: Per-thruster sign corrections.
+        """
         if mixing_matrix.ndim != 2:
             raise ValueError("mixing_matrix must be 2D")
         if mixing_matrix.shape[1] != 5:
@@ -136,6 +195,14 @@ class ROVController:
         self.max_thrust = 1.0
 
     def control_vector(self, state: ControlState) -> np.ndarray:
+        """Build the controller input vector from the logical state.
+
+        Args:
+            state: Current logical vehicle control state.
+
+        Returns:
+            The gain-adjusted control vector in mixer order.
+        """
         return np.array(
             [
                 state.forward,
@@ -148,10 +215,20 @@ class ROVController:
         ) * self.axis_gains
 
     def calculate_thruster_outputs(self, state: ControlState) -> np.ndarray:
+        """Compute normalized thruster outputs from the current control state.
+
+        Args:
+            state: Current logical vehicle control state.
+
+        Returns:
+            Normalized thruster commands in the range [-1.0, 1.0].
+        """
         controls = self.control_vector(state)
         thrusters = self.mixing_matrix @ controls
         thrusters *= self.thruster_inversions
 
+        # Preserve the requested motion direction while scaling all thrusters
+        # together if any channel would saturate.
         max_output = float(np.max(np.abs(thrusters))) if thrusters.size else 0.0
         if max_output > self.max_thrust:
             thrusters = thrusters * (self.max_thrust / max_output)
@@ -160,6 +237,17 @@ class ROVController:
 
     @staticmethod
     def map_to_pwm(thruster_value: float, min_pwm: int = 1100, mid_pwm: int = 1500, max_pwm: int = 1900) -> int:
+        """Convert a normalized thruster command into a PWM pulse width.
+
+        Args:
+            thruster_value: Normalized thruster command in the range [-1.0, 1.0].
+            min_pwm: PWM value for full reverse.
+            mid_pwm: PWM value for neutral.
+            max_pwm: PWM value for full forward.
+
+        Returns:
+            The PWM pulse width corresponding to the requested thrust.
+        """
         thruster_value = float(np.clip(thruster_value, -1.0, 1.0))
         if thruster_value >= 0.0:
             pwm = mid_pwm + (max_pwm - mid_pwm) * thruster_value
@@ -169,11 +257,27 @@ class ROVController:
 
 
 class ClawController:
+    """Translate normalized claw controls into servo PWM targets."""
+
     def __init__(self, neutral_pwm: int = 1500, span: int = 400) -> None:
+        """Initialize the claw controller PWM center and travel span.
+
+        Args:
+            neutral_pwm: PWM value representing the neutral servo position.
+            span: Maximum offset from neutral applied at full command.
+        """
         self.neutral_pwm = neutral_pwm
         self.span = span
 
     def calculate_outputs(self, state: ControlState) -> Dict[str, int]:
+        """Compute PWM outputs for the claw subsystems.
+
+        Args:
+            state: Current logical claw control state.
+
+        Returns:
+            A mapping of claw actuator names to PWM targets.
+        """
         claw = self.neutral_pwm + int(round(np.clip(state.claw_open, -1.0, 1.0) * self.span))
         rotate = self.neutral_pwm + int(round(np.clip(state.claw_rotate, -1.0, 1.0) * self.span))
         tilt = self.neutral_pwm + int(round(np.clip(state.claw_tilt, -1.0, 1.0) * self.span))
@@ -185,14 +289,10 @@ class ClawController:
 
 
 class JoystickLogicNode(Node):
-    """
-    Subscribes to one or more Joy topics, maps them into a ControlState,
-    applies ROV/claw logic, and keeps the latest computed outputs in memory.
-
-    No publishers yet.
-    """
+    """Merge joystick topics into vehicle and claw outputs."""
 
     def __init__(self) -> None:
+        """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
         self.declare_parameter("joy_topics", ["/joy_left", "/joy_right"])
@@ -241,6 +341,8 @@ class JoystickLogicNode(Node):
 
         self.subscriptions = []
         for topic in self.joy_topics:
+            # Bind the current topic into the callback closure so each
+            # subscription updates the correct slot in the latest-message table.
             sub = self.create_subscription(
                 Joy,
                 topic,
@@ -261,11 +363,25 @@ class JoystickLogicNode(Node):
         self.get_logger().info(f"Loaded {len(self.mappings)} mappings")
 
     def _joy_callback(self, topic: str, msg: Joy) -> None:
+        """Store the latest Joy message and timestamp for one topic.
+
+        Args:
+            topic: Topic name that produced the message.
+            msg: Incoming Joy message to cache.
+        """
         self.latest_joy[topic] = msg
         self.last_joy_time[topic] = self.get_clock().now().nanoseconds / 1e9
 
     @staticmethod
     def _parse_mappings(raw: Sequence[dict]) -> List[JoystickMapping]:
+        """Convert raw parameter dictionaries into mapping objects.
+
+        Args:
+            raw: Raw mapping parameter list from ROS.
+
+        Returns:
+            Parsed joystick mapping objects.
+        """
         mappings: List[JoystickMapping] = []
         for item in raw:
             if not isinstance(item, dict):
@@ -290,6 +406,11 @@ class JoystickLogicNode(Node):
         return mappings
 
     def _validate_mappings(self, mappings: Sequence[JoystickMapping]) -> None:
+        """Validate joystick mapping definitions before use.
+
+        Args:
+            mappings: Parsed mappings to validate.
+        """
         valid_actions = {
             "forward", "strafe", "yaw", "heave", "roll",
             "claw_open", "claw_rotate", "claw_tilt",
@@ -311,22 +432,35 @@ class JoystickLogicNode(Node):
             seen_actions.add(m.action)
 
     def _topic_is_stale(self, topic: str, now_sec: float) -> bool:
+        """Check whether a topic's most recent message has timed out.
+
+        Args:
+            topic: Topic name to inspect.
+            now_sec: Current clock time in seconds.
+
+        Returns:
+            `True` when the cached message is missing or older than the timeout.
+        """
         t = self.last_joy_time.get(topic)
         if t is None:
             return True
         return (now_sec - t) > self.joy_timeout_sec
 
     def _control_loop(self) -> None:
+        """Recompute logical state, thruster outputs, and claw outputs."""
         now_sec = self.get_clock().now().nanoseconds / 1e9
 
         filtered_msgs: Dict[str, Optional[Joy]] = {}
         any_fresh = False
         for topic in self.joy_topics:
             stale = self._topic_is_stale(topic, now_sec)
+            # A stale controller should behave like a disconnected input, not
+            # continue driving the vehicle with its previous command.
             filtered_msgs[topic] = None if stale else self.latest_joy[topic]
             any_fresh = any_fresh or (not stale and self.latest_joy[topic] is not None)
 
         if not any_fresh:
+            # Fail safe to neutral when every joystick has timed out.
             state = ControlState()
         else:
             state = self.mapper.merge_messages(filtered_msgs)

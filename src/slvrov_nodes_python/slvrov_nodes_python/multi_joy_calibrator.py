@@ -14,6 +14,8 @@ from sensor_msgs.msg import Joy
 
 
 class Action(str, Enum):
+    """Enumerate the logical actions that can be calibrated."""
+
     FORWARD = "forward"
     STRAFE = "strafe"
     YAW = "yaw"
@@ -26,6 +28,8 @@ class Action(str, Enum):
 
 @dataclass(frozen=True)
 class JoystickMapping:
+    """Record the binding from one physical control to one logical action."""
+
     action: str
     topic: str
     source: str          # "axis" or "button"
@@ -37,6 +41,8 @@ class JoystickMapping:
 
 @dataclass(frozen=True)
 class Candidate:
+    """Represent a candidate control movement detected during calibration."""
+
     topic: str
     source: str          # "axis" or "button"
     index: int
@@ -45,21 +51,10 @@ class Candidate:
 
 
 class MultiJoyCalibrator(Node):
-    """
-    Interactive calibrator for multiple Joy topics.
-
-    For each logical action, the node prompts the operator to move/press
-    the desired control. It records:
-      - topic
-      - source type ("axis" or "button")
-      - index
-      - inversion
-      - default deadzone/scale
-
-    It writes the results to a ROS 2 YAML parameter file.
-    """
+    """Interactively discover joystick bindings and save them to YAML."""
 
     def __init__(self) -> None:
+        """Initialize parameters, subscriptions, and the binding timer."""
         super().__init__("multi_joy_calibrator")
 
         self.declare_parameter("joy_topics", ["/joy_left", "/joy_right"])
@@ -96,6 +91,8 @@ class MultiJoyCalibrator(Node):
 
         self.subscriptions = []
         for topic in self.joy_topics:
+            # Capture the topic name in the lambda so each subscription updates
+            # the correct previous/latest message pair.
             sub = self.create_subscription(
                 Joy,
                 topic,
@@ -110,10 +107,17 @@ class MultiJoyCalibrator(Node):
         self._print_prompt()
 
     def _joy_callback(self, topic: str, msg: Joy) -> None:
+        """Track the previous and latest Joy message for one topic.
+
+        Args:
+            topic: Topic name that produced the message.
+            msg: Incoming Joy message to cache.
+        """
         self.previous[topic] = self.latest[topic]
         self.latest[topic] = msg
 
     def _print_prompt(self) -> None:
+        """Log the instruction for the next action that should be bound."""
         if self.current_action_index >= len(self.actions_to_bind):
             self.get_logger().info("Calibration complete.")
             return
@@ -123,6 +127,14 @@ class MultiJoyCalibrator(Node):
 
     @staticmethod
     def _prompt_for_action(action: Action) -> str:
+        """Build the operator prompt string for a logical action.
+
+        Args:
+            action: Logical action currently being calibrated.
+
+        Returns:
+            The prompt that tells the operator what to move or press.
+        """
         prompts = {
             Action.FORWARD: "Bind FORWARD: move the desired control forward now.",
             Action.STRAFE: "Bind STRAFE: move the desired control right now.",
@@ -136,11 +148,14 @@ class MultiJoyCalibrator(Node):
         return prompts[action]
 
     def _check_for_binding(self) -> None:
+        """Detect the strongest recent control change and bind it."""
         if self.current_action_index >= len(self.actions_to_bind):
             return
 
         elapsed = (self.get_clock().now() - self.last_bind_time).nanoseconds / 1e9
         if elapsed < self.settle_seconds:
+            # Give the operator time to release the previous control before
+            # listening for the next intentional movement.
             return
 
         best: Optional[Candidate] = None
@@ -187,6 +202,15 @@ class MultiJoyCalibrator(Node):
             self._print_prompt()
 
     def _detect_changed_control(self, topic: str) -> Optional[Candidate]:
+        """Find the strongest axis or button change for one topic.
+
+        Args:
+            topic: Topic name whose previous/latest messages should be compared.
+
+        Returns:
+            The best candidate control change, or `None` if nothing crossed the
+            detection thresholds.
+        """
         prev_msg = self.previous[topic]
         new_msg = self.latest[topic]
         if prev_msg is None or new_msg is None:
@@ -200,6 +224,8 @@ class MultiJoyCalibrator(Node):
             new = float(new_msg.axes[i])
             delta = abs(new - old)
 
+            # Prefer the largest absolute movement so noisy axes lose to the
+            # control the operator intentionally moved.
             if delta > self.axis_threshold:
                 cand = Candidate(topic=topic, source="axis", index=i, value=new, score=delta)
                 if best is None or cand.score > best.score:
@@ -210,6 +236,8 @@ class MultiJoyCalibrator(Node):
             old = int(prev_msg.buttons[i])
             new = int(new_msg.buttons[i])
             if old == 0 and new == 1:
+                # Buttons are scored separately because they have no analog
+                # delta; rising edges represent an intentional press.
                 cand = Candidate(
                     topic=topic,
                     source="button",
@@ -223,6 +251,11 @@ class MultiJoyCalibrator(Node):
         return best
 
     def _save_yaml(self, path_str: str) -> None:
+        """Write the discovered mappings to a ROS parameter YAML file.
+
+        Args:
+            path_str: Destination path for the YAML parameter file.
+        """
         path = Path(path_str)
         path.parent.mkdir(parents=True, exist_ok=True)
 
