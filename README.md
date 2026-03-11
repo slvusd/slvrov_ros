@@ -1,4 +1,3 @@
-# SLVROV ROS 2 Stack
 
 ## Packages
 - `slvrov_nodes_python` – ROS2 nodes written in python
@@ -11,5 +10,6 @@ git clone --recurse-submodules https://github.com/LegionaryOfLogic/slvrov_ros.gi
 cd ./slvrov_ros/src/slvrov_tools_vendor/slvrov_tools
 make
 cd ./../../..
+source /opt/ros/jazzy/setup.bash
 colcon build
 source install/setup.bash
