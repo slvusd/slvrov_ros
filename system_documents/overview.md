@@ -1,4 +1,4 @@
-# SLVROV ROS 2 Stack
+# SLVROV ROS 2 Stack - System Overview
 
 This is a system that uses ROS2 to control the ROV for SLVHS robotics (Sea Exploration League), and is run on a Raspberry Pi.
 The system consists fo the following:
@@ -7,8 +7,6 @@ The system consists fo the following:
 * joystick logic node
 * pca9685 (pwm hardware) node
 * config nodes to edit motor definitions
-
-Joystick Nodes --sensor_msgs/Joy--> Joystick Logic Nodes --slvrov_interfaces/PCA9685Command--> PCA9685/PWM Node --PWM signal (non-ROS2)--> Motors/Servos
 
 ### Graphs Key
 ```mermaid
@@ -129,28 +127,3 @@ For simple cases, a script located in slvrov-tools (slvrov_tools_vendor/slvrov-t
 
 ### Ubuntu Server (ROV/Raspberry Pi 4)
 ...
-
-## Testing
-
-### 1. Log into Raspberry Pi with dependencies installed
-   * ssh [usr]@[rpi-ip]
-   * scp /path/to/slvrov_ros [usr]@[rpi-ip]
-
-### 2. Follow build instructions for this repo
-
-### 3. Baisc Testing
-   * using ros2 topic pub to test subscriber nodes
-   * using ros2 service req to test server nodes
-
-### 4. Intermediate Testing
-   Once the nodes have been tested by probing them with ros2 commands, run multiple nodes without peripherals to see if they interface correctly.
-   Succes should be indicated, at the base level, by well-placed self.get_logger() calls.
-
-### 5. Advanced Testing
-   Attach needed peripherals to Raspberry Pi.
-   Run multiple nodes with the necessary hardware.
-   If any problems arise, use diagnostic tools like i2cdetect to see where the problem occurs, if not located in the code.
-
-### 6. Editing/Updating Code
-   If any changes in the code need to be made, make sure to rebuild the ros2 package that changed.
-   Run 'colcon build --packages-select [package names]'
