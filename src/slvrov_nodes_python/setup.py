@@ -24,6 +24,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'joystick_calibrator=slvrov_nodes_python.joystick_calibrator:main',
+            'joystick_logic=slvrov_nodes_python.multi_joy_logic:main',
             'pca9685_node=slvrov_nodes_python.pca9685_node:main',
             'pca9685_pin_configs_server=slvrov_nodes_python.pca9685_pin_configs_server:main',
             'pca9685_pin_configs_client=slvrov_nodes_python.pca9685_pin_configs_client:main'

@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence
-import math
+import json
 
 import numpy as np
 import rclpy
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
+import yaml
 
 
 @dataclass
@@ -295,11 +298,12 @@ class JoystickLogicNode(Node):
         """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
-        self.declare_parameter("joy_topics", ["/joy_left", "/joy_right"])
+        self.declare_parameter("joy_topics", [])
         self.declare_parameter("loop_rate_hz", 50.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
         self.declare_parameter("log_debug", True)
 
+        self.declare_parameter("mapping_file", "")
         self.declare_parameter("mappings", [])
         self.declare_parameter("axis_gains", [1.0, 1.0, 1.0, 1.0, 1.0])
         self.declare_parameter(
@@ -315,13 +319,29 @@ class JoystickLogicNode(Node):
         )
         self.declare_parameter("thruster_inversions", [1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
 
-        self.joy_topics: List[str] = list(self.get_parameter("joy_topics").value)
         self.loop_rate_hz = float(self.get_parameter("loop_rate_hz").value)
         self.joy_timeout_sec = float(self.get_parameter("joy_timeout_sec").value)
         self.log_debug = bool(self.get_parameter("log_debug").value)
 
+        mapping_file = str(self.get_parameter("mapping_file").value).strip()
+        configured_topics = [
+            str(topic) for topic in self.get_parameter("joy_topics").value
+        ]
         mappings_raw = list(self.get_parameter("mappings").value)
+
+        file_topics: List[str] = []
+        if mapping_file:
+            file_topics, mappings_raw = self._load_mapping_file(mapping_file)
+            self.get_logger().info(f"Loaded mapping file: {mapping_file}")
+
+        self.joy_topics = configured_topics or file_topics
         self.mappings = self._parse_mappings(mappings_raw)
+
+        if not self.joy_topics:
+            raise ValueError(
+                "No joystick topics configured. Set 'joy_topics' or provide "
+                "'mapping_file' with saved topics."
+            )
         self._validate_mappings(self.mappings)
 
         axis_gains = np.array(self.get_parameter("axis_gains").value, dtype=float)
@@ -371,6 +391,44 @@ class JoystickLogicNode(Node):
         """
         self.latest_joy[topic] = msg
         self.last_joy_time[topic] = self.get_clock().now().nanoseconds / 1e9
+
+    @staticmethod
+    def _load_mapping_file(path_str: str) -> tuple[List[str], List[dict]]:
+        """Load joystick topics and mappings from JSON or YAML."""
+        path = Path(path_str)
+        if not path.is_file():
+            raise FileNotFoundError(f"Mapping file not found: {path}")
+
+        with path.open("r", encoding="utf-8") as handle:
+            if path.suffix.lower() == ".json":
+                data = json.load(handle)
+            else:
+                data = yaml.safe_load(handle)
+
+        if not isinstance(data, dict):
+            raise ValueError("Mapping file must contain a JSON/YAML object")
+
+        raw_payload = data
+        if "joystick_logic_node" in data:
+            node_data = data["joystick_logic_node"]
+            if not isinstance(node_data, dict):
+                raise ValueError(
+                    "joystick_logic_node entry must contain an object"
+                )
+            raw_payload = node_data.get("ros__parameters", {})
+
+        if not isinstance(raw_payload, dict):
+            raise ValueError("Mapping payload must be a mapping/object")
+
+        joy_topics = raw_payload.get("joy_topics", [])
+        mappings = raw_payload.get("mappings", [])
+
+        if not isinstance(joy_topics, list):
+            raise ValueError("'joy_topics' must be a list")
+        if not isinstance(mappings, list):
+            raise ValueError("'mappings' must be a list")
+
+        return [str(topic) for topic in joy_topics], mappings
 
     @staticmethod
     def _parse_mappings(raw: Sequence[dict]) -> List[JoystickMapping]:
@@ -487,16 +545,19 @@ class JoystickLogicNode(Node):
                 )
 
 
-def main() -> None:
-    rclpy.init()
-    node = JoystickLogicNode()
+def main(args=None):
+    node = None
     try:
+        rclpy.init(args=args)
+        node = JoystickLogicNode()
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    except (KeyboardInterrupt, ExternalShutdownException):
+        print("Shutdown signal received, exiting...")
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        if node is not None:
+            node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":
