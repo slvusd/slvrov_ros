@@ -1,286 +1,386 @@
 #!/usr/bin/env python3
+"""joy_calibrator.py
+
+Interactive joystick calibration tool for the SLVROV.
+
+Requirements satisfied
+──────────────────────
+  ✔ Independent of number of joysticks  — auto-detects all connected sticks
+  ✔ Asks user for each axis/button      — move the physical control to bind it
+  ✔ Axes can be ignored/skipped         — press Enter or type 's' to skip
+  ✔ Saves to YAML                       — writes joy_config.yaml on completion
+  ✔ AI config review                    — calls Claude API to explain, flag
+                                          issues, and suggest tweaks
+
+Dependencies
+────────────
+    pip install pygame pyyaml anthropic
+
+Run
+───
+    python3 joy_calibrator.py
+    python3 joy_calibrator.py --out my_config.yaml   # custom output path
+    python3 joy_calibrator.py --no-ai                # skip the AI review step
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
-from enum import Enum
+import argparse
+import select
+import sys
+import time
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import math
+from typing import List, Optional
+
+import pygame
 import yaml
 
-import rclpy
-from rclpy.node import Node
-from sensor_msgs.msg import Joy
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+DEFAULT_OUTPUT = "joy_config.yaml"
+DEADZONE       = 0.1    # applied to every axis mapping
+SCALE          = 1.0
+AXIS_THRESHOLD = 0.50   # minimum deflection to register a bind
+SETTLE_SECS    = 0.6    # seconds to hold still after a bind before confirming
+POLL_HZ        = 60
 
 
-class Action(str, Enum):
-    """Enumerate the logical actions that can be calibrated."""
+# ── Actions list — edit order or add new ones here ────────────────────────────
+# Format: (action_name, expected_source, prompt_text)
 
-    FORWARD = "forward"
-    STRAFE = "strafe"
-    YAW = "yaw"
-    HEAVE = "heave"
-    ROLL = "roll"
-    CLAW_OPEN = "claw_open"
-    CLAW_ROTATE = "claw_rotate"
-    CLAW_TILT = "claw_tilt"
+ACTIONS = [
+    ("forward",     "axis",   "Push your FORWARD control forward"),
+    ("strafe",      "axis",   "Push your STRAFE control right"),
+    ("yaw",         "axis",   "Twist or push your YAW control"),
+    ("heave",       "axis",   "Push your HEAVE (up/down) control up"),
+    ("roll",        "axis",   "Push your ROLL control"),
+    ("claw_rotate", "axis",   "Move your CLAW ROTATE control"),
+    ("claw_tilt",   "axis",   "Move your CLAW TILT control"),
+    ("claw_open",   "button", "Press your CLAW OPEN button"),
+    ("claw_close",  "button", "Press your CLAW CLOSE button"),
+]
 
 
-@dataclass(frozen=True)
+# ── Dataclasses ───────────────────────────────────────────────────────────────
+
+@dataclass
 class JoystickMapping:
-    """Record the binding from one physical control to one logical action."""
+    action:   str
+    topic:    str
+    source:   str       # "axis" or "button"
+    index:    int
+    invert:   bool  = False
+    deadzone: float = DEADZONE
+    scale:    float = SCALE
 
-    action: str
+
+@dataclass
+class JoystickHardware:
+    id:    int
+    role:  str
     topic: str
-    source: str          # "axis" or "button"
-    index: int
-    invert: bool = False
-    deadzone: float = 0.1
-    scale: float = 1.0
 
 
-@dataclass(frozen=True)
-class Candidate:
-    """Represent a candidate control movement detected during calibration."""
-
-    topic: str
-    source: str          # "axis" or "button"
-    index: int
-    value: float
-    score: float
+@dataclass
+class CalibrationResult:
+    num_joysticks: int
+    joysticks:     List[JoystickHardware] = field(default_factory=list)
+    axes:          List[JoystickMapping]  = field(default_factory=list)
+    buttons:       List[JoystickMapping]  = field(default_factory=list)
 
 
-class MultiJoyCalibrator(Node):
-    """Interactively discover joystick bindings and save them to YAML."""
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    def __init__(self) -> None:
-        """Initialize parameters, subscriptions, and the binding timer."""
-        super().__init__("multi_joy_calibrator")
+def _banner(text: str) -> None:
+    print(f"\n{'─' * 60}")
+    print(f"  {text}")
+    print(f"{'─' * 60}")
 
-        self.declare_parameter("joy_topics", ["/joy_left", "/joy_right"])
-        self.declare_parameter("output_yaml", "joy_mappings.yaml")
-        self.declare_parameter("axis_threshold", 0.55)
-        self.declare_parameter("button_score", 1.0)
-        self.declare_parameter("settle_seconds", 1.0)
-        self.declare_parameter("bind_order", [
-            "forward", "strafe", "yaw", "heave", "roll",
-            "claw_open", "claw_rotate", "claw_tilt",
-        ])
-        self.declare_parameter("default_deadzone", 0.10)
-        self.declare_parameter("default_scale", 1.0)
 
-        self.joy_topics: List[str] = list(self.get_parameter("joy_topics").value)
-        self.output_yaml = str(self.get_parameter("output_yaml").value)
-        self.axis_threshold = float(self.get_parameter("axis_threshold").value)
-        self.button_score = float(self.get_parameter("button_score").value)
-        self.settle_seconds = float(self.get_parameter("settle_seconds").value)
-        self.default_deadzone = float(self.get_parameter("default_deadzone").value)
-        self.default_scale = float(self.get_parameter("default_scale").value)
+def _topic_for(js_id: int) -> str:
+    return f"/joy_{js_id}"
 
-        bind_order_raw = list(self.get_parameter("bind_order").value)
-        self.actions_to_bind: List[Action] = [Action(x) for x in bind_order_raw]
 
-        if not self.joy_topics:
-            raise ValueError("Parameter 'joy_topics' must contain at least one topic")
+def _user_typed_skip() -> bool:
+    """Return True if the user typed Enter or 's' on stdin (non-blocking)."""
+    ready, _, _ = select.select([sys.stdin], [], [], 0)
+    if ready:
+        line = sys.stdin.readline().strip().lower()
+        return line in ("", "s", "skip")
+    return False
 
-        self.latest: Dict[str, Optional[Joy]] = {topic: None for topic in self.joy_topics}
-        self.previous: Dict[str, Optional[Joy]] = {topic: None for topic in self.joy_topics}
-        self.mappings: List[JoystickMapping] = []
-        self.current_action_index = 0
-        self.last_bind_time = self.get_clock().now()
 
-        self.subscriptions = []
-        for topic in self.joy_topics:
-            # Capture the topic name in the lambda so each subscription updates
-            # the correct previous/latest message pair.
-            sub = self.create_subscription(
-                Joy,
-                topic,
-                lambda msg, t=topic: self._joy_callback(t, msg),
-                10,
-            )
-            self.subscriptions.append(sub)
+def _detect_axis(sticks: List[pygame.joystick.Joystick]) -> Optional[tuple]:
+    """Return (js_id, axis_index, value) if any axis exceeds threshold."""
+    pygame.event.pump()
+    for js in sticks:
+        for i in range(js.get_numaxes()):
+            val = js.get_axis(i)
+            if abs(val) >= AXIS_THRESHOLD:
+                return (js.get_id(), i, val)
+    return None
 
-        self.timer = self.create_timer(0.05, self._check_for_binding)
 
-        self.get_logger().info(f"Watching joystick topics: {self.joy_topics}")
-        self._print_prompt()
+def _detect_button(sticks: List[pygame.joystick.Joystick]) -> Optional[tuple]:
+    """Return (js_id, button_index) if any button is currently pressed."""
+    pygame.event.pump()
+    for js in sticks:
+        for i in range(js.get_numbuttons()):
+            if js.get_button(i):
+                return (js.get_id(), i)
+    return None
 
-    def _joy_callback(self, topic: str, msg: Joy) -> None:
-        """Track the previous and latest Joy message for one topic.
 
-        Args:
-            topic: Topic name that produced the message.
-            msg: Incoming Joy message to cache.
-        """
-        self.previous[topic] = self.latest[topic]
-        self.latest[topic] = msg
-
-    def _print_prompt(self) -> None:
-        """Log the instruction for the next action that should be bound."""
-        if self.current_action_index >= len(self.actions_to_bind):
-            self.get_logger().info("Calibration complete.")
-            return
-
-        action = self.actions_to_bind[self.current_action_index]
-        self.get_logger().info(self._prompt_for_action(action))
-
-    @staticmethod
-    def _prompt_for_action(action: Action) -> str:
-        """Build the operator prompt string for a logical action.
-
-        Args:
-            action: Logical action currently being calibrated.
-
-        Returns:
-            The prompt that tells the operator what to move or press.
-        """
-        prompts = {
-            Action.FORWARD: "Bind FORWARD: move the desired control forward now.",
-            Action.STRAFE: "Bind STRAFE: move the desired control right now.",
-            Action.YAW: "Bind YAW: twist or move the desired yaw control now.",
-            Action.HEAVE: "Bind HEAVE: move the desired control upward now.",
-            Action.ROLL: "Bind ROLL: move the desired roll control now.",
-            Action.CLAW_OPEN: "Bind CLAW_OPEN: press the desired button/control now.",
-            Action.CLAW_ROTATE: "Bind CLAW_ROTATE: move the desired rotate control now.",
-            Action.CLAW_TILT: "Bind CLAW_TILT: move the desired tilt control now.",
-        }
-        return prompts[action]
-
-    def _check_for_binding(self) -> None:
-        """Detect the strongest recent control change and bind it."""
-        if self.current_action_index >= len(self.actions_to_bind):
-            return
-
-        elapsed = (self.get_clock().now() - self.last_bind_time).nanoseconds / 1e9
-        if elapsed < self.settle_seconds:
-            # Give the operator time to release the previous control before
-            # listening for the next intentional movement.
-            return
-
-        best: Optional[Candidate] = None
-        for topic in self.joy_topics:
-            candidate = self._detect_changed_control(topic)
-            if candidate is None:
-                continue
-            if best is None or candidate.score > best.score:
-                best = candidate
-
-        if best is None:
-            return
-
-        action = self.actions_to_bind[self.current_action_index]
-
-        invert = False
-        if best.source == "axis":
-            # Negative motion during binding means we should flip that axis later.
-            invert = best.value < 0.0
-
-        mapping = JoystickMapping(
-            action=action.value,
-            topic=best.topic,
-            source=best.source,
-            index=best.index,
-            invert=invert,
-            deadzone=self.default_deadzone,
-            scale=self.default_scale,
+def _wait_release_all(sticks: List[pygame.joystick.Joystick]) -> None:
+    """Block until all sticks are at rest and all buttons released."""
+    while True:
+        pygame.event.pump()
+        active = any(
+            abs(js.get_axis(i)) >= AXIS_THRESHOLD
+            for js in sticks for i in range(js.get_numaxes())
+        ) or any(
+            js.get_button(i)
+            for js in sticks for i in range(js.get_numbuttons())
         )
+        if not active:
+            break
+        time.sleep(1 / POLL_HZ)
 
-        self.mappings.append(mapping)
-        self.get_logger().info(
-            f"Bound {mapping.action} -> topic={mapping.topic}, "
-            f"source={mapping.source}, index={mapping.index}, invert={mapping.invert}"
-        )
 
-        self.current_action_index += 1
-        self.last_bind_time = self.get_clock().now()
+# ── Calibration loop ──────────────────────────────────────────────────────────
 
-        if self.current_action_index >= len(self.actions_to_bind):
-            self._save_yaml(self.output_yaml)
-            self.get_logger().info(f"Saved mappings to: {self.output_yaml}")
-        else:
-            self._print_prompt()
+def calibrate() -> CalibrationResult:
+    pygame.init()
+    pygame.joystick.init()
 
-    def _detect_changed_control(self, topic: str) -> Optional[Candidate]:
-        """Find the strongest axis or button change for one topic.
+    count = pygame.joystick.get_count()
+    if count == 0:
+        print("\n[ERROR] No joysticks detected. Plug one in and retry.\n")
+        sys.exit(1)
 
-        Args:
-            topic: Topic name whose previous/latest messages should be compared.
+    sticks: List[pygame.joystick.Joystick] = []
+    for i in range(count):
+        js = pygame.joystick.Joystick(i)
+        js.init()
+        sticks.append(js)
 
-        Returns:
-            The best candidate control change, or `None` if nothing crossed the
-            detection thresholds.
-        """
-        prev_msg = self.previous[topic]
-        new_msg = self.latest[topic]
-        if prev_msg is None or new_msg is None:
-            return None
+    _banner(f"Detected {count} joystick(s)")
+    hardware: List[JoystickHardware] = []
+    for js in sticks:
+        role = "main" if js.get_id() == 0 else "aux"
+        hw = JoystickHardware(id=js.get_id(), role=role, topic=_topic_for(js.get_id()))
+        hardware.append(hw)
+        print(f"  [{js.get_id()}] {js.get_name()}  →  topic={hw.topic}  role={hw.role}")
 
-        best: Optional[Candidate] = None
+    result = CalibrationResult(num_joysticks=count, joysticks=hardware)
 
-        axis_count = min(len(prev_msg.axes), len(new_msg.axes))
-        for i in range(axis_count):
-            old = float(prev_msg.axes[i])
-            new = float(new_msg.axes[i])
-            delta = abs(new - old)
+    _banner("Calibration — follow the prompts")
+    print("  • Move / press the indicated control to bind it.")
+    print("  • Press Enter (or type 's' + Enter) to SKIP an action.")
+    print()
 
-            # Prefer the largest absolute movement so noisy axes lose to the
-            # control the operator intentionally moved.
-            if delta > self.axis_threshold:
-                cand = Candidate(topic=topic, source="axis", index=i, value=new, score=delta)
-                if best is None or cand.score > best.score:
-                    best = cand
+    for action, expected_source, instruction in ACTIONS:
 
-        button_count = min(len(prev_msg.buttons), len(new_msg.buttons))
-        for i in range(button_count):
-            old = int(prev_msg.buttons[i])
-            new = int(new_msg.buttons[i])
-            if old == 0 and new == 1:
-                # Buttons are scored separately because they have no analog
-                # delta; rising edges represent an intentional press.
-                cand = Candidate(
-                    topic=topic,
-                    source="button",
-                    index=i,
-                    value=1.0,
-                    score=self.button_score,
-                )
-                if best is None or cand.score > best.score:
-                    best = cand
+        print(f"\n  ┌─ ACTION : {action.upper()}")
+        print(f"  │  {instruction}")
+        print(f"  │  (Enter / s = skip this action)")
+        print(f"  └─ Waiting...", end="", flush=True)
 
-        return best
+        time.sleep(0.4)             # give the user time to read
+        _wait_release_all(sticks)   # make sure nothing is still held
 
-    def _save_yaml(self, path_str: str) -> None:
-        """Write the discovered mappings to a ROS parameter YAML file.
+        detected    = None
+        deadline    = None
 
-        Args:
-            path_str: Destination path for the YAML parameter file.
-        """
-        path = Path(path_str)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        while True:
+            if _user_typed_skip():
+                print(f"\r  └─ SKIPPED {action}                              ")
+                detected = None
+                break
 
-        data = {
-            "joystick_logic_node": {
-                "ros__parameters": {
-                    "mappings": [asdict(m) for m in self.mappings]
-                }
-            }
-        }
+            if expected_source == "axis":
+                hit = _detect_axis(sticks)
 
-        with path.open("w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, sort_keys=False)
+                if hit:
+                    js_id, ax_idx, val = hit
+                    if detected is None:
+                        # First time we see this candidate — start settle timer
+                        detected = hit
+                        deadline = time.monotonic() + SETTLE_SECS
+                        print(
+                            f"\r  └─ Candidate: joy_{js_id} axis {ax_idx} "
+                            f"val={val:+.2f}  hold still...",
+                            end="", flush=True,
+                        )
+                    if time.monotonic() >= deadline:
+                        print(
+                            f"\r  └─ BOUND ✓  joy_{js_id} axis {ax_idx} "
+                            f"val={val:+.2f}            "
+                        )
+                        break
 
+                else:
+                    # Stick released before settling — reset and wait again
+                    if detected is not None:
+                        detected = None
+                        deadline = None
+                        print(
+                            f"\r  └─ Released too early — try again...        ",
+                            end="", flush=True,
+                        )
+
+            elif expected_source == "button":
+                hit = _detect_button(sticks)
+                if hit:
+                    js_id, btn_idx = hit
+                    detected = hit
+                    print(f"\r  └─ BOUND ✓  joy_{js_id} button {btn_idx}             ")
+                    time.sleep(SETTLE_SECS)
+                    break
+
+            time.sleep(1 / POLL_HZ)
+
+        if detected is None:
+            continue  # skipped — do not add a mapping
+
+        if expected_source == "axis":
+            js_id, ax_idx, val = detected
+            result.axes.append(JoystickMapping(
+                action   = action,
+                topic    = _topic_for(js_id),
+                source   = "axis",
+                index    = ax_idx,
+                invert   = val < 0.0,   # auto-detect direction
+                deadzone = DEADZONE,
+                scale    = SCALE,
+            ))
+
+        elif expected_source == "button":
+            js_id, btn_idx = detected
+            result.buttons.append(JoystickMapping(
+                action   = action,
+                topic    = _topic_for(js_id),
+                source   = "button",
+                index    = btn_idx,
+                deadzone = DEADZONE,
+                scale    = SCALE,
+            ))
+
+    pygame.quit()
+    return result
+
+
+# ── YAML writer ───────────────────────────────────────────────────────────────
+
+def save_yaml(result: CalibrationResult, path: str | Path) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    data = {
+        "num_joysticks": result.num_joysticks,
+        "joysticks": [asdict(js) for js in result.joysticks],
+        "defaults": {"deadzone": DEADZONE, "scale": SCALE},
+        "axes":    [asdict(m) for m in result.axes],
+        "buttons": [asdict(m) for m in result.buttons],
+    }
+
+    with path.open("w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, sort_keys=False)
+
+    print(f"\n  ✔  Config saved → {path.resolve()}")
+
+
+# ── AI review ─────────────────────────────────────────────────────────────────
+
+def ai_review(yaml_path: str | Path) -> None:
+    """Read the saved YAML, send it to Claude, print and save the analysis."""
+    try:
+        import anthropic
+    except ImportError:
+        print("\n[AI Review] Install the package first:  pip install anthropic")
+        return
+
+    yaml_text = Path(yaml_path).read_text(encoding="utf-8")
+
+    prompt = f"""
+You are a robotics software engineer reviewing a joystick calibration config for
+an underwater ROV (remotely operated vehicle) called SLVROV.
+
+The config is consumed by a ROS 2 node (multi_joy_logic.py) that:
+  1. Subscribes to /joy_<id> topics (one per joystick).
+  2. Loads each JoystickMapping from this YAML.
+  3. Applies deadzone rescaling and scale multiplication to axis values.
+  4. Flips the sign when `invert: true`.
+  5. Routes the result to one of: forward, strafe, yaw, heave, roll,
+     claw_open, claw_close, claw_rotate, claw_tilt.
+  6. Feeds those values into a 6-thruster mixing matrix.
+
+Here is the calibration config that was just generated:
+
+```yaml
+{yaml_text}
+```
+
+Please do ALL four of the following:
+
+1. EXPLAIN — what each mapping does in plain English (one line per mapping).
+
+2. FLAG ISSUES — missing critical actions (forward/strafe/yaw/heave are
+   essential), duplicate axis indices on the same joystick, suspicious invert
+   values, or anything else that looks wrong.
+
+3. SUGGEST ADJUSTMENTS — deadzone or scale tweaks, axes that are conventionally
+   inverted for ROV piloting, or any other improvements.
+
+4. HOW TO TEST — step-by-step ROS 2 CLI commands (ros2 topic echo, ros2 run,
+   etc.) to verify each axis before putting the ROV in the water.
+
+Be specific and concise.
+"""
+
+    _banner("AI Config Review  (Claude)")
+    print("  Sending config to Claude for analysis...\n")
+
+    client   = anthropic.Anthropic()   # reads ANTHROPIC_API_KEY from environment
+    response = client.messages.create(
+        model      = "claude-sonnet-4-20250514",
+        max_tokens = 1500,
+        messages   = [{"role": "user", "content": prompt}],
+    )
+
+    review_text = response.content[0].text
+    print(review_text)
+
+    review_path = Path(yaml_path).with_suffix(".review.txt")
+    review_path.write_text(review_text, encoding="utf-8")
+    print(f"\n  ✔  Review saved → {review_path.resolve()}")
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 def main() -> None:
-    rclpy.init()
-    node = MultiJoyCalibrator()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+    parser = argparse.ArgumentParser(description="SLVROV joystick calibrator")
+    parser.add_argument("--out",   default=DEFAULT_OUTPUT,
+                        help="Output YAML path (default: joy_config.yaml)")
+    parser.add_argument("--no-ai", action="store_true",
+                        help="Skip the Claude AI review step")
+    args = parser.parse_args()
+
+    _banner("SLVROV Joystick Calibrator")
+
+    result  = calibrate()
+    total   = len(result.axes) + len(result.buttons)
+    skipped = len(ACTIONS) - total
+
+    _banner(f"Calibration complete — {total} bound, {skipped} skipped")
+    save_yaml(result, args.out)
+
+    if not args.no_ai:
+        ai_review(args.out)
+    else:
+        print("\n  [AI Review skipped — omit --no-ai to enable it]")
 
 
 if __name__ == "__main__":
