@@ -136,6 +136,10 @@ class PinConfigsClient(Node):
                                 self.get_logger().warning(f"Invalid pin number: {pin}. Pins must be between 0 and 15.")
                                 continue
 
+                        if len(pins) != len(set(pins)):
+                            self.get_logger().warning("Pin list cannot contain duplicates.")
+                            continue
+
                         self.get_logger().info("Enter minimum PWM value (integer):")
                         minimum = int(input().strip())
 
