@@ -1,11 +1,11 @@
 
 import rclpy
 from rclpy.executors import ExternalShutdownException
-from rclpy.example_interfaces.srv import SetString
 from rclpy.node import Node
 
 from slvrov_tools.pca9685 import *
 from slvrov_interfaces.msg import PCA9685Command
+from slvrov_interfaces.srv import String
 
 # PCA9685Command
 # string[] id e.g. ["thruster_1", "thruster_2"]
@@ -35,7 +35,7 @@ class PCA9685Node(Node):
         self.pin_configs = None
         self.retrieve_pin_configs()
 
-        self.create_service(SetString, "pca9685_node_actions", self.node_actions_callback)
+        self.create_service(String, "pca9685_node_actions", self.node_actions_callback)
         self.pca9685_command_subscription = self.create_subscription(PCA9685Command, "pca9685_command", self.pca9685_command_callback, 10)
 
     def retrieve_pin_configs(self):

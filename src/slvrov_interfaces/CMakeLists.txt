@@ -13,6 +13,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 	"msg/PCA9685Command.msg"
   "srv/AddPCA9685PinConfigs.srv"
   "srv/GetPCA9685PinConfigs.srv"
+  "srv/String"
 )
 
 ament_export_dependencies(rosidl_default_runtime)
