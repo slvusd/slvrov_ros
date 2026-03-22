@@ -309,12 +309,12 @@ class JoystickLogicNode(Node):
         self.declare_parameter(
             "mixing_matrix",
             [
-                [1.0,  1.0, -1.0,  0.0,  0.0],
-                [1.0, -1.0,  1.0,  0.0,  0.0],
-                [1.0, -1.0, -1.0,  0.0,  0.0],
-                [1.0,  1.0,  1.0,  0.0,  0.0],
-                [0.0,  0.0,  0.0, -1.0,  1.0],
-                [0.0,  0.0,  0.0, -1.0, -1.0],
+                1.0,  1.0, -1.0,  0.0,  0.0,
+                1.0, -1.0,  1.0,  0.0,  0.0,
+                1.0, -1.0, -1.0,  0.0,  0.0,
+                1.0,  1.0,  1.0,  0.0,  0.0,
+                0.0,  0.0,  0.0, -1.0,  1.0,
+                0.0,  0.0,  0.0, -1.0, -1.0,
             ],
         )
         self.declare_parameter("thruster_inversions", [1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
@@ -345,7 +345,7 @@ class JoystickLogicNode(Node):
         self._validate_mappings(self.mappings)
 
         axis_gains = np.array(self.get_parameter("axis_gains").value, dtype=float)
-        mixing_matrix = np.array(self.get_parameter("mixing_matrix").value, dtype=float)
+        mixing_matrix = np.array(self.get_parameter("mixing_matrix").value, dtype=float).reshape(6,5)
         thruster_inversions = np.array(self.get_parameter("thruster_inversions").value, dtype=float)
 
         self.mapper = JoyMapper(self.mappings)
@@ -359,7 +359,7 @@ class JoystickLogicNode(Node):
         self.latest_joy: Dict[str, Optional[Joy]] = {topic: None for topic in self.joy_topics}
         self.last_joy_time: Dict[str, Optional[float]] = {topic: None for topic in self.joy_topics}
 
-        self.subscriptions = []
+        self.joy_subscriptions = []
         for topic in self.joy_topics:
             # Bind the current topic into the callback closure so each
             # subscription updates the correct slot in the latest-message table.
@@ -369,7 +369,7 @@ class JoystickLogicNode(Node):
                 lambda msg, t=topic: self._joy_callback(t, msg),
                 10,
             )
-            self.subscriptions.append(sub)
+            self.joy_subscriptions.append(sub)
 
         self.latest_control_state = ControlState()
         self.latest_thruster_outputs = np.zeros(mixing_matrix.shape[0], dtype=float)

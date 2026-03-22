@@ -54,5 +54,53 @@
     "minimum": 1100,
     "default": 1500,
     "maximum": 1900
+  },
+  "thruster_1": {
+    "pins": [
+      0
+    ],
+    "minimum": 1000,
+    "default": 1500,
+    "maximum": 2000
+  },
+  "thruster_2": {
+    "pins": [
+      1
+    ],
+    "minimum": 1000,
+    "default": 1500,
+    "maximum": 2000
+  },
+  "thruster_3": {
+    "pins": [
+      2
+    ],
+    "minimum": 1000,
+    "default": 1500,
+    "maximum": 2000
+  },
+  "thruster_4": {
+    "pins": [
+      3
+    ],
+    "minimum": 1000,
+    "default": 1500,
+    "maximum": 2000
+  },
+  "thruster_5": {
+    "pins": [
+      4
+    ],
+    "minimum": 1000,
+    "default": 1500,
+    "maximum": 2000
+  },
+  "thruster_6": {
+    "pins": [
+      5
+    ],
+    "minimum": 1000,
+    "default": 1500,
+    "maximum": 2000
   }
 }
