@@ -17,8 +17,29 @@ from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 
+from .unimplemented_features import DEFERRED_ACTIONS
+
 
 JOY_TOPIC_TYPE = "sensor_msgs/msg/Joy"
+
+# TODO: Add comments explaining each of the default constant for each parameter.
+JOYSTICK_CONFIGS_PATH = "joystick_configs.yaml"
+AXIS_THRESHOLD = 0.6
+BUTTON_SCORE = 1.25
+QUIET_SECONDS = 0.75
+SETTLE_SECONDS = 1.0
+DISCOVERY_PERIOD_SEC = 1.0
+BIND_ORDER = [
+    "forward",
+    "strafe",
+    "yaw",
+    "heave",
+    "roll",
+]
+SKIP_ACTIONS = []
+DEFAULT_DEADZONE = 0.10
+DEFAULT_SCALE = 1.0
+ALLOW_REUSE_CONTROLS = False
 
 
 class Action(str, Enum):
@@ -29,9 +50,6 @@ class Action(str, Enum):
     YAW = "yaw"
     HEAVE = "heave"
     ROLL = "roll"
-    CLAW_OPEN = "claw_open"
-    CLAW_ROTATE = "claw_rotate"
-    CLAW_TILT = "claw_tilt"
 
     @property
     def prompt(self) -> str:
@@ -48,12 +66,6 @@ class Action(str, Enum):
                 "Move the control you want to use for HEAVE upward.",
             Action.ROLL:
                 "Move the control you want to use for ROLL.",
-            Action.CLAW_OPEN:
-                "Press or move the control you want to use for CLAW_OPEN.",
-            Action.CLAW_ROTATE:
-                "Move the control you want to use for CLAW_ROTATE.",
-            Action.CLAW_TILT:
-                "Move the control you want to use for CLAW_TILT.",
         }
         return prompts[self]
 
@@ -111,60 +123,45 @@ class JoystickCalibrator(Node):
         """Initialize parameters, subscriptions, and calibration state."""
         super().__init__("joystick_calibrator")
 
+        #TODO: add docstring with parameters
         self.declare_parameter("joy_topics", [])
-        self.declare_parameter("joystick_configs_path", "joy_mappings.yaml")
-        self.declare_parameter("axis_threshold", 0.6)
-        self.declare_parameter("button_score", 1.25)
-        self.declare_parameter("quiet_seconds", 0.75)
-        self.declare_parameter("settle_seconds", 1.0)
-        self.declare_parameter("discovery_period_sec", 1.0)
-        self.declare_parameter(
-            "bind_order",
-            [
-                "forward",
-                "strafe",
-                "yaw",
-                "heave",
-                "roll",
-                "claw_open",
-                "claw_rotate",
-                "claw_tilt",
-            ],
-        )
-        self.declare_parameter("skip_actions", [])
-        self.declare_parameter("default_deadzone", 0.10)
-        self.declare_parameter("default_scale", 1.0)
-        self.declare_parameter("allow_reuse_controls", False)
+        self.declare_parameter("joystick_configs_path", JOYSTICK_CONFIGS_PATH)
+        self.declare_parameter("axis_threshold", AXIS_THRESHOLD)
+        self.declare_parameter("button_score", BUTTON_SCORE)
+        self.declare_parameter("quiet_seconds", QUIET_SECONDS)
+        self.declare_parameter("settle_seconds", SETTLE_SECONDS)
+        self.declare_parameter("discovery_period_sec", DISCOVERY_PERIOD_SEC)
+        self.declare_parameter("bind_order", BIND_ORDER)
+        self.declare_parameter("skip_actions", SKIP_ACTIONS)
+        self.declare_parameter("default_deadzone", DEFAULT_DEADZONE)
+        self.declare_parameter("default_scale", DEFAULT_SCALE)
+        self.declare_parameter("allow_reuse_controls", ALLOW_REUSE_CONTROLS)
 
-        self.configured_joy_topics = [
-            str(topic) for topic in self.get_parameter("joy_topics").value
-        ]
+        # Read parameters and initialize runtime state.
+        self.configured_joy_topics = [str(topic) for topic in self.get_parameter("joy_topics").value]
         self.output_path = str(self.get_parameter("joystick_configs_path").value)
         self.axis_threshold = float(self.get_parameter("axis_threshold").value)
         self.button_score = float(self.get_parameter("button_score").value)
         self.quiet_seconds = float(self.get_parameter("quiet_seconds").value)
         self.settle_seconds = float(self.get_parameter("settle_seconds").value)
-        self.discovery_period_sec = float(
-            self.get_parameter("discovery_period_sec").value
-        )
-        self.default_deadzone = float(
-            self.get_parameter("default_deadzone").value
-        )
+        self.discovery_period_sec = float(self.get_parameter("discovery_period_sec").value)
+        self.default_deadzone = float(self.get_parameter("default_deadzone").value)
         self.default_scale = float(self.get_parameter("default_scale").value)
-        self.allow_reuse_controls = bool(
-            self.get_parameter("allow_reuse_controls").value
-        )
+        self.allow_reuse_controls = bool(self.get_parameter("allow_reuse_controls").value)
 
-        bind_order_raw = list(self.get_parameter("bind_order").value)
-        skip_actions_raw = {
-            Action(action_name)
-            for action_name in self.get_parameter("skip_actions").value
-        }
+        bind_order_raw = [action for action in self._normalize_configured_action_names(self.get_parameter("bind_order").value,"bind_order",)]
+      
+        skip_actions_raw = {Action(action_name) for action_name in self._normalize_configured_action_names(self.get_parameter("skip_actions").value,"skip_actions",)}
+        
         self.actions_to_bind = [
             Action(action_name)
             for action_name in bind_order_raw
             if Action(action_name) not in skip_actions_raw
         ]
+        self.skipped_actions_configured = sorted(
+            action.value for action in skip_actions_raw
+        )
+        self.skipped_actions_runtime: List[str] = []
 
         self.joy_topics: List[str] = []
         self.joy_subscriptions: Dict[str, object] = {}
@@ -203,6 +200,11 @@ class JoystickCalibrator(Node):
             "action, 'undo' to remove the last binding, or 'quit' to save "
             "progress and exit."
         )
+        if self.skipped_actions_configured:
+            self.get_logger().info(
+                "Actions skipped by configuration: "
+                f"{self.skipped_actions_configured}"
+            )
 
         if not self.actions_to_bind:
             self.get_logger().info(
@@ -223,18 +225,43 @@ class JoystickCalibrator(Node):
             try:
                 line = input()
                 self.command_queue.put(line.strip().lower())
+
             except EOFError:
                 self.get_logger().info("End of input reached. Exiting...")
                 self.shutdown_command_prompt = True
+
             except Exception as exception:
                 self.get_logger().error(
                     f"An unexpected command prompt error occurred: {exception}"
                 )
 
+    def _normalize_configured_action_names(self,raw_values: List[object],parameter_name: str,) -> List[str]:
+        """Normalize configured action names and ignore deferred ones."""
+        names = [str(value) for value in raw_values]
+        deferred = sorted(set(names) & set(DEFERRED_ACTIONS))
+        if deferred:
+            self.get_logger().warning(
+                f"Ignoring deferred action(s) in parameter '{parameter_name}': "
+                f"{deferred}"
+            )
+
+        active_action_names = {action.value for action in Action}
+        normalized: List[str] = []
+        for name in names:
+            if name in DEFERRED_ACTIONS:
+                continue
+            if name not in active_action_names:
+                raise ValueError(
+                    f"Unsupported action '{name}' in parameter "
+                    f"'{parameter_name}'"
+                )
+            normalized.append(name)
+
+        return normalized
+
     def _refresh_joy_subscriptions(self) -> None:
         """Subscribe to the configured or discovered Joy topics."""
-        if self.finished:
-            return
+        if self.finished: return
 
         if self.configured_joy_topics:
             target_topics = list(dict.fromkeys(self.configured_joy_topics))
@@ -284,15 +311,12 @@ class JoystickCalibrator(Node):
 
     def _tick(self) -> None:
         """Drive the calibration state machine."""
-        if self.finished:
-            return
+        if self.finished: return
 
         self._handle_user_commands()
-        if self.finished:
-            return
+        if self.finished: return
 
-        if not self.joy_topics:
-            return
+        if not self.joy_topics: return
 
         if not self._has_any_messages():
             if not self.waiting_for_messages_logged:
@@ -311,8 +335,8 @@ class JoystickCalibrator(Node):
 
         now_sec = self._now_sec()
         if not self.prompt_active:
-            if now_sec < self.next_prompt_not_before_sec:
-                return
+            if now_sec < self.next_prompt_not_before_sec: return
+
             self._start_current_prompt()
             return
 
@@ -330,8 +354,8 @@ class JoystickCalibrator(Node):
         while True:
             try:
                 command = self.command_queue.get_nowait()
-            except Empty:
-                return
+
+            except Empty: return
 
             if command in {"", "help", "h", "?"}:
                 self.get_logger().info(
@@ -340,9 +364,10 @@ class JoystickCalibrator(Node):
                 continue
 
             if command in {"skip", "s"}:
-                if self.current_action_index >= len(self.actions_to_bind):
-                    continue
+                if self.current_action_index >= len(self.actions_to_bind): continue
+
                 action = self.actions_to_bind[self.current_action_index]
+                self.skipped_actions_runtime.append(action.value)
                 self.get_logger().info(f"Skipped action: {action.value}")
                 self._advance_to_next_prompt()
                 continue
@@ -559,6 +584,16 @@ class JoystickCalibrator(Node):
             self.get_logger().info(
                 f"Saved {len(self.mappings)} mapping(s) to {self.output_path}"
             )
+            if self.skipped_actions_configured:
+                self.get_logger().info(
+                    "Configured skipped actions were not persisted to disk yet: "
+                    f"{self.skipped_actions_configured}"
+                )
+            if self.skipped_actions_runtime:
+                self.get_logger().info(
+                    "Runtime-skipped actions were not persisted to disk yet: "
+                    f"{sorted(set(self.skipped_actions_runtime))}"
+                )
 
         self.shutdown_command_prompt = True
         self.finished = True

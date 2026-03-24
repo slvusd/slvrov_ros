@@ -18,7 +18,7 @@ Subscriptions
 ─────────────
   /thruster_command   (slvrov_interfaces/msg/PCA9685Command)
       Published by joystick_logic_node with normalised [-1, 1] floats
-      and logical IDs (thruster_1..N, claw, rotate, tilt).
+      and logical IDs (thruster_1..N).
  
 Publications
 ────────────

@@ -1,205 +1,67 @@
 # Joystick Calibration
 
-This document explains how joystick calibration works in the ROS 2 stack and
-what each structure in the calibrator is responsible for.
+This document explains the node implemented in
+`/src/slvrov_nodes_python/slvrov_nodes_python/joystick_calibrator.py`.
 
 ## Purpose
 
-The joystick calibrator exists so the ROV control system does not have to assume
-that every controller uses the same axis numbers, button numbers, or even the
-same number of connected joysticks.
+The joystick calibrator discovers which joystick topic and axis/button should be
+used for each logical ROV action, then saves that result to disk.
 
-It listens to one or more `sensor_msgs/msg/Joy` topics, asks the operator to
-move the control they want for each logical action, detects which physical
-axis/button moved the most, and saves that mapping to a YAML or JSON file.
+It supports:
 
-The joystick logic node then reads that saved file and uses it to reconstruct
-the logical control state for the ROV.
+- one or multiple joystick topics
+- axis or button bindings
+- skipping actions during calibration
+- saving the resulting mapping file for reuse
 
-## Step-By-Step Calibration Flow
-
-1. The `joystick_calibrator` node starts and reads its parameters.
-2. It decides which logical actions should be calibrated.
-   Skipped actions are removed from the calibration order.
-3. It subscribes to joystick topics.
-   If `joy_topics` is provided, it uses those topics.
-   If `joy_topics` is empty, it discovers all active `Joy` topics.
-4. It starts a background command thread for terminal commands such as
-   `skip`, `undo`, and `quit`.
-5. It waits until at least one joystick message has been received.
-6. For the current logical action, it captures a baseline snapshot of every
-   active joystick topic.
-7. It prompts the operator to move the control they want for that action.
-8. As new `Joy` messages arrive, it compares them with the baseline:
-   axis movement is measured by absolute change from the baseline value, and
-   buttons are detected on a rising edge from `0` to `1`.
-9. It keeps the strongest candidate control for each physical axis/button.
-10. Once movement has crossed the threshold and then gone quiet for a short
-    period, it selects the strongest candidate as the binding.
-11. It stores the binding as a `JoystickMapping`.
-12. It waits briefly so the operator can release the previous control, then
-    repeats the process for the next action.
-13. When all requested actions are done, or when the operator quits, it saves
-    the calibration result to disk.
-14. The `joystick_logic_node` can then read that file and use the saved
-    `joy_topics` and `mappings` to interpret joystick input.
-
-## Function Flow
+## Flow
 
 ```mermaid
 flowchart TD
-    A["JoystickCalibrator.__init__"] --> B["Declare parameters and build action list"]
-    B --> C["Start terminal command thread"]
-    C --> D["Create discovery timer and calibration timer"]
-    D --> E["_refresh_joy_subscriptions"]
-    E --> F["Subscribe to configured or discovered Joy topics"]
-    F --> G["_joy_callback stores latest and previous Joy messages"]
-    G --> H["_tick runs calibration state machine"]
-    H --> I{"Any user command?"}
-    I -- "skip / undo / quit" --> J["_handle_user_commands"]
-    J --> H
-    I -- "no" --> K{"Any Joy topics and messages yet?"}
-    K -- "no" --> H
-    K -- "yes" --> L{"Prompt active?"}
-    L -- "no" --> M["_start_current_prompt"]
-    M --> N["Capture JoySnapshot baselines and print prompt"]
-    N --> H
-    L -- "yes" --> O["_update_candidates"]
-    O --> P["_best_candidate"]
-    P --> Q{"Candidate ready?"}
-    Q -- "no" --> H
-    Q -- "yes" --> R["_bind_candidate"]
-    R --> S["_advance_to_next_prompt"]
-    S --> H
-    H --> T{"All actions done or quit requested?"}
-    T -- "yes" --> U["_finish"]
-    U --> V["_save_output writes joy_topics and mappings"]
+    A["Start joystick_calibrator"] --> B["Read parameters"]
+    B --> C["Build action list"]
+    C --> D["Remove configured skip_actions from bind order"]
+    D --> E["Subscribe to configured or discovered Joy topics"]
+    E --> F["Wait for Joy messages"]
+    F --> G["Prompt for the current action"]
+    G --> H["Track strongest axis/button candidate"]
+    H --> I{"Candidate stable enough?"}
+    I -- "no" --> G
+    I -- "yes" --> J["Save JoystickMapping in memory"]
+    J --> K{"More actions?"}
+    K -- "yes" --> G
+    K -- "no" --> L["Write joy_topics + mappings to disk"]
 ```
 
-## Structures
+## Skipped Actions
 
-### `Action`
+There are two ways actions can be skipped today:
 
-Purpose: Defines the list of logical control actions the vehicle understands.
+- preconfigured skip list through `skip_actions`
+- operator-entered `skip` command during calibration
 
-Short explanation:
-- It is an enum of actions such as `forward`, `strafe`, `yaw`, and claw
-  controls.
-- Each action also knows how to describe itself to the operator through a
-  prompt string.
+Both are now logged clearly. The current on-disk YAML stays unchanged and only
+stores:
 
-### `JoystickMapping`
+- `joy_topics`
+- `mappings`
 
-Purpose: Stores one final calibrated binding from a physical control to a
-logical action.
-
-Short explanation:
-- `action`: the logical function, such as `forward`.
-- `topic`: which joystick topic produced the input.
-- `source`: whether the input is an `axis` or `button`.
-- `index`: the axis index or button index in the `Joy` message.
-- `invert`: whether the logical direction should be flipped.
-- `deadzone`: axis deadzone to apply later in the logic node.
-- `scale`: multiplier used later in the logic node.
-
-### `JoySnapshot`
-
-Purpose: Captures the joystick state at the start of one calibration step.
-
-Short explanation:
-- It stores the baseline axis and button values before the operator moves
-  anything.
-- Later joystick messages are compared against this snapshot to measure motion.
-
-### `Candidate`
-
-Purpose: Tracks the strongest detected movement for one physical control during
-the current calibration prompt.
-
-Short explanation:
-- It identifies a control by `topic`, `source`, and `index`.
-- `score` measures how strong the movement was.
-- `value` stores the signed axis change or button press value.
-- The best candidate becomes the final mapping for the current action.
-
-### `JoystickCalibrator`
-
-Purpose: Orchestrates the full interactive calibration process.
-
-Short explanation:
-- It owns subscriptions to one or more joystick topics.
-- It manages prompt timing, baseline capture, movement detection, and saving.
-- It also manages the terminal command thread for operator commands.
-
-Recent note:
-- The output file parameter is now named `joystick_configs_path`.
-
-## Important Internal Methods
-
-### `_refresh_joy_subscriptions`
-
-Purpose: Finds and subscribes to joystick topics.
-
-Short explanation:
-- Supports either explicit topic configuration or automatic discovery.
-- Allows calibration to work with one or multiple joysticks.
-
-### `_joy_callback`
-
-Purpose: Receives live joystick messages.
-
-Short explanation:
-- Stores the latest message for each topic.
-- Updates movement candidates while a calibration prompt is active.
-
-### `_tick`
-
-Purpose: Runs the calibration state machine.
-
-Short explanation:
-- Waits for joystick input.
-- Starts prompts.
-- Checks whether a candidate is strong enough and stable enough to bind.
-- Finishes and saves when all actions are complete.
-
-### `_update_candidates`
-
-Purpose: Measures movement relative to the baseline snapshot.
-
-Short explanation:
-- For axes, it measures absolute deviation from baseline.
-- For buttons, it detects a rising edge press.
-- It keeps the strongest movement for each physical control.
-
-### `_bind_candidate`
-
-Purpose: Converts the best detected movement into a saved mapping.
-
-Short explanation:
-- It creates a `JoystickMapping`.
-- It determines whether the axis should be inverted.
-- It stores the binding and advances to the next action.
-
-### `_save_output`
-
-Purpose: Writes the calibration result to disk.
-
-Short explanation:
-- Saves `joy_topics` and `mappings`.
-- Supports YAML or JSON based on file extension.
-- The output file is meant to be loaded by the joystick logic node.
+Skipped actions are not persisted yet. Deferred profile ideas now live in
+`/src/slvrov_nodes_python/slvrov_nodes_python/unimplemented_features.py`
+instead of inside the active node file.
 
 ## Saved File Shape
 
-The calibrator writes a simple structure like this:
+The calibrator still writes the existing simple shape:
 
 ```yaml
 joy_topics:
-  - /joy
-  - /joy1
+  - /joy_left
+  - /joy_right
 mappings:
   - action: forward
-    topic: /joy
+    topic: /joy_left
     source: axis
     index: 1
     invert: true
@@ -207,27 +69,31 @@ mappings:
     scale: 1.0
 ```
 
-## Runtime Commands
+## Operator Commands
 
-While calibration is running, the operator can type:
+While calibration is running:
 
-- `skip`: skip the current logical action
-- `undo`: remove the last saved binding
-- `quit`: save current progress and exit
+- `skip`: skip the current action
+- `undo`: remove the last saved mapping
+- `quit`: save progress and exit
 
-## Usage
+## Deferred Work
 
-Example:
+Planned but intentionally not enabled in this pass:
 
-```bash
-ros2 run slvrov_nodes_python joystick_calibrator --ros-args \
-  -p joy_topics:="[/joy_left,/joy_right]" \
-  -p joystick_configs_path:=/absolute/path/to/joy_mappings.yaml
-```
+- persisting `skipped_actions`
+- multiple bindings per logical action
+- button-fallback metadata
+- claw calibration support
 
-## Why This Design Works
+## Rationale
 
-- It supports different controller models without hardcoding axis numbers.
-- It supports one joystick or multiple joystick topics.
-- It allows optional actions such as `roll` to be skipped.
-- It persists calibration so the rest of the control pipeline can stay simple.
+- The file shape is kept stable so existing logic-node loading and operator
+  habits continue to work.
+- Skipped actions are logged now even though they are not yet persisted, because
+  the safety behavior in the logic node already benefits from better operator
+  visibility.
+- Future YAML edits are deferred because changing the profile format before the
+  arbitration logic exists would create a half-finished contract.
+- Claw actions were removed from the active calibrator so the live calibration
+  flow only covers implemented vehicle controls.
