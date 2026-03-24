@@ -44,6 +44,38 @@ the logical control state for the ROV.
 14. The `joystick_logic_node` can then read that file and use the saved
     `joy_topics` and `mappings` to interpret joystick input.
 
+## Function Flow
+
+```mermaid
+flowchart TD
+    A["JoystickCalibrator.__init__"] --> B["Declare parameters and build action list"]
+    B --> C["Start terminal command thread"]
+    C --> D["Create discovery timer and calibration timer"]
+    D --> E["_refresh_joy_subscriptions"]
+    E --> F["Subscribe to configured or discovered Joy topics"]
+    F --> G["_joy_callback stores latest and previous Joy messages"]
+    G --> H["_tick runs calibration state machine"]
+    H --> I{"Any user command?"}
+    I -- "skip / undo / quit" --> J["_handle_user_commands"]
+    J --> H
+    I -- "no" --> K{"Any Joy topics and messages yet?"}
+    K -- "no" --> H
+    K -- "yes" --> L{"Prompt active?"}
+    L -- "no" --> M["_start_current_prompt"]
+    M --> N["Capture JoySnapshot baselines and print prompt"]
+    N --> H
+    L -- "yes" --> O["_update_candidates"]
+    O --> P["_best_candidate"]
+    P --> Q{"Candidate ready?"}
+    Q -- "no" --> H
+    Q -- "yes" --> R["_bind_candidate"]
+    R --> S["_advance_to_next_prompt"]
+    S --> H
+    H --> T{"All actions done or quit requested?"}
+    T -- "yes" --> U["_finish"]
+    U --> V["_save_output writes joy_topics and mappings"]
+```
+
 ## Structures
 
 ### `Action`
@@ -98,6 +130,9 @@ Short explanation:
 - It owns subscriptions to one or more joystick topics.
 - It manages prompt timing, baseline capture, movement detection, and saving.
 - It also manages the terminal command thread for operator commands.
+
+Recent note:
+- The output file parameter is now named `joystick_configs_path`.
 
 ## Important Internal Methods
 
@@ -179,6 +214,16 @@ While calibration is running, the operator can type:
 - `skip`: skip the current logical action
 - `undo`: remove the last saved binding
 - `quit`: save current progress and exit
+
+## Usage
+
+Example:
+
+```bash
+ros2 run slvrov_nodes_python joystick_calibrator --ros-args \
+  -p joy_topics:="[/joy_left,/joy_right]" \
+  -p joystick_configs_path:=/absolute/path/to/joy_mappings.yaml
+```
 
 ## Why This Design Works
 
