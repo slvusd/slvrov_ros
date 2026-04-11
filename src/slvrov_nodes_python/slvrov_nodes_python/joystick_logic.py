@@ -300,7 +300,7 @@ class JoystickLogicNode(Node):
         """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
-        self.declare_parameter("joy_topics", [])
+        self.declare_parameter("joy_topics", ["/js0", "/js1"])
         self.declare_parameter("loop_rate_hz", 50.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
         self.declare_parameter("log_debug", True)
@@ -325,6 +325,7 @@ class JoystickLogicNode(Node):
         self.joy_timeout_sec = float(self.get_parameter("joy_timeout_sec").value)
         self.log_debug = bool(self.get_parameter("log_debug").value)
 
+        # NOTE TO_SELF: whittle this down later
         mapping_file = str(self.get_parameter("mapping_file").value).strip()
         configured_topics = [
             str(topic) for topic in self.get_parameter("joy_topics").value
@@ -357,6 +358,7 @@ class JoystickLogicNode(Node):
             thruster_inversions=thruster_inversions,
         )
         self.claw = ClawController()
+
         self.thruster_pub = self.create_publisher(PCA9685Command, "thruster_command", 10)
         self.latest_joy: Dict[str, Optional[Joy]] = {topic: None for topic in self.joy_topics}
         self.last_joy_time: Dict[str, Optional[float]] = {topic: None for topic in self.joy_topics}
@@ -393,6 +395,7 @@ class JoystickLogicNode(Node):
         """
         self.latest_joy[topic] = msg
         self.last_joy_time[topic] = self.get_clock().now().nanoseconds / 1e9
+
     def _build_command(self, pwm: list, claw: dict) -> PCA9685Command:
         """Pack computed outputs into a PCA9685Command message.
  
@@ -407,6 +410,8 @@ class JoystickLogicNode(Node):
         Returns:
             Packed PCA9685Command ready to publish on /thruster_command.
         """
+
+        # TODO: add docs for this
         def norm(p: int, mid: int = 1500, half: int = 400) -> float:
             return float(max(-1.0, min(1.0, (p - mid) / half)))
         
@@ -414,6 +419,7 @@ class JoystickLogicNode(Node):
         msg.id  = [f"thruster_{i+1}" for i in range(len(pwm))] + list(claw.keys())
         msg.pwm = [norm(p) for p in pwm] + [norm(v) for v in claw.values()]
         return msg
+    
     @staticmethod
     def _load_mapping_file(path_str: str) -> tuple[List[str], List[dict]]:
         """Load joystick topics and mappings from JSON or YAML."""

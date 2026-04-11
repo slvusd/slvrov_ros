@@ -1,0 +1,27 @@
+/godzillah/js0:
+    ros__parameters:
+      device_id: 0
+
+/godzillah/js1:
+    ros__parameters:
+      device_id: 1
+
+/godzillah/js_logic:
+    ros__parameters:
+      joy_topics: ["/js0", "/js1"]
+      loop_rate_hz: 50.0
+      joy_timeout_sec: 0.25
+      log_debug: true
+      mapping_file: "joy_mappings.yaml"
+      axis_gains: [1.0, 1.0, 1.0, 1.0, 1.0]
+      mixing_matrix:
+          [
+              1.0,  1.0, -1.0,  0.0,  0.0,
+              1.0, -1.0,  1.0,  0.0,  0.0,
+              1.0, -1.0, -1.0,  0.0,  0.0,
+              1.0,  1.0,  1.0,  0.0,  0.0,
+              0.0,  0.0,  0.0, -1.0,  1.0,
+              0.0,  0.0,  0.0, -1.0, -1.0,
+          ]
+      thruster_inversions: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+      

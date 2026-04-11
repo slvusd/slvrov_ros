@@ -36,7 +36,9 @@ class PCA9685Node(Node):
         self.retrieve_pin_configs()
 
         self.create_service(String, "pca9685_node_actions", self.node_actions_callback)
-        self.pca9685_command_subscription = self.create_subscription(PCA9685Command, "pca9685_command", self.pca9685_command_callback, 10)
+
+        # match subscription to param
+        self.pca9685_command_subscription = self.create_subscription(PCA9685Command, "thruster_command", self.pca9685_command_callback, 10)
 
     def retrieve_pin_configs(self):
         """Load the persisted PCA9685 pin configuration mapping from disk."""
