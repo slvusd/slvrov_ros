@@ -39,7 +39,7 @@ class ControlState:
     claw_open: float = 0.0
     claw_rotate: float = 0.0
     claw_tilt: float = 0.0
-
+    camera_sway: float = 0.0
 
 class JoyMapper:
     """Convert raw Joy messages into a merged logical control state."""
@@ -160,6 +160,8 @@ class JoyMapper:
                 state.claw_rotate = value
             elif mapping.action == "claw_tilt":
                 state.claw_tilt = value
+            elif mapping.action == "camera":
+                state.camera = value
             else:
                 raise ValueError(f"Unsupported action: {mapping.action}")
 
