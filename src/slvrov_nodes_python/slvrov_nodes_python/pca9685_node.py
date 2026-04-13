@@ -25,6 +25,7 @@ class PCA9685Node(Node):
         # Keep the hardware update rate configurable so the same node can drive
         # servos or ESCs that expect different PWM frequencies.
         self.declare_parameter("frequency_hz", 50)
+        # TODO: add param that specifies topic to subscribe to
         self.frequency = self.get_parameter("frequency_hz").value
 
         self.pca9685 = None
@@ -36,6 +37,8 @@ class PCA9685Node(Node):
         self.retrieve_pin_configs()
 
         self.create_service(String, "pca9685_node_actions", self.node_actions_callback)
+
+        # match subscription to param
         self.pca9685_command_subscription = self.create_subscription(PCA9685Command, "pca9685_command", self.pca9685_command_callback, 10)
 
     def retrieve_pin_configs(self):
