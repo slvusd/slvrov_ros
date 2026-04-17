@@ -1,52 +1,4 @@
 {
-  "top_left": {
-    "pins": [
-      4
-    ],
-    "minimum": 1000,
-    "default": 1500,
-    "maximum": 2000
-  },
-  "top_right": {
-    "pins": [
-      5
-    ],
-    "minimum": 1000,
-    "default": 1500,
-    "maximum": 2000
-  },
-  "front_left": {
-    "pins": [
-      0
-    ],
-    "minimum": 1000,
-    "default": 1500,
-    "maximum": 2000
-  },
-  "front_right": {
-    "pins": [
-      1
-    ],
-    "minimum": 1000,
-    "default": 1500,
-    "maximum": 2000
-  },
-  "back_left": {
-    "pins": [
-      2
-    ],
-    "minimum": 1000,
-    "default": 1500,
-    "maximum": 2000
-  },
-  "back_right": {
-    "pins": [
-      3
-    ],
-    "minimum": 1000,
-    "default": 1500,
-    "maximum": 2000
-  },
   "camera_servo": {
     "pins": [
       7
@@ -97,10 +49,34 @@
   },
   "thruster_6": {
     "pins": [
-      5
+      15
     ],
     "minimum": 1000,
     "default": 1500,
     "maximum": 2000
+  },
+  "claw": {
+    "pins": [
+      9
+    ],
+    "minimum": 1100,
+    "default": 1500,
+    "maximum": 1900
+  },
+  "tilt": {
+    "pins": [
+      10
+    ],
+    "minimum": 1100,
+    "default": 1500,
+    "maximum": 1900
+  },
+  "rotate": {
+    "pins": [
+      9
+    ],
+    "minimum": 1100,
+    "default": 1500,
+    "maximum": 1900
   }
 }

@@ -81,7 +81,8 @@ class JoyMapper:
         Returns:
             The requested axis value or `0.0` when unavailable.
         """
-        if index < 0 or index >= len(msg.axes): return 0.0
+        # if index < 0 or index >= len(msg.axes): return 0.0
+	if index < 0 or index >= len(6): return 0 
         return float(msg.axes[index])
 
     @staticmethod
@@ -208,11 +209,11 @@ class ROVController:
         """
         return np.array(
             [
-                state.forward,
                 state.strafe,
+                state.forward,
                 state.yaw,
-                state.heave,
                 state.roll,
+                state.heave,
             ],
             dtype=float,
         ) * self.axis_gains
@@ -308,13 +309,13 @@ class JoystickLogicNode(Node):
         self.declare_parameter("axis_gains", [1.0, 1.0, 1.0, 1.0, 1.0])
         self.declare_parameter(
             "mixing_matrix",
-            [
-                1.0,  1.0, -1.0,  0.0,  0.0,
-                1.0, -1.0,  1.0,  0.0,  0.0,
-                1.0, -1.0, -1.0,  0.0,  0.0,
-                1.0,  1.0,  1.0,  0.0,  0.0,
-                0.0,  0.0,  0.0, -1.0,  1.0,
-                0.0,  0.0,  0.0, -1.0, -1.0,
+            [ #SRTF,FWD/BK,YAW,ROLL,HEAVE
+                1.0,  1.0, -1.0,  0.0,  0.0, #T1
+                -1.0, 1.0, 1.0,  0.0,  0.0, #T2
+                -1.0, 1.0, 1.0,  0.0,  0.0, #T3
+                1.0,  1.0, -1.0,  0.0,  0.0, #T4
+                0.0,  0.0,  0.0, 1.0,  1.0, #T5
+                0.0,  0.0,  0.0, -1.0, 1.0, #T6
             ],
         )
         self.declare_parameter("thruster_inversions", [1.0, 1.0, 1.0, 1.0, 1.0, 1.0])

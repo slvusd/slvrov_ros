@@ -6,7 +6,7 @@ mappings:
   topic: /joy_right
   source: axis
   index: 0
-  invert: false
+  invert: true
   deadzone: 0.1
   scale: 1.0
 - action: strafe
@@ -26,14 +26,14 @@ mappings:
 - action: heave
   topic: /joy_left
   source: axis
-  index: 0
-  invert: false
+  index: 2
+  invert: true
   deadzone: 0.1
   scale: 1.0
 - action: roll
   topic: /joy_left
   source: axis
-  index: 1
+  index: 0
   invert: false
   deadzone: 0.1
   scale: 1.0
