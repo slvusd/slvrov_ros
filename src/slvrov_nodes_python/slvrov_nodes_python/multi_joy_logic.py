@@ -81,8 +81,7 @@ class JoyMapper:
         Returns:
             The requested axis value or `0.0` when unavailable.
         """
-        # if index < 0 or index >= len(msg.axes): return 0.0
-	if index < 0 or index >= len(6): return 0 
+        if index < 0 or index >= len(msg.axes): return 0.0
         return float(msg.axes[index])
 
     @staticmethod
