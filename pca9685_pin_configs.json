@@ -49,7 +49,7 @@
   },
   "thruster_6": {
     "pins": [
-      15
+     5
     ],
     "minimum": 1000,
     "default": 1500,

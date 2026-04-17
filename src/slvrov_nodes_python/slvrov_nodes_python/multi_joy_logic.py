@@ -299,7 +299,7 @@ class JoystickLogicNode(Node):
         super().__init__("joystick_logic_node")
 
         self.declare_parameter("joy_topics", [])
-        self.declare_parameter("loop_rate_hz", 50.0)
+        self.declare_parameter("loop_rate_hz", 25.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
         self.declare_parameter("log_debug", True)
 
@@ -309,10 +309,10 @@ class JoystickLogicNode(Node):
         self.declare_parameter(
             "mixing_matrix",
             [ #SRTF,FWD/BK,YAW,ROLL,HEAVE
-                1.0,  1.0, -1.0,  0.0,  0.0, #T1
-                -1.0, 1.0, 1.0,  0.0,  0.0, #T2
-                -1.0, 1.0, 1.0,  0.0,  0.0, #T3
-                1.0,  1.0, -1.0,  0.0,  0.0, #T4
+                -1.0,  1.0, -1.0,  0.0,  0.0, #T1
+                1.0, 1.0, 1.0,  0.0,  0.0, #T2
+                1.0, 1.0, -1.0,  0.0,  0.0, #T3
+                -1.0,  1.0, 1.0,  0.0,  0.0, #T4
                 0.0,  0.0,  0.0, 1.0,  1.0, #T5
                 0.0,  0.0,  0.0, -1.0, 1.0, #T6
             ],

@@ -5,14 +5,14 @@ mappings:
 - action: forward
   topic: /joy_right
   source: axis
-  index: 0
-  invert: true
+  index: 1
+  invert: false
   deadzone: 0.1
   scale: 1.0
 - action: strafe
   topic: /joy_right
   source: axis
-  index: 1
+  index: 0
   invert: false
   deadzone: 0.1
   scale: 1.0
@@ -26,7 +26,7 @@ mappings:
 - action: heave
   topic: /joy_left
   source: axis
-  index: 2
+  index: 1
   invert: true
   deadzone: 0.1
   scale: 1.0
@@ -35,7 +35,7 @@ mappings:
   source: axis
   index: 0
   invert: false
-  deadzone: 0.1
+  deadzone: 0.25
   scale: 1.0
 - action: claw_open
   topic: /joy_right
