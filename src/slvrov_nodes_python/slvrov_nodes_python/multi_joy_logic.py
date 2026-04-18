@@ -412,7 +412,7 @@ class JoystickLogicNode(Node):
             return float(max(-1.0, min(1.0, (p - mid) / half)))
     
         msg     = PCA9685Command()
-        msg.id  = [f"thruster_{i+1}" for i in range(len(pwm))] + list(claw.keys()) + ["camera_servo"]
+        msg.id  = [f"thruster_{i+1}" for i in range(len(pwm))] + list(claw.keys()) + ["camera"]
         msg.pwm = [norm(p) for p in pwm] + [norm(v) for v in claw.values()] + [camera]
         return msg
     @staticmethod

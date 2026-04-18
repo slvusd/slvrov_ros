@@ -37,12 +37,12 @@ ssh pi@192.168.3.46 "
     export PYTHONPATH=/home/pi/venv/lib/python3.12/site-packages:$PYTHONPATH
     ros2 run joy joy_node --ros-args -r /joy:=/joy_left -p device_id:=0 &
     ros2 run joy joy_node --ros-args -r /joy:=/joy_right -p device_id:=1 &
-    ros2 run slvrov_nodes_python pca9685_pin_configs_server &
-    ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mappings.yaml &
 " &
 
 # Launch pca9685 node on Pi41 (ROV only)
-sleep 1
+ros2 run slvrov_nodes_python pca9685_pin_configs_server &
+ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mapping.yaml &
+ros2 run slvrov_nodes_python thruster_bridge & 
 ros2 run slvrov_nodes_python pca9685_node & PIDS+=($!)
 sleep 2
 
