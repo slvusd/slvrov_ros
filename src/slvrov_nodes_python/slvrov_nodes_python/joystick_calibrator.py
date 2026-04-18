@@ -129,6 +129,7 @@ class JoystickCalibrator(Node):
                 "claw_open",
                 "claw_rotate",
                 "claw_tilt",
+                "camera",
             ],
         )
         self.declare_parameter("skip_actions", [])

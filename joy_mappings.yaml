@@ -7,54 +7,62 @@ mappings:
   source: axis
   index: 1
   invert: false
-  deadzone: 0.1
+  deadzone: 0.3
   scale: 1.0
 - action: strafe
   topic: /joy_right
   source: axis
   index: 0
   invert: false
-  deadzone: 0.1
+  deadzone: 0.3
   scale: 1.0
 - action: yaw
   topic: /joy_right
   source: axis
   index: 2
   invert: true
-  deadzone: 0.1
+  deadzone: 0.
   scale: 1.0
 - action: heave
   topic: /joy_left
   source: axis
   index: 1
   invert: true
-  deadzone: 0.1
+  deadzone: 0.6
   scale: 1.0
 - action: roll
   topic: /joy_left
   source: axis
   index: 0
   invert: false
-  deadzone: 0.25
+  deadzone: 0.5
   scale: 1.0
 - action: claw_open
   topic: /joy_right
   source: button
   index: 0
   invert: false
-  deadzone: 0.1
+  deadzone: 0.3
   scale: 1.0
 - action: claw_rotate
+  topic: /joy_left
+  source: axis
+  index: 4
+  invert: false
+  deadzone: 0.3
+  scale: 1.0
+- action: claw_tilt
+  topic: /joy_left
+  source: axis
+  index: 5
+  invert: true
+  deadzone: 0.3
+  scale: 1.0
+- action: camera
   topic: /joy_right
   source: axis
   index: 4
   invert: false
-  deadzone: 0.1
+  deadzone: 0.0
   scale: 1.0
-- action: claw_tilt
-  topic: /joy_right
-  source: axis
-  index: 5
-  invert: true
-  deadzone: 0.1
-  scale: 1.0
+

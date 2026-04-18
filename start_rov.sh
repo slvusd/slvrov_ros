@@ -1,5 +1,15 @@
-#!/bin/bash
 
+#!/bin/bash
+echo "Cleaning up previous session..."
+pkill -f slvrov_nodes_python
+sleep 3
+
+# also kill any leftover joy nodes on the surface pi
+ssh pi@192.168.3.46 "pkill -f joy_node" 2>/dev/null || true
+sleep 1
+
+echo "Starting nodes..."
+# ... rest of script
 # Environment setup on Pi41 (ROV)
 export ROS_DOMAIN_ID=42
 export FASTRTPS_DEFAULT_PROFILES_FILE=/home/pi/fastdds_config.xml
@@ -32,9 +42,3 @@ sleep 2
 echo "All nodes started - monitoring /pca9685_command"
 echo ""
 
-# Poll and print one updating line
-while true; do
-    LINE=$(ros2 topic echo /pca9685_command --once  | grep -A1 "pwm:" | tail -1)
-    printf "\r PWM: %-60s" "$LINE"
-    sleep 0.1
-done

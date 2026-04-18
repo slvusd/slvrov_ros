@@ -57,7 +57,7 @@
   },
   "claw": {
     "pins": [
-      9
+      8
     ],
     "minimum": 1100,
     "default": 1500,
