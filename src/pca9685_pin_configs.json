@@ -1,0 +1,10 @@
+{
+  "thruster_6": {
+    "pins": [
+      15
+    ],
+    "minimum": 1000,
+    "default": 1500,
+    "maximum": 1600
+  }
+}
