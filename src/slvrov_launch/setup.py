@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'slvrov_nodes_python'
+package_name = 'slvrov_launch'
 
 setup(
     name=package_name,
@@ -10,10 +10,12 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + "/launch", ["launch/two_joystick_launch.py", "launch/test_launch.py"]),
+        ('share/' + package_name + "/config", ["config/two_joystick_launch.yaml", "config/test_launch.yaml"])
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='LegionaryOfLogic',
+    maintainer='iroh_ubuntu',
     maintainer_email='calebhof11@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
@@ -24,12 +26,6 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'joystick_calibrator=slvrov_nodes_python.joystick_calibrator:main',
-            'joystick_logic=slvrov_nodes_python.joystick_logic:main',
-            'pca9685_node=slvrov_nodes_python.pca9685_node:main',
-            'pca9685_pin_configs_server=slvrov_nodes_python.pca9685_pin_configs_server:main',
-            'pca9685_pin_configs_client=slvrov_nodes_python.pca9685_pin_configs_client:main',
-            'thruster_bridge=slvrov_nodes_python.thruster_bridge_node:main'
         ],
     },
 )
