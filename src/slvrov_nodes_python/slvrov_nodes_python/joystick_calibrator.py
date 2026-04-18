@@ -32,6 +32,7 @@ class Action(str, Enum):
     CLAW_OPEN = "claw_open"
     CLAW_ROTATE = "claw_rotate"
     CLAW_TILT = "claw_tilt"
+    CAMERA = "camera"
 
     @property
     def prompt(self) -> str:
@@ -54,6 +55,8 @@ class Action(str, Enum):
                 "Move the control you want to use for CLAW_ROTATE.",
             Action.CLAW_TILT:
                 "Move the control you want to use for CLAW_TILT.",
+            Action.CAMERA:
+                "Move the control for camera",
         }
         return prompts[self]
 
