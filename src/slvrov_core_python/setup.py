@@ -24,12 +24,11 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'joystick_calibrator=slvrov_nodes_python.joystick_calibrator:main',
+            'joystick_mapper=slvrov_nodes_python.joystick_mapper:main',
             'joystick_logic=slvrov_nodes_python.joystick_logic:main',
             'pca9685_node=slvrov_nodes_python.pca9685_node:main',
-            'pca9685_pin_configs_server=slvrov_nodes_python.pca9685_pin_configs_server:main',
-            'pca9685_pin_configs_client=slvrov_nodes_python.pca9685_pin_configs_client:main',
-            'thruster_bridge=slvrov_nodes_python.thruster_bridge_node:main'
+            'pin_mappings_server=slvrov_nodes_python.pin_mappings_server:main',
+            'pin_mappings_client=slvrov_nodes_python.pin_mappings_client:main',
         ],
     },
 )
