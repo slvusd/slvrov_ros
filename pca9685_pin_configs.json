@@ -67,9 +67,9 @@
     "pins": [
       10
     ],
-    "minimum": 1100,
+    "minimum": 1250,
     "default": 1500,
-    "maximum": 1900
+    "maximum": 1750
   },
   "rotate": {
     "pins": [

@@ -43,14 +43,8 @@ ssh pi@192.168.3.46 "
 ros2 run slvrov_nodes_python pca9685_pin_configs_server &
 ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mapping.yaml &
 ros2 run slvrov_nodes_python thruster_bridge & 
-=======
 sleep 1
-=======
 # Launch ROV nodes on Pi41
-  ros2 run slvrov_nodes_python pca9685_pin_configs_server & PIDS+=($!)
-  sleep 1
-  ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mappings.yaml & PIDS+=($!)
-"&
 ros2 run slvrov_nodes_python pca9685_node & PIDS+=($!)
 sleep 2
 

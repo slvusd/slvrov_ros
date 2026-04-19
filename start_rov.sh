@@ -1,44 +1,60 @@
-
 #!/bin/bash
-echo "Cleaning up previous session..."
-pkill -f slvrov_nodes_python
-sleep 3
 
-# also kill any leftover joy nodes on the surface pi
-ssh pi@192.168.3.46 "pkill -f joy_node" 2>/dev/null || true
-sleep 1
-
-echo "Starting nodes..."
-# ... rest of script
 # Environment setup on Pi41 (ROV)
 export ROS_DOMAIN_ID=42
 export FASTRTPS_DEFAULT_PROFILES_FILE=/home/pi/fastdds_config.xml
 
 source /opt/ros/jazzy/setup.bash
 source ~/slvrov_ros/install/setup.bash
-source ~/venv/bin/activate
+source venv/bin/activate
+export PYTHONPATH=/home/pi/venv/lib/python3.12/site-packages:$PYTHONPATH
 
-# Launch joy nodes on Pi46 (surface)
+PIDS=()
+
+cleanup() {
+    echo "Stopping all nodes..."
+    for PID in "${PIDS[@]}"; do
+        kill $PID 2>/dev/null
+    done
+    pkill -f slvrov_nodes_python
+    ssh pi@192.168.3.46 "pkill -f joy_node; pkill -f slvrov_nodes_python" 2>/dev/null || true
+    echo "Done."
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
+# Kill any previous session first
+pkill -f slvrov_nodes_python 2>/dev/null || true
+sleep 2
+
+# Launch joy nodes + logic nodes on Pi46 (surface)
 ssh pi@192.168.3.46 "
-  export ROS_DOMAIN_ID=42
-  export FASTRTPS_DEFAULT_PROFILES_FILE=/home/pi/fastdds_config.xml
-  source /opt/ros/jazzy/setup.bash
-  source ~/slvrov_ros/install/setup.bash
-  source ~/venv/bin/activate
-  ros2 run joy joy_node --ros-args -r /joy:=/joy_left -p device_id:=0 &
-  ros2 run joy joy_node --ros-args -r /joy:=/joy_right -p device_id:=1 &
+    export ROS_DOMAIN_ID=42
+    export FASTRTPS_DEFAULT_PROFILES_FILE=/home/pi/fastdds_config.xml
+    source /opt/ros/jazzy/setup.bash
+    source ~/slvrov_ros/install/setup.bash
+    source ~/venv/bin/activate
+    export PYTHONPATH=/home/pi/venv/lib/python3.12/site-packages:$PYTHONPATH
+    ros2 run joy joy_node --ros-args -r /joy:=/joy_left -p device_id:=0 &
+    ros2 run joy joy_node --ros-args -r /joy:=/joy_right -p device_id:=1 &
 " &
 
-sleep 1
-
-# Launch ROV nodes on Pi41
+# Launch pca9685 node on Pi41 (ROV only)
 ros2 run slvrov_nodes_python pca9685_pin_configs_server &
+ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mapping.yaml &
+ros2 run slvrov_nodes_python thruster_bridge & 
+=======
 sleep 1
-ros2 run slvrov_nodes_python pca9685_node &
-ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mappings.yaml &
-ros2 run slvrov_nodes_python thruster_bridge &
-
+=======
+# Launch ROV nodes on Pi41
+  ros2 run slvrov_nodes_python pca9685_pin_configs_server & PIDS+=($!)
+  sleep 1
+  ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mappings.yaml & PIDS+=($!)
+"&
+ros2 run slvrov_nodes_python pca9685_node & PIDS+=($!)
 sleep 2
-echo "All nodes started - monitoring /pca9685_command"
-echo ""
 
+echo "All nodes started. Press Ctrl+C to stop."
+echo "To monitor: ros2 topic echo /pca9685_command"
+
+wait

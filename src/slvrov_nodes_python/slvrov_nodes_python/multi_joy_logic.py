@@ -284,7 +284,7 @@ class ClawController:
         Returns:
             A mapping of claw actuator names to PWM targets.
         """
-        claw = self.neutral_pwm + int(round(np.clip(state.claw_open, -1.0, 1.0) * self.span))
+        claw = 1000 + 2 * int(round(np.clip(state.claw_open, -1.0, 1.0) * self.span))
         rotate = self.neutral_pwm + int(round(np.clip(state.claw_rotate, -1.0, 1.0) * self.span))
         tilt = self.neutral_pwm + int(round(np.clip(state.claw_tilt, -1.0, 1.0) * self.span))
         return {
