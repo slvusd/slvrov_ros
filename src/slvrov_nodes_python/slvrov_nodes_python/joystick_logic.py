@@ -39,7 +39,7 @@ class ControlState:
     claw_open: float = 0.0
     claw_rotate: float = 0.0
     claw_tilt: float = 0.0
-
+    camera_sway: float = 0.0
 
 class JoyMapper:
     """Convert raw Joy messages into a merged logical control state."""
@@ -160,6 +160,8 @@ class JoyMapper:
                 state.claw_rotate = value
             elif mapping.action == "claw_tilt":
                 state.claw_tilt = value
+            elif mapping.action == "camera":
+                state.camera = value
             else:
                 raise ValueError(f"Unsupported action: {mapping.action}")
 
@@ -298,11 +300,10 @@ class JoystickLogicNode(Node):
         """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
-        self.declare_parameter("joy_topics", [])
+        self.declare_parameter("joy_topics", ["/js0", "/js1"])
         self.declare_parameter("loop_rate_hz", 50.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
         self.declare_parameter("log_debug", True)
-        # TODO: add param that specifies topic to publish thruster commands to
 
         self.declare_parameter("mapping_file", "")
         self.declare_parameter("mappings", [])
@@ -358,7 +359,6 @@ class JoystickLogicNode(Node):
         )
         self.claw = ClawController()
 
-        # TODO: make it match param that will be added
         self.thruster_pub = self.create_publisher(PCA9685Command, "thruster_command", 10)
         self.latest_joy: Dict[str, Optional[Joy]] = {topic: None for topic in self.joy_topics}
         self.last_joy_time: Dict[str, Optional[float]] = {topic: None for topic in self.joy_topics}
