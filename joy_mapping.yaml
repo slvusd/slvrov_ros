@@ -20,7 +20,7 @@ mappings:
   topic: /joy_right
   source: axis
   index: 0
-  invert: false
+  invert: true
   deadzone: 0.1
   scale: 0.8
 - action: heave
