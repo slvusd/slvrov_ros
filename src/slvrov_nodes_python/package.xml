@@ -4,7 +4,7 @@
   <name>slvrov_nodes_python</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="calebhof11@gmail.com">iroh_ubuntu</maintainer>
+  <maintainer email="calebhof11@gmail.com">LegionaryOfLogic</maintainer>
   <license>TODO: License declaration</license>
 
   <exec_depend>python3-yaml</exec_depend>
