@@ -56,7 +56,11 @@ class Action(str, Enum):
             Action.CLAW_TILT:
                 "Move the control you want to use for CLAW_TILT.",
             Action.CAMERA:
+<<<<<<< HEAD
                 "Move the control for camera",
+=======
+                "move control for camera movement",
+>>>>>>> main
         }
         return prompts[self]
 
@@ -162,8 +166,7 @@ class JoystickCalibrator(Node):
         bind_order_raw = list(self.get_parameter("bind_order").value)
         skip_actions_raw = {
             Action(action_name)
-            for action_name in self.get_parameter("skip_actions").value
-        }
+            for action_name in self.get_parameter("skip_actions").value}
         self.actions_to_bind = [
             Action(action_name)
             for action_name in bind_order_raw
@@ -248,8 +251,7 @@ class JoystickCalibrator(Node):
                 topic_name
                 for topic_name, topic_types in self.get_topic_names_and_types()
                 if JOY_TOPIC_TYPE in topic_types
-            )
-
+        )
         if not target_topics:
             if not self.waiting_for_topics_logged:
                 self.get_logger().info(
@@ -270,7 +272,7 @@ class JoystickCalibrator(Node):
                 Joy,
                 topic,
                 lambda msg, bound_topic=topic: self._joy_callback(
-                    bound_topic, msg
+                   bound_topic, msg
                 ),
                 10,
             )

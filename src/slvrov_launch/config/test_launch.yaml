@@ -1,0 +1,7 @@
+test:
+  talker:
+    ros__parameters:
+      use_sim_time: false
+  listener:
+    ros__parameters:
+      use_sim_time: false

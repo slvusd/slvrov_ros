@@ -22,6 +22,13 @@ cleanup() {
     exit 0
 }
 trap cleanup SIGINT SIGTERM
+=======
+ros2 run slvrov_nodes_python pca9685_pin_configs_server > /dev/null 2>&1 &
+sleep 1
+ros2 run slvrov_nodes_python pca9685_node > /dev/null 2>&1 &
+ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mappings.yaml loop_rate_hz:=25> /dev/null 2>&1 &
+ros2 run slvrov_nodes_python thruster_bridge > /dev/null 2>&1 &
+>>>>>>> main
 
 # Kill any previous session first
 pkill -f slvrov_nodes_python 2>/dev/null || true
