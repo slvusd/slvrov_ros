@@ -22,13 +22,6 @@ cleanup() {
     exit 0
 }
 trap cleanup SIGINT SIGTERM
-=======
-ros2 run slvrov_nodes_python pca9685_pin_configs_server > /dev/null 2>&1 &
-sleep 1
-ros2 run slvrov_nodes_python pca9685_node > /dev/null 2>&1 &
-ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mappings.yaml loop_rate_hz:=25> /dev/null 2>&1 &
-ros2 run slvrov_nodes_python thruster_bridge > /dev/null 2>&1 &
->>>>>>> main
 
 # Kill any previous session first
 pkill -f slvrov_nodes_python 2>/dev/null || true
@@ -48,7 +41,7 @@ ssh pi@192.168.3.46 "
 
 # Launch pca9685 node on Pi41 (ROV only)
 ros2 run slvrov_nodes_python pca9685_pin_configs_server &
-ros2 run slvrov_nodes_python joystick_logic --ros-args -p mapping_file:=/home/pi/slvrov_ros/joy_mapping.yaml &
+ros2 run slvrov_nodes_python joystick_logic --ros-args -p joy_topics:="['/joy_left', '/joy_right']" &
 ros2 run slvrov_nodes_python thruster_bridge & 
 sleep 1
 # Launch ROV nodes on Pi41

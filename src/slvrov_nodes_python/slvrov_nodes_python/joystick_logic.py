@@ -301,23 +301,21 @@ class JoystickLogicNode(Node):
         """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
-        self.declare_parameter("joy_topics", [])
-        self.declare_parameter("loop_rate_hz", 25.0)
-        self.declare_parameter("joy_topics", [])
+        self.declare_parameter("joy_topics", ['/joy_left', '/joy_right'])
         self.declare_parameter("loop_rate_hz", 25.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
         self.declare_parameter("log_debug", True)
 
-        self.declare_parameter("mapping_file", "")
+        self.declare_parameter("mapping_file", '/home/pi/slvrov_ros/joy_mapping.yaml')
         self.declare_parameter("mappings", [])
         self.declare_parameter("axis_gains", [1.0, 1.0, 1.0, 1.0, 1.0])
         self.declare_parameter(
             "mixing_matrix",
             [ #SRTF,FWD/BK,YAW,ROLL,HEAVE
-                -1.0,  1.0, -1.0,  0.0,  0.0, #T1
-                1.0, 1.0, 1.0,  0.0,  0.0, #T2
-                1.0, 1.0, -1.0,  0.0,  0.0, #T3
-                -1.0,  1.0, 1.0,  0.0,  0.0, #T4
+                -1.0,  1.0, 1.0,  0.0,  0.0, #T1
+                1.0, 1.0, -1.0,  0.0,  0.0, #T2
+                1.0, 1.0, 1.0,  0.0,  0.0, #T3
+                -1.0,  1.0, -1.0,  0.0,  0.0, #T4
                 0.0,  0.0,  0.0, 1.0,  1.0, #T5
                 0.0,  0.0,  0.0, -1.0, 1.0, #T6
             ],
