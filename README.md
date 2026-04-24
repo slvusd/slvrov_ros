@@ -6,10 +6,18 @@
 
 ## Build
 ```bash
-git clone --recurse-submodules https://github.com/LegionaryOfLogic/slvrov_ros.git
+git clone --recurse-submodules https://github.com/slvusd/slvrov_ros.git
 cd ./slvrov_ros/src/slvrov_tools_vendor/slvrov_tools
 make
 cd ./../../..
 source /opt/ros/jazzy/setup.bash
 colcon build
 source install/setup.bash
+```
+
+## Environment Setup?
+
+## Launch
+```bash
+ros2 launch slvrov_launch launch.py
+```
