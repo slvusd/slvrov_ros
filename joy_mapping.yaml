@@ -3,28 +3,28 @@ joy_topics:
 - /joy_right
 mappings:
 - action: forward
-  topic: /joy_right
+  topic: /joy_left
   source: axis
   index: 1
   invert: false
-  deadzone: 0.25
-  scale: 0.8
+  deadzone: 0.3
+  scale: 1.0
 - action: strafe
   topic: /joy_right
   source: axis
   index: 2
   invert: true
-  deadzone: 0.25
-  scale: 0.75
+  deadzone: 0.6
+  scale: 0.2
 - action: yaw
   topic: /joy_right
   source: axis
   index: 0
   invert: true
-  deadzone: 0.1
-  scale: 0.8
+  deadzone: 0.6
+  scale: 0.5
 - action: heave
-  topic: /joy_left
+  topic: /joy_right
   source: axis
   index: 1
   invert: true
@@ -42,7 +42,7 @@ mappings:
   source: button
   index: 0
   invert: false
-  deadzone: 0.3
+  deadzone: 0.0
   scale: 1.0
 - action: claw_rotate
   topic: /joy_left
