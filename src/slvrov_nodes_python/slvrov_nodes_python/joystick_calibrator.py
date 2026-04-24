@@ -57,7 +57,6 @@ class Action(str, Enum):
                 "Move the control you want to use for CLAW_TILT.",
             Action.CAMERA:
                 "Move the control for camera",
-                "move control for camera movement",
         }
         return prompts[self]
 

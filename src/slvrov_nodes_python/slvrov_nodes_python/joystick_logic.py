@@ -40,7 +40,7 @@ class ControlState:
     claw_rotate: float = 0.0
     claw_tilt: float = 0.0
     camera: float = 0.0
-
+    
 
 class JoyMapper:
     """Convert raw Joy messages into a merged logical control state."""
@@ -301,6 +301,8 @@ class JoystickLogicNode(Node):
         """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
+        self.declare_parameter("joy_topics", [])
+        self.declare_parameter("loop_rate_hz", 25.0)
         self.declare_parameter("joy_topics", [])
         self.declare_parameter("loop_rate_hz", 25.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
