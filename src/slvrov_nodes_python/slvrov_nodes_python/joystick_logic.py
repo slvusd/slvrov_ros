@@ -39,7 +39,8 @@ class ControlState:
     claw_open: float = 0.0
     claw_rotate: float = 0.0
     claw_tilt: float = 0.0
-    camera_sway: float = 0.0
+    camera: float = 0.0
+
 
 class JoyMapper:
     """Convert raw Joy messages into a merged logical control state."""
@@ -210,11 +211,11 @@ class ROVController:
         """
         return np.array(
             [
-                state.forward,
                 state.strafe,
+                state.forward,
                 state.yaw,
-                state.heave,
                 state.roll,
+                state.heave,
             ],
             dtype=float,
         ) * self.axis_gains
@@ -283,7 +284,7 @@ class ClawController:
         Returns:
             A mapping of claw actuator names to PWM targets.
         """
-        claw = self.neutral_pwm + int(round(np.clip(state.claw_open, -1.0, 1.0) * self.span))
+        claw = 1000 + 2 * int(round(np.clip(state.claw_open, -1.0, 1.0) * self.span))
         rotate = self.neutral_pwm + int(round(np.clip(state.claw_rotate, -1.0, 1.0) * self.span))
         tilt = self.neutral_pwm + int(round(np.clip(state.claw_tilt, -1.0, 1.0) * self.span))
         return {
@@ -300,8 +301,8 @@ class JoystickLogicNode(Node):
         """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
-        self.declare_parameter("joy_topics", ["/js0", "/js1"])
-        self.declare_parameter("loop_rate_hz", 50.0)
+        self.declare_parameter("joy_topics", [])
+        self.declare_parameter("loop_rate_hz", 25.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
         self.declare_parameter("log_debug", True)
 
@@ -310,13 +311,13 @@ class JoystickLogicNode(Node):
         self.declare_parameter("axis_gains", [1.0, 1.0, 1.0, 1.0, 1.0])
         self.declare_parameter(
             "mixing_matrix",
-            [
-                1.0,  1.0, -1.0,  0.0,  0.0,
-                1.0, -1.0,  1.0,  0.0,  0.0,
-                1.0, -1.0, -1.0,  0.0,  0.0,
-                1.0,  1.0,  1.0,  0.0,  0.0,
-                0.0,  0.0,  0.0, -1.0,  1.0,
-                0.0,  0.0,  0.0, -1.0, -1.0,
+            [ #SRTF,FWD/BK,YAW,ROLL,HEAVE
+                -1.0,  1.0, -1.0,  0.0,  0.0, #T1
+                1.0, 1.0, 1.0,  0.0,  0.0, #T2
+                1.0, 1.0, -1.0,  0.0,  0.0, #T3
+                -1.0,  1.0, 1.0,  0.0,  0.0, #T4
+                0.0,  0.0,  0.0, 1.0,  1.0, #T5
+                0.0,  0.0,  0.0, -1.0, 1.0, #T6
             ],
         )
         self.declare_parameter("thruster_inversions", [1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
@@ -396,7 +397,7 @@ class JoystickLogicNode(Node):
         self.latest_joy[topic] = msg
         self.last_joy_time[topic] = self.get_clock().now().nanoseconds / 1e9
 
-    def _build_command(self, pwm: list, claw: dict) -> PCA9685Command:
+    def _build_command(self, pwm: list, claw: dict, camera: float) -> PCA9685Command:
         """Pack computed outputs into a PCA9685Command message.
  
         Publishes normalised [-1, 1] floats with logical string IDs.
@@ -414,10 +415,10 @@ class JoystickLogicNode(Node):
         # TODO: add docs for this
         def norm(p: int, mid: int = 1500, half: int = 400) -> float:
             return float(max(-1.0, min(1.0, (p - mid) / half)))
-        
+    
         msg     = PCA9685Command()
-        msg.id  = [f"thruster_{i+1}" for i in range(len(pwm))] + list(claw.keys())
-        msg.pwm = [norm(p) for p in pwm] + [norm(v) for v in claw.values()]
+        msg.id  = [f"thruster_{i+1}" for i in range(len(pwm))] + list(claw.keys()) + ["camera"]
+        msg.pwm = [norm(p) for p in pwm] + [norm(v) for v in claw.values()] + [camera]
         return msg
     
     @staticmethod
@@ -499,7 +500,7 @@ class JoystickLogicNode(Node):
         """
         valid_actions = {
             "forward", "strafe", "yaw", "heave", "roll",
-            "claw_open", "claw_rotate", "claw_tilt",
+            "claw_open", "claw_rotate", "claw_tilt", "camera",
         }
         valid_sources = {"axis", "button"}
 
@@ -554,6 +555,7 @@ class JoystickLogicNode(Node):
         thrusters = self.rov.calculate_thruster_outputs(state)
         pwm = [self.rov.map_to_pwm(float(v)) for v in thrusters]
         claw_outputs = self.claw.calculate_outputs(state)
+        camera = float(np.clip(state.camera, -1.0, 1.0))
 
         self.latest_control_state = state
         self.latest_thruster_outputs = thrusters
@@ -571,7 +573,7 @@ class JoystickLogicNode(Node):
                     f"thrusters={[round(float(x), 2) for x in thrusters]} | "
                     f"pwm={pwm} | claw={claw_outputs}"
                 )
-        self.thruster_pub.publish(self._build_command(pwm, claw_outputs))
+        self.thruster_pub.publish(self._build_command(pwm, claw_outputs, camera))
 
 def main(args=None):
     node = None
