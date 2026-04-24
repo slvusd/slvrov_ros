@@ -39,12 +39,8 @@ class ControlState:
     claw_open: float = 0.0
     claw_rotate: float = 0.0
     claw_tilt: float = 0.0
-<<<<<<< HEAD:src/slvrov_nodes_python/slvrov_nodes_python/multi_joy_logic.py
     camera: float = 0.0
-
-=======
-    camera_sway: float = 0.0
->>>>>>> main:src/slvrov_nodes_python/slvrov_nodes_python/joystick_logic.py
+    
 
 class JoyMapper:
     """Convert raw Joy messages into a merged logical control state."""
@@ -305,13 +301,10 @@ class JoystickLogicNode(Node):
         """Initialize parameters, subscribers, controllers, and control loop."""
         super().__init__("joystick_logic_node")
 
-<<<<<<< HEAD:src/slvrov_nodes_python/slvrov_nodes_python/multi_joy_logic.py
         self.declare_parameter("joy_topics", [])
         self.declare_parameter("loop_rate_hz", 25.0)
-=======
-        self.declare_parameter("joy_topics", ["/js0", "/js1"])
-        self.declare_parameter("loop_rate_hz", 50.0)
->>>>>>> main:src/slvrov_nodes_python/slvrov_nodes_python/joystick_logic.py
+        self.declare_parameter("joy_topics", [])
+        self.declare_parameter("loop_rate_hz", 25.0)
         self.declare_parameter("joy_timeout_sec", 0.25)
         self.declare_parameter("log_debug", True)
 
@@ -405,12 +398,8 @@ class JoystickLogicNode(Node):
         """
         self.latest_joy[topic] = msg
         self.last_joy_time[topic] = self.get_clock().now().nanoseconds / 1e9
-<<<<<<< HEAD:src/slvrov_nodes_python/slvrov_nodes_python/multi_joy_logic.py
-    def _build_command(self, pwm: list, claw: dict, camera: float) -> PCA9685Command:
-=======
 
-    def _build_command(self, pwm: list, claw: dict) -> PCA9685Command:
->>>>>>> main:src/slvrov_nodes_python/slvrov_nodes_python/joystick_logic.py
+    def _build_command(self, pwm: list, claw: dict, camera: float) -> PCA9685Command:
         """Pack computed outputs into a PCA9685Command message.
  
         Publishes normalised [-1, 1] floats with logical string IDs.
