@@ -1,36 +1,36 @@
-class ROVActionType(Enum):
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+
+
+class ROVActionType(Enum, str):
     """Enumerate the types of logical actions that can be calibrated."""
 
-    AXIS = "axis"
-    BUTTON = "button"
+    JS_AXIS = "axis"
+    JS_BUTTON = "button"
+    KEYBOARD = "keyboard"
 
 
-class ROVAction(Enum):
+class ROVActionName(Enum, str):
     """Enumerate the logical actions that can be calibrated."""
 
-    AXIS_FORWARD = "axis_forward"
-    AXIS_STRAFE = "axis_strafe"
-    AXIS_YAW = "axis_yaw"
-    AXIS_HEAVE = "axis_heave"
-    AXIS_ROLL = "axis_roll"
-    AXIS_PITCH = "axis_pitch"
+    FORWARD = "forward"
+    STRAFE = "strafe"
+    YAW = "yaw"
+    HEAVE = "heave"
+    ROLL = "roll"
+    PITCH = "pitch"
 
-    AXIS_CLAW_OPEN = "axis_claw_open"
-    AXIS_CLAW_ROTATE = "axis_claw_rotate"
-    AXIS_CLAW_TILT = "axis_claw_tilt"
-    AXIS_CAMERA = "axis_camera"
+    CLAW_OPEN = "claw_open"
+    CLAW_ROTATE = "claw_rotate"
+    CLAW_TILT = "claw_tilt"
+    CAMERA = "camera"
 
-    BUTTON_FORWARD = "button_forward"
-    BUTTON_STRAFE = "button_strafe"
-    BUTTON_YAW = "button_yaw"
-    BUTTON_HEAVE = "button_heave"
-    BUTTON_ROLL = "button_roll"
-    BUTTON_PITCH = "button_pitch"
 
-    BUTTON_CLAW_OPEN = "button_claw_open"
-    BUTTON_CLAW_ROTATE = "button_claw_rotate"
-    BUTTON_CLAW_TILT = "button_claw_tilt"
-    BUTTON_CAMERA = "button_camera"
+@dataclass
+class ROVAction:
+    action: ROVActionName
+    type: ROVActionType
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,9 @@ class ControlMapping:
     scale: float = 1.0
 
     def _prep_json(self) -> Dict:
-        """Return a JSON-serializable dict representation of this mapping."""
+        """
+        Return a JSON-serializable dict representation of this mapping.
+        """
         
         return self.action, {"topic": self.topic, "source": self.source, "index": self.index, "invert": self.invert, "deadzone": self.deadzone, "scale": self.scale}
 
@@ -60,8 +62,10 @@ class ControlMapping:
 from json import load, dump, JSONDecodeError
 
 
-def write_control_mappings(mappings: List[ControlMapping], path: Path | str, indent: int=2) -> None:
-    """Write the given mappings to a JSON file at the given path."""
+def write_control_mappings(mappings: list[ControlMapping], path: Path | str, indent: int=2) -> None:
+    """
+    Write the given mappings to a JSON file at the given path.
+    """
 
     if type(path) == str: path = Path(path)
     path.touch(exist_ok=True)   
