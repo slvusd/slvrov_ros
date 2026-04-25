@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path
 
 
 class ROVActionType(Enum, str):
@@ -15,6 +14,11 @@ class ROVAction:
 
 
 class ROVActions(Enum):
+    """
+    Some default ROVActions created for ease of user.
+    Joystick mapper will just look at ROVAction objects; it won't know about this Enum.
+    """
+
     MOVE_SERVO = ROVAction("move_servo", ROVActionType.JS_AXIS)
     MOVE_MOTOR = ROVAction("move_motor", ROVActionType.JS_AXIS)
 
@@ -46,3 +50,23 @@ class ROVActionMapping:
 
     scale: float = 1.0
     deadzone: float = 0.1
+
+
+@dataclass
+class ControlSource:
+    type: ROVActionType
+    index: int
+
+    def __eq__(self, other):
+        if not isinstance(other, ControlSource): raise TypeError(f"Cannot compare ControlSource with {type(other)}")
+        return self.index == other.index and self.type == other.type
+
+
+@dataclass
+class MappingCandidate:
+    topic: str
+    source: ControlSource
+    score: float | None = None
+
+    def __hash__(self):
+        return f"{self.topic}/{self.type}/{self.index}"

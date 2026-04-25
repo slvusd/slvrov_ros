@@ -10,64 +10,90 @@ from std_srvs.srv import Trigger  # type: ignore
 from .control_objects import *
 
 
-@dataclass
-class MappingCandidate:
-    topic: str
-    source: ROVActionType
-    index: int
-    score: float
-
-
 class JoystickMapper(Node):
     def __init__(self) -> None:
         super().__init__("joystick_mapper")
 
         self.declare_parameter("joystick_topics", [])
         self.declare_parameter("joystick_mappings_path", "")
-        self.declare_parameter("axis_threshold", 0.6)
         self.declare_parameter("update_hz", 25.0)
 
         self.js_topics = [str(topic) for topic in self.get_parameter("joystick_topics").value]
         self.js_mappings_path = str(self.get_parameter("joystick_mappings_path").value)
-        self.axis_threshold = float(self.get_parameter("axis_threshold").value)
-        self.update_threshold = 1.0 / float(self.get_parameter("update_hz").value)
+        self.update_time = 1.0 / float(self.get_parameter("update_hz").value)
 
         self.js_subscriptions = None
         self.js_mappings = None
 
-        self.last_update = None
-        self.candidates = []
+        self.latest_js_states: dict[str, Joy] = dict()
+        self.candidates: dict[MappingCandidate, MappingCandidate] | None = None
 
-        self.actions: list[ROVActions] = []
-        self.current_action: ROVActions = None
-        self.action_control_service = self.create_service(Trigger, "search_for_mapping_candidate", self.activate_callback)
+        self.actions: list[ROVAction] = []  # TODO
+        self.current_action: ROVAction = None  # TODO
+        self.action_control_service = self.create_service(..., "search_for_mapping_candidate", self.activate_callback)  #TODO
 
         self.active = False
         self.activate_service = self.create_service(Trigger, "activate_redundant_controls", self.activate_callback)
 
+    def js_callback(self, topic: str, msg: Joy) -> None:
+        self.latest_js_states[topic] = msg
+        if self.candidates is None: self.create_candidates()
+
+    def create_candidates(self) -> None:
+        """
+        When activated, Joystick Mapper will create MappingCandidates that will later be used to map actions.
+        This is run once per activation.
+        """
+        for topic, js_state in self.latest_js_states.items():
+            for index, score in enumerate(js_state.buttons):
+                candidate = MappingCandidate(topic, ControlSource(ROVActionType.JS_BUTTON), index, score)
+                self.candidates[candidate] = candidate
+
+            for index, score in enumerate(js_state.axes):
+                candidate = MappingCandidate(topic, ControlSource(ROVActionType.JS_AXIS), index, score)
+                self.candidates[candidate] = candidate
+
+    def clear_candidates(self) -> None:
+        for candidate in self.candidates.values():
+            candidate.score = None
+
+    def update_candidates(self):
+        for candidate in self.candidates.values():
+            source_type = candidate.source.type
+            if source_type != self.current_action.type: continue  # skip candidates that are unrelated to current action
+
+            js_state = self.latest_js_states[candidate.topic]
+
+            if source_type == ROVActionType.JS_AXIS: scores = js_state.axes
+            elif source_type == ROVActionType.JS_BUTTON: scores = js_state.buttons
+            else:  # TODO make this for when people create actions, not during mapping process
+                self.get_logger().warning(f"Action type {self.current_action.type} isn't supported for mapping.")
+
+            new_score = scores[candidate.source.index]
+            if candidate.score is None: continue
+            if candidate.score < new_score: candidate.score = new_score
+
+    def get_best_candidate(self) -> MappingCandidate | None:
+        best_candidate = None
+
+        for candidate in self.candidates.values():
+            if best_candidate is None: 
+                best_candidate = candidate
+                continue
+
+            if best_candidate.score < candidate: ...
+
+
+    def evaluate_candidates(self):
+        ...
+
     def activate_callback(self, req, resp):
-        if self.active:
-            try:
-                self.js_subscriptions = [
-                self.create_subscription(
-                    Joy, 
-                    topic, 
-                    lambda msg, bound_topic=topic: self.js_callback(bound_topic, msg), 
-                    10
-                    ) for topic in self.js_topics]
-                
-            except Exception as exception:
-                self.get_logger().error(f"An unknown error occurred during subscribing to joystick topics in activation: \n{exception}")
+        if self.active: 
+            resp = self.deactivate()
+        else: 
+            resp = self.activate()
 
-                resp.success = False
-                resp.message = "An unknown exception occurred during subscribing to joystick topics. Check logs for traceback."
-                return resp
-
-            self.active = True
-
-            resp.success = True
-            resp.message = "Successfully subscribed to joystick topics."
-            return resp
+        return resp
         
     def activate(self, resp):
         try:
@@ -87,39 +113,24 @@ class JoystickMapper(Node):
             return resp
 
         self.active = True
+        self.get_logger().info("Successfully subscribed to joystick topics.")
+
+        # will put new candidates into dict and update them on timer
+        self.update_timer = self.create_timer(self.update_time, self.update_candidates)
 
         resp.success = True
         resp.message = "Successfully subscribed to joystick topics."
         return resp
+    
+    def deactivate(self, resp):
+        self.update_timer.cancel()
+        # unsubscribe from ros2 topics
+        self.candidates = None
+        self.js_mappings = None
 
-    def js_callback(self, topic: str, msg: Joy) -> None:
-        if self.now_sec() - self.last_update < self.update_threshold: return  # enforce update rate
-        self.last_update = self.now_sec()
-
-        if self.current_action is None: return  # if no action is currently being calibrated, ignore joystick messages
-
-        if self.current_action.type == ROVActionType.AXIS:
-            for idx, value in enumerate(msg.axes):
-                ...
-
-        elif self.current_action.type == ROVActionType.BUTTON:
-            for idx, value in enumerate(msg.buttons):
-                ...
-
-    def get_best_candidate(self) -> MappingCandidate:
-        ...
-
-    def _candidate_is_ready(self, candidate: Candidate, now_sec: float) -> bool:
-        ... # assess candidates?
-
-    def _bind_candidate(self, candidate: Candidate) -> None:
-        ...
-
-    def _save_output(self) -> None:
-        ...
-
-    def _finish(self, save_progress: bool) -> None:
-        ...
+        resp.success = True
+        resp.message = ""
+        return resp
 
     def now_sec(self) -> float:
         """
@@ -134,7 +145,7 @@ def main(args=None):
     node = None
     try:
         rclpy.init(args=args)
-        node = JoystickCalibrator()
+        node = JoystickMapper()
 
         if not node.finished and rclpy.ok():
             executor = MultiThreadedExecutor()
