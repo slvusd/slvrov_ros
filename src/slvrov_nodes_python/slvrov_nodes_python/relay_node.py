@@ -29,3 +29,21 @@ class RelayNode(Node):
         resp.success = True
         resp.message = msg
         return resp
+
+def main(args=None):
+    # Initialize and run node
+    try:
+        rclpy.init()
+        node = RelayNode()
+        rclpy.spin(node)
+
+    except (KeyboardInterrupt, ExternalShutdownException): 
+        print("Shutdown signal received, exiting...")
+
+    # Destroy node (now) and gracefully exit
+    finally:
+        if node is not None: node.destroy_node()
+        if rclpy.ok(): rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

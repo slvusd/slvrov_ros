@@ -46,6 +46,7 @@ ros2 run slvrov_nodes_python thruster_bridge &
 sleep 1
 # Launch ROV nodes on Pi41
 ros2 run slvrov_nodes_python pca9685_node & PIDS+=($!)
+#export GPIOZERO_PIN_FACTORY=lgpio
 #ros2 run slvrov_nodes_python relay_node & PIDS+=($!)
 sleep 2
 
