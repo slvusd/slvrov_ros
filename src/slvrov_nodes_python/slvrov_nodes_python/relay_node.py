@@ -3,7 +3,7 @@ from rclpy.executors import ExternalShutdownException  # type: ignore
 from rclpy.node import Node  # type: ignore
 from std_srvs.srv import Trigger  # type: ignore
 
-import gpiozero import OutputDevice  # type: ignore
+from gpiozero import OutputDevice  # type: ignore
 
 
 class RelayNode(Node):
