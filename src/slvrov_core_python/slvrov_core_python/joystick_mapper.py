@@ -1,23 +1,17 @@
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
-import rclpy
-from rclpy.executors import ExternalShutdownException
-from rclpy.executors import MultiThreadedExecutor
-from rclpy.node import Node
-from sensor_msgs.msg import Joy
+import rclpy  # type: ignore
+from rclpy.executors import ExternalShutdownException  # type: ignore
+from rclpy.executors import MultiThreadedExecutor  # type: ignore
+from rclpy.node import Node  # type: ignore
+from sensor_msgs.msg import Joy  # type: ignore
+from std_srvs.srv import Trigger  # type: ignore
 
-from .rov_action_mapping import *
+from .control_objects import *
 
 
 @dataclass
 class MappingCandidate:
-    #NOTE: I think I might move this to rov_action_mappings, but really this only applies to joystick-baesd mappings
-    """
-    A candidate binding from one physical control to one logical action, discovered during calibration.
-    """
-
     topic: str
     source: ROVActionType
     index: int
@@ -25,75 +19,94 @@ class MappingCandidate:
 
 
 class JoystickMapper(Node):
-    """
-    Interactively discover joystick bindings and save them to json on disk.
-    """
-
     def __init__(self) -> None:
-        """
-        Initialize parameters, subscriptions, and calibration state.
-        """
         super().__init__("joystick_mapper")
 
         self.declare_parameter("joystick_topics", [])
-        self.declare_parameter("joystick_mappings_path", "joystick_mappings.json")
+        self.declare_parameter("joystick_mappings_path", "")
         self.declare_parameter("axis_threshold", 0.6)
-        self.declare_parameter("update_hz", 20.0)
+        self.declare_parameter("update_hz", 25.0)
 
         self.js_topics = [str(topic) for topic in self.get_parameter("joystick_topics").value]
         self.js_mappings_path = str(self.get_parameter("joystick_mappings_path").value)
         self.axis_threshold = float(self.get_parameter("axis_threshold").value)
-        self.update_seconds = 1.0 / float(self.get_parameter("update_hz").value)
+        self.update_threshold = 1.0 / float(self.get_parameter("update_hz").value)
 
-        self.js_subscriptions: List[object] = []  # will be filled with subscriptions when calibration begins so node doesn't start processing joystick messages until then
-        self.js_mappings: List[ControlMapping] = []
+        self.js_subscriptions = None
+        self.js_mappings = None
 
-        self.last_update_sec = 0.0
-        self.candidates: List[MappingCandidate] = []
+        self.last_update = None
+        self.candidates = []
 
-        self.current_action = None
+        self.actions: list[ROVActions] = []
+        self.current_action: ROVActions = None
+        self.action_control_service = self.create_service(Trigger, "search_for_mapping_candidate", self.activate_callback)
 
-    def begin_mapping(self) -> None:
-        self.get_logger().info("Beginning joystick mapping process. Move each control in turn to discover its bindings.")
+        self.active = False
+        self.activate_service = self.create_service(Trigger, "activate_redundant_controls", self.activate_callback)
 
-        self.js_subscriptions = [
+    def activate_callback(self, req, resp):
+        if self.active:
+            try:
+                self.js_subscriptions = [
+                self.create_subscription(
+                    Joy, 
+                    topic, 
+                    lambda msg, bound_topic=topic: self.js_callback(bound_topic, msg), 
+                    10
+                    ) for topic in self.js_topics]
+                
+            except Exception as exception:
+                self.get_logger().error(f"An unknown error occurred during subscribing to joystick topics in activation: \n{exception}")
+
+                resp.success = False
+                resp.message = "An unknown exception occurred during subscribing to joystick topics. Check logs for traceback."
+                return resp
+
+            self.active = True
+
+            resp.success = True
+            resp.message = "Successfully subscribed to joystick topics."
+            return resp
+        
+    def activate(self, resp):
+        try:
+            self.js_subscriptions = [
             self.create_subscription(
                 Joy, 
                 topic, 
                 lambda msg, bound_topic=topic: self.js_callback(bound_topic, msg), 
                 10
                 ) for topic in self.js_topics]
+                
+        except Exception as exception:
+            self.get_logger().error(f"An unknown error occurred during subscribing to joystick topics in activation: \n{exception}")
 
-        ...
+            resp.success = False
+            resp.message = "An unknown exception occurred during subscribing to joystick topics. Check logs for traceback."
+            return resp
 
-    def spin_command_prompt(self) -> None:
-        # TODO
-        ...
+        self.active = True
+
+        resp.success = True
+        resp.message = "Successfully subscribed to joystick topics."
+        return resp
 
     def js_callback(self, topic: str, msg: Joy) -> None:
-        if self.now_sec() - self.last_update_sec < self.update_seconds: return  # enforce update rate
-        self.last_update_sec = self.now_sec()
+        if self.now_sec() - self.last_update < self.update_threshold: return  # enforce update rate
+        self.last_update = self.now_sec()
 
         if self.current_action is None: return  # if no action is currently being calibrated, ignore joystick messages
-        elif self.current_action.source == ROVActionType.AXIS:
+
+        if self.current_action.type == ROVActionType.AXIS:
             for idx, value in enumerate(msg.axes):
                 ...
 
-        elif self.current_action.source == ROVActionType.BUTTON:
+        elif self.current_action.type == ROVActionType.BUTTON:
             for idx, value in enumerate(msg.buttons):
                 ...
 
-
-    def _tick(self) -> None:
-        ...
-
-    def _handle_user_commands(self) -> None:
-        ...
-
-    def _update_candidates(self,topic: str,previous_msg: Optional[Joy],current_msg: Joy,) -> None:
-        ...
-
-    def _best_candidate(self) -> Optional[Candidate]:
+    def get_best_candidate(self) -> MappingCandidate:
         ...
 
     def _candidate_is_ready(self, candidate: Candidate, now_sec: float) -> bool:
