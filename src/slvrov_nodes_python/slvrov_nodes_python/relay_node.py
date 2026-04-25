@@ -10,7 +10,7 @@ class RelayNode(Node):
     def __init__(self):
         super().__init__("relay_node")
 
-        self.declare_parameter("gpio_number", 24)
+        self.declare_parameter("gpio_number", 26)
         self.gpio_pin = int(self.get_parameter("gpio_number").value)
 
         self.relay = OutputDevice(self.gpio_pin, active_high=True, initial_value=False)
