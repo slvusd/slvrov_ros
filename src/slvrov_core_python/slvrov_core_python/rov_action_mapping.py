@@ -51,7 +51,7 @@ class ControlMapping:
     deadzone: float = 0.1
     scale: float = 1.0
 
-    def _prep_json(self) -> Dict:
+    def _prep_json(self) -> dict:
         """
         Return a JSON-serializable dict representation of this mapping.
         """
