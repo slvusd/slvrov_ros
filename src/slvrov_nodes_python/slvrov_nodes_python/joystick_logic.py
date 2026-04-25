@@ -385,7 +385,7 @@ class JoystickLogicNode(Node):
         self.timer = self.create_timer(1.0 / self.loop_rate_hz, self._control_loop)
         self._log_counter = 0
 
-        self.relay_button = 0
+        self.relay_button = 12
         self.toggle_relay_service = self.create_client(Trigger, "toggle_relay")
 
         self.get_logger().info(f"Subscribed to topics: {self.joy_topics}")
