@@ -148,13 +148,13 @@ class PCA9685Node(Node):
                         # each configured channel receives the same duty cycle.
                         for pin in pin_config["pins"]:
                             self.pca9685.write_duty_cycle(pin, duty_cycle)
-                            self.get_logger().info(f"Setting pin {pin} to duty cycle {duty_cycle}")
+                            self.get_logger().info(f"Setting pin {pin} to duty cycle {duty_cycle} - this is a servo")
 
                         sleep(0.15)
                         
                         for pin in pin_config["pins"]:
                             self.pca9685.write_duty_cycle(pin, 0)
-                            self.get_logger().info(f"Setting pin {pin} to duty cycle {duty_cycle} - protecting servos?")
+                            self.get_logger().info(f"Setting pin {pin} to duty cycle 0 - protecting servos?")
                         return
 
                     pin_config = self.pin_configs[id_]
