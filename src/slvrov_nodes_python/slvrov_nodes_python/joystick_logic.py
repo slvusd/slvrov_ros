@@ -12,6 +12,7 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 import yaml
+from std_srvs.srv import Trigger
 
 
 @dataclass
@@ -384,8 +385,26 @@ class JoystickLogicNode(Node):
         self.timer = self.create_timer(1.0 / self.loop_rate_hz, self._control_loop)
         self._log_counter = 0
 
+        self.relay_button = 0
+        self.toggle_relay_service = self.create_client(Trigger, "toggle_relay")
+
         self.get_logger().info(f"Subscribed to topics: {self.joy_topics}")
         self.get_logger().info(f"Loaded {len(self.mappings)} mappings")
+
+    def toggle_relay_req(self):
+        self.get_logger().info("Calling toggle service for relay...")
+
+        req = Trigger()
+        self.future = self.toggle_relay_service.call_async(req)
+        self.future.add_done_callback(self.toggle_relay_response_callback)
+
+    def toggle_relay_response_callback(self, future):
+        try:
+            resp = future.result()
+            self.get_logger().info(resp.msg)
+
+        except Exception as exception:
+            self.get_logger().error(f"Service call failed: {exception}")
 
     def _joy_callback(self, topic: str, msg: Joy) -> None:
         """Store the latest Joy message and timestamp for one topic.
@@ -394,6 +413,8 @@ class JoystickLogicNode(Node):
             topic: Topic name that produced the message.
             msg: Incoming Joy message to cache.
         """
+        if msg.buttons[self.relay_button]: self.toggle_relay_req()
+
         self.latest_joy[topic] = msg
         self.last_joy_time[topic] = self.get_clock().now().nanoseconds / 1e9
 

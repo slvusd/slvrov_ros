@@ -31,7 +31,8 @@ setup(
             'pca9685_node=slvrov_nodes_python.pca9685_node:main',
             'pca9685_pin_configs_server=slvrov_nodes_python.pca9685_pin_configs_server:main',
             'pca9685_pin_configs_client=slvrov_nodes_python.pca9685_pin_configs_client:main',
-            'thruster_bridge=slvrov_nodes_python.thruster_bridge_node:main'
+            'thruster_bridge=slvrov_nodes_python.thruster_bridge_node:main',
+            'relay_node=slvrov_nodes_python.relay_node:main'
         ],
     },
 )
