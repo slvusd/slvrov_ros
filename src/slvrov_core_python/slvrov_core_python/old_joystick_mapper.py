@@ -138,10 +138,10 @@ class OldJoystickMapper(Node):
         """Initialize parameters, subscriptions, and calibration state."""
         super().__init__("joystick_mapper")
 
-        self.declare_parameter("joy_topics", [])
+        """self.declare_parameter("joy_topics", [])
         self.declare_parameter("joystick_configs_path", "joy_mappings.yaml")
         self.declare_parameter("axis_threshold", 0.6)
-        self.declare_parameter("button_score", 1.25)
+        self.declare_parameter("button_score", 1.25)"""
         self.declare_parameter("quiet_seconds", 0.75)
         self.declare_parameter("settle_seconds", 1.0)
         self.declare_parameter("discovery_period_sec", 1.0)
@@ -149,13 +149,13 @@ class OldJoystickMapper(Node):
         self.declare_parameter("default_scale", 1.0)
         self.declare_parameter("allow_reuse_controls", False)
 
-        self.configured_joy_topics = [
+        """self.configured_joy_topics = [
             str(topic) for topic in self.get_parameter("joy_topics").value
         ]
         self.output_path = str(self.get_parameter("joystick_configs_path").value)
 
         self.axis_threshold = float(self.get_parameter("axis_threshold").value)
-        self.button_score = float(self.get_parameter("button_score").value)
+        self.button_score = float(self.get_parameter("button_score").value)"""
 
         self.quiet_seconds = float(self.get_parameter("quiet_seconds").value)
         self.settle_seconds = float(self.get_parameter("settle_seconds").value)

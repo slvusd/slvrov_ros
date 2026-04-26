@@ -3,3 +3,4 @@ log/
 install/
 .vscode/
 __pycache__/
+test.py
