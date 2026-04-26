@@ -24,7 +24,7 @@ from slvrov_interfaces.srv import String
 # string data
 # ---
 # bool success
-# string msg  #TODO change this to message to be consistent with other services
+# string msg
 
 from .control_objects import *
 
