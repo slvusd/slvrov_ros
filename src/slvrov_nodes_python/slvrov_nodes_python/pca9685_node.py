@@ -7,6 +7,8 @@ from slvrov_tools.pca9685 import *
 from slvrov_interfaces.msg import PCA9685Command
 from slvrov_interfaces.srv import String
 
+from time import sleep
+
 # PCA9685Command
 # string[] id e.g. ["thruster_1", "thruster_2"]
 # float32[] pwm percentage e.g. [0.5, -0.5]
@@ -133,6 +135,28 @@ class PCA9685Node(Node):
                 # the node can continue servicing the rest of the batch.
                 if id_ not in self.pin_configs: self.get_logger().error(f"Invalid PCA9685 pin id: {id_}, skipping command")
                 else:
+                    if id_ in ["claw", "tilt", "rotate"]:  # servo ids
+                        pin_config = self.pin_configs[id_]
+
+                        # Positive and negative PWM values scale away from the neutral/default/middle duty cycle toward the configured extrema for that device.
+                        if pwm >= 0: diff = pin_config["maximum"] - pin_config["default"]
+                        else: diff = pin_config["default"] - pin_config["minimum"]
+                        
+                        duty_cycle = int(pin_config["default"] + pwm * diff)
+
+                        # Some logical outputs fan out to multiple PCA9685 pins, so
+                        # each configured channel receives the same duty cycle.
+                        for pin in pin_config["pins"]:
+                            self.pca9685.write_duty_cycle(pin, duty_cycle)
+                            self.get_logger().info(f"Setting pin {pin} to duty cycle {duty_cycle} - this is a servo")
+
+                        sleep(0.15)
+                        
+                        for pin in pin_config["pins"]:
+                            self.pca9685.write_duty_cycle(pin, 0)
+                            self.get_logger().info(f"Setting pin {pin} to duty cycle 0 - protecting servos?")
+                        return
+
                     pin_config = self.pin_configs[id_]
 
                     # Positive and negative PWM values scale away from the neutral/default/middle duty cycle toward the configured extrema for that device.

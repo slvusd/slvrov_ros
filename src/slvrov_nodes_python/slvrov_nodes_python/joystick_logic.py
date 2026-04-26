@@ -385,7 +385,7 @@ class JoystickLogicNode(Node):
         self.timer = self.create_timer(1.0 / self.loop_rate_hz, self._control_loop)
         self._log_counter = 0
 
-        self.relay_button = 12
+        self.relay_button = 11
         self.toggle_relay_service = self.create_client(Trigger, "toggle_relay")
 
         self.get_logger().info(f"Subscribed to topics: {self.joy_topics}")
@@ -394,7 +394,7 @@ class JoystickLogicNode(Node):
     def toggle_relay_req(self):
         self.get_logger().info("Calling toggle service for relay...")
 
-        req = Trigger()
+        req = Trigger.Request()
         self.future = self.toggle_relay_service.call_async(req)
         self.future.add_done_callback(self.toggle_relay_response_callback)
 

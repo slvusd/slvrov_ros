@@ -3,14 +3,14 @@ from rclpy.executors import ExternalShutdownException  # type: ignore
 from rclpy.node import Node  # type: ignore
 from std_srvs.srv import Trigger  # type: ignore
 
-import gpiozero import OutputDevice  # type: ignore
+from gpiozero import OutputDevice  # type: ignore
 
 
 class RelayNode(Node):
     def __init__(self):
         super().__init__("relay_node")
 
-        self.declare_parameter("gpio_number", 24)
+        self.declare_parameter("gpio_number", 26)
         self.gpio_pin = int(self.get_parameter("gpio_number").value)
 
         self.relay = OutputDevice(self.gpio_pin, active_high=True, initial_value=False)
@@ -29,3 +29,21 @@ class RelayNode(Node):
         resp.success = True
         resp.message = msg
         return resp
+
+def main(args=None):
+    # Initialize and run node
+    try:
+        rclpy.init()
+        node = RelayNode()
+        rclpy.spin(node)
+
+    except (KeyboardInterrupt, ExternalShutdownException): 
+        print("Shutdown signal received, exiting...")
+
+    # Destroy node (now) and gracefully exit
+    finally:
+        if node is not None: node.destroy_node()
+        if rclpy.ok(): rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
