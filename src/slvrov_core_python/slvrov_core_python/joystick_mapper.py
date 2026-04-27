@@ -10,6 +10,7 @@ from slvrov_interfaces.srv import String
 
 from .control_objects import *
 from .json_crud import *
+from .log_messages import JoystickMapperLogMessages
 
 # Client Flow:
 # 1. Activate joystick mapper with list of joystick topics to subscribe to
@@ -30,33 +31,36 @@ from .json_crud import *
 class JoystickMapper(Node):
     def __init__(self) -> None:
         # TODO add params for allow reuse controls and reuse actions
+        # TODO make params default if not provided by user service calls (two variables, one is param, one is user req)
         super().__init__("joystick_mapper")
 
         self.declare_parameter("joystick_topics", [])
         self.declare_parameter("joystick_mappings_path", "")
-        self.declare_parameter("update_hz", 10.0)
+        self.declare_parameter("update_hz", 20.0)
 
         self.js_topics = [str(topic) for topic in self.get_parameter("joystick_topics").value]
         self.js_mappings_path = str(self.get_parameter("joystick_mappings_path").value)
         self.update_time = 1.0 / float(self.get_parameter("update_hz").value)
 
-        self.js_subscriptions = None
-        self.js_mappings: list[ROVActionMapping] = list()
+        self.js_subscriptions: list = list()  # returns to empty list when mapper inactive
+        self.js_mappings: list[ROVActionMapping] = list()  # returns to empty list after save
 
-        self.latest_js_states: dict[str, Joy] = dict()
-        self.candidates: dict[MappingCandidate, MappingCandidate] | None = None
+        self.latest_js_states: dict[str, Joy] = dict()  # topic: state, returns to empty dict when mapper is inactive
+        self.candidates: dict[str, MappingCandidate] | None = None  # topic/type/index: MappingCandidate, returns to None when mapper is inactive
 
-        self.actions: list[ROVAction] = []  # TODO this should belong to the client
+        self.mapper_active = False
+        self.set_mapper_state_service = self.create_service(String, "joystick_mapper/set_mapper_state", self.set_mapper_state_callback)
+        self.get_logger().info(JoystickMapperLogMessages.SERVICE_CREATED + "joystick_mapper/set_mapper_state")
 
-        self.mapping = False
-        self.current_action_mapping: ROVActionMapping | None = None
-        self.toggle_mapping_service = self.create_service(Trigger, "joystick_mapper/toggle_mapping", self.toggle_mapping_callback)
+        self.current_action_mapping: ROVActionMapping | None = None  # returns to None when mapping is inactive
         self.set_action_service = self.create_service(String, "joystick_mapper/set_action", self.set_action_callback)
+        self.get_logger().info(JoystickMapperLogMessages.SERVICE_CREATED + "joystick_mapper/set_action")
 
-        self.active = False
-        self.activation_service = self.create_service(String, "joystick_mapper/activation", self.activation_callback)
+        self.mapping_active = False
+        self.set_mapping_state_service = self.create_service(Trigger, "joystick_mapper/set_mapping_state", self.set_mapping_state_callback)
+        self.get_logger().info(JoystickMapperLogMessages.SERVICE_CREATED + "joystick_mapper/set_mapping_state")
 
-        self.get_logger().info("Joystick Mapper is up and ready for clients.")
+        self.get_logger().info(JoystickMapperLogMessages.NODE_READY + "joystick_mapper")
 
     def js_callback(self, topic: str, msg: Joy) -> None:
         #self.get_logger().info(f"Received joystick message on topic {topic}: {msg}")
@@ -66,59 +70,9 @@ class JoystickMapper(Node):
         # If the subscriptions are active but candidates haven't been created yet, create them
         if self.candidates is None: self.create_candidates()
         
-    def toggle_mapping_callback(self, req, resp):
-        # if user hasn't activated joystick mapper
-        if not self.active:
-            self.get_logger().warning("Joystick mapper is not active but toggle_mapping was called.")
-
-            resp.success = False
-            resp.message = "Joystick mapper is not active. Please activate before toggling mapping."
-            return resp
-        
-        # activate mapping
-        if not self.mapping:
-            # if user hasn't set action to map
-            if self.current_action_mapping is None:
-                self.get_logger().warning("No current action mapping set, but toggle_mapping was called.")
-
-                resp.success = False
-                resp.message = "No current action mapping set. Please set action before toggling mapping."
-                return resp
-
-            # will update mapping candidates on timer
-            self.start_candidate_updates()
-            self.mapping = True
-            
-            self.get_logger().info(f"Started mapping process for {self.current_action_mapping.action}. Please interact with the desired control. Toggle mapping to find the best match.")
-            resp.success = True
-            resp.message = f"Started mapping process for {self.current_action_mapping.action}. Please interact with the desired control. Toggle mapping to find the best match."
-        
-        # deactivate mapping
-        else:
-            self.mapping = False
-            self.stop_candidate_updates()
-
-            candidate = self.get_best_candidate()
-
-            # if tie
-            if candidate is None:
-                self.get_logger().warning(f"No clear winner found for {self.current_action_mapping.action}. This action will not be mapped to any joystick controls.")
-
-                resp.success = False
-                resp.message = f"No clear winner found for {self.current_action_mapping.action}. This action will not be mapped to any joystick controls."
-
-            else:
-                self.current_action_mapping.topic = candidate.topic
-                self.current_action_mapping.index = candidate.source_index
-                self.js_mappings.append(self.current_action_mapping)
-
-                self.get_logger().info(f"Mapped {self.current_action_mapping.action} to {candidate.source_type} {candidate.source_index} on {candidate.topic} with score {candidate.score}.")
-                resp.success = True
-                resp.message = f"Mapped {self.current_action_mapping.action} to {candidate.source_type} {candidate.source_index} on {candidate.topic} with score {candidate.score}."
-
-            self.current_action_mapping = None
-            self.clear_candidates()
-
+    def set_mapping_state_callback(self, req, resp):        
+        if not self.mapping_active: resp = self.set_mapping_active(req, resp)  
+        else: resp = self.set_mapping_inactive(req, resp)
         return resp
     
     def set_action_callback(self, req, resp):
@@ -126,89 +80,54 @@ class JoystickMapper(Node):
         Set the current action to be mapped based on the request data string.
         """
         if self.current_action_mapping is not None:
-            self.get_logger().warning(f"Current action mapping is {self.current_action_mapping}, but set_action was called again before mapping was reset.")
-
-            resp.success = False
-            resp.message = f"Current action mapping is {self.current_action_mapping}, but set_action was called again before action was reset."
+            msg = (JoystickMapperLogMessages.ACTION_SET +
+                   JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                   JoystickMapperLogMessages.ACTION_ALREADY_SET)
+            
+            self.get_logger().warning(msg)
+            resp.success, resp.message = False, msg
             return resp
 
         try:
             self.current_action_mapping = ROVActionMapping.from_string(req.data)
 
-        except ValueError as exception:
-            # While this validation should be handled client-side, best practice to call it here, too
-            self.get_logger().error(f"ValueError occured, likely invalid action type:\n{exception}")
-
-            resp.success = False
-            resp.message = f"Invalid request. Check action type is ROVActionType Enum. Make sure all required fields are filled (name/type/topic/index). Check logs for details."
+        except ValueError as exception:  # While this validation should be handled client-side, best practice to call it here, too
+            msg = (JoystickMapperLogMessages.ACTION_SET +
+                   JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                   JoystickMapperLogMessages.ACTION_INVALID +
+                   req.data)
+            
+            self.get_logger().warning(msg)
+            resp.success, resp.message = False, msg
             return resp
 
         except Exception as exception:
-            self.get_logger().error(f"Error occurred while setting current action: {exception}")
-
-            resp.success = False
-            resp.message = f"Error occurred while setting current action. Check logs for details."
+            msg = (JoystickMapperLogMessages.ACTION_SET +
+                   JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                   JoystickMapperLogMessages.UNCAUGHT_EXCEPTION +
+                   str(exception))
+            
+            self.get_logger().error(msg)
+            resp.success, resp.message = False, msg
             return resp
 
-        self.get_logger().info(f"Set current action to {self.current_action_mapping}.")
-
-        resp.success = True
-        resp.message = f"Set current action to {self.current_action_mapping}"
+        msg = (JoystickMapperLogMessages.ACTION_SET +
+               JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+               JoystickMapperLogMessages.ACTION_IS_SET +
+               f"{self.current_action_mapping}")
+        
+        self.get_logger().info(msg)
+        resp.success, resp.message = True, msg
         return resp
 
-    def activation_callback(self, req, resp):
+    def set_mapper_state_callback(self, req, resp):
         """
         Activate or deactivate the joystick mapper based on current state. If not currently active, activate with provided parameters; otherwise, deactivate.
         When activating, the request data should be a comma-separated string of joystick topics to subscribe to (e.g. "/joy1,/joy2").
         """
 
-        # if not currently active, activate with provided parameters; otherwise, deactivate
-        if not self.active:
-            try:
-                topics = req.data.split(",")
-                self.js_topics = topics
-
-            except Exception as exception:
-                self.get_logger().error(f"Exception caught during activation:\n{exception}")
-
-                resp.success = False
-                resp.message = f"Something went wrong during activation. Check logs for details."
-                return resp
-
-            self.subscribe_to_joytsicks()
-            self.active = True
-
-            resp.success = True
-            resp.message = "Successfully activated joystick mapper."
-        
-        else:
-            self.unsubscribe_from_joysticks()
-
-            if len(self.js_mappings) > 0:
-                msg = f"Deactivation: There are unsaved mappings during deactivation. Saving joystick mappings to {self.js_mappings_path}."
-
-                self.get_logger().warning(msg)
-                resp.message += msg + "\n"
-
-                self.save_mappings()  # TODO
-                self.js_mappings = list()
-
-            if self.mapping:
-                msg = f"Deactivation: Deactivating while mapping still active for {self.current_action_mapping}. This action will not be mapped to any joystick controls."
-                
-                # stop candidate updates and clear candidate
-                self.toggle_mapping_callback(None, None)
-
-                self.get_logger().warning(msg)
-                resp.message += msg + "\n"
-
-            self.active = False
-            self.clear_activation_states()
-
-            self.get_logger().info("Successfully deactivated joystick mapper.")
-            resp.success = True
-            resp.message += "Successfully deactivated joystick mapper."
-
+        if not self.mapper_active: resp = self.set_mapper_active(req, resp)
+        else: resp = self.set_mapper_inactive(req, resp)
         return resp
 
     def save_mappings(self) -> None:
@@ -219,6 +138,157 @@ class JoystickMapper(Node):
 
         save_to_json(mappings_dict, self.js_mappings_path)
         self.get_logger().info(f"Saved {len(self.js_mappings)} joystick mappings to {self.js_mappings_path}.")
+
+    def set_mapper_active(self, req: object, resp: object) -> object:
+        # validate input
+        try:
+            if req.data != "":
+                topics = req.data.split(",")
+                self.js_topics = topics
+
+            # if no topics were provided in parameters or request
+            elif self.js_topics == []:
+                msg = (JoystickMapperLogMessages.MAPPER_SET_ACTIVE +
+                        JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                        JoystickMapperLogMessages.NO_TOPICS)
+            
+                self.get_logger().warning(msg)
+                resp.success, resp.message = False, msg
+                return resp
+
+
+        except Exception as exception:
+            msg = (JoystickMapperLogMessages.MAPPER_SET_ACTIVE +
+                    JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                    JoystickMapperLogMessages.UNCAUGHT_EXCEPTION +
+                    str(exception))
+            
+            self.get_logger().error(msg)
+            resp.success, resp.message = False, msg
+            return resp
+
+        # activate mapper (subscribe to joystick topics)
+        self.subscribe_to_joytsicks()
+        self.mapper_active = True
+
+        msg = (JoystickMapperLogMessages.MAPPER_SET_ACTIVE +
+                JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+                JoystickMapperLogMessages.MAPPER_IS_ACTIVE)
+        
+        self.get_logger().info(msg)
+        resp.success, resp.message = True, msg
+        return resp
+
+    def set_mapper_inactive(self, req: object, resp: object) -> object:
+        if self.mapping_active:
+            msg = (JoystickMapperLogMessages.MAPPER_SET_INACTIVE +
+                    JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                    JoystickMapperLogMessages.MAPPING_IS_ACTIVE)
+
+            self.get_logger().warning(msg)
+            resp.success, resp.message = False, msg
+            return resp
+
+        self.unsubscribe_from_joysticks()
+
+        self.mapper_active = False
+        self.js_subscriptions = list()
+        self.latest_js_states = dict()
+        self.candidates = None
+
+        msg = (JoystickMapperLogMessages.MAPPER_SET_INACTIVE +
+                JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+                JoystickMapperLogMessages.MAPPER_IS_INACTIVE)
+
+        self.get_logger().info(msg)
+        resp.success, resp.message = True, msg
+        return resp
+
+    def set_mapping_active(self, req: object, resp: object) -> object:
+        # if user hasn't activated joystick mapper
+        if not self.mapper_active:
+            msg = (JoystickMapperLogMessages.MAPPER_SET_ACTIVE +
+                    JoystickMapperLogMessages.SERVICE_CALL_FAILED + 
+                    JoystickMapperLogMessages.MAPPER_IS_INACTIVE)
+            
+            self.get_logger().warning(msg)
+            resp.success, resp.message = False, msg
+            return resp
+        
+        # if user hasn't set action to map
+        if self.current_action_mapping is None:
+            msg = (JoystickMapperLogMessages.MAPPER_SET_ACTIVE +
+                    JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                    JoystickMapperLogMessages.NO_ACTION_SET)
+            
+            self.get_logger().warning(msg)
+            resp.success = False, resp.message = msg
+            return resp
+
+        # will update mapping candidates on timer
+        self.start_candidate_updates()
+        self.mapping_active = True
+
+        msg = (JoystickMapperLogMessages.MAPPER_SET_ACTIVE +
+                JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+                JoystickMapperLogMessages.MAPPER_IS_ACTIVE)
+        
+        self.get_logger().info(msg)
+        resp.success, resp.message = True, msg
+        return resp
+
+    def set_mapping_inactive(self, req: object, resp: object) -> object:
+        self.mapping_active = False
+        self.stop_candidate_updates()
+
+        candidate = self.get_best_candidate()
+
+        # if no candidates were found
+        if candidate == JoystickMapperLogMessages.MAPPING_NO_CANDIDATE:
+            msg = (JoystickMapperLogMessages.MAPPER_SET_INACTIVE +
+                    JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+                    JoystickMapperLogMessages.MAPPING_IS_INACTIVE +
+                    JoystickMapperLogMessages.MAPPING_FAILED + 
+                    JoystickMapperLogMessages.MAPPING_NO_CANDIDATE +
+                    JoystickMapperLogMessages.SERVER_ERROR)  # if no candidates were found, then it's a server error
+
+            self.get_logger().warning(msg)
+            resp.success, resp.message = False, msg
+            return
+
+        # if tie
+        if candidate == JoystickMapperLogMessages.MAPPING_CANDIDATE_TIE:
+            msg = (JoystickMapperLogMessages.MAPPER_SET_INACTIVE +
+                    JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+                    JoystickMapperLogMessages.MAPPING_IS_INACTIVE +
+                    JoystickMapperLogMessages.MAPPING_FAILED + 
+                    JoystickMapperLogMessages.MAPPING_CANDIDATE_TIE)
+
+            self.get_logger().warning(msg)
+            resp.success, resp.message = False, msg
+            return
+
+        self.current_action_mapping.topic = candidate.topic
+        self.current_action_mapping.index = candidate.source_index
+        self.js_mappings.append(self.current_action_mapping)
+
+        msg = (JoystickMapperLogMessages.MAPPER_SET_INACTIVE +
+                JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+                JoystickMapperLogMessages.MAPPING_IS_INACTIVE +
+                JoystickMapperLogMessages.MAPPING_SUCCEEDED +
+                JoystickMapperLogMessages.MAPPING_FOUND_CANDIDATE + 
+                f"{self.current_action_mapping.action}->" +
+                f"{candidate.topic}/" +
+                f"{candidate.source_type}/" +
+                f"{candidate.source_index}={candidate.score}")
+        
+        self.get_logger().info(msg)
+        resp.success, resp.message = True, msg
+
+        self.current_action_mapping = None
+        self.clear_candidates()
+
+        return resp
 
     def load_mappings(self) -> None:
         ... # TODO
@@ -237,6 +307,8 @@ class JoystickMapper(Node):
         for candidate in self.candidates.values():
             candidate.score = None
 
+        self.get_logger().info("Clearing candidates after mapping inactive")
+
     def create_candidates(self) -> None:
         """
         When activated, Joystick Mapper will create MappingCandidates that will later be used to map actions.
@@ -252,6 +324,8 @@ class JoystickMapper(Node):
             for index, initial_score in enumerate(js_state.axes):
                 candidate = MappingCandidate(topic, ROVActionType.JS_AXIS, index, initial_score)
                 self.candidates[candidate] = candidate
+
+        self.get_logger().info("Creating candidates")
 
     def update_candidates(self) -> None:
         """
@@ -290,7 +364,7 @@ class JoystickMapper(Node):
             # skip candidates that are unrelated to current action
             if candidate.source_type != self.current_action_mapping.action.type: continue
             if candidate.score is None: 
-                self.get_logger().warning(f"Found candidate {candidate} with None score. A joystick topic might've stopped publishing during the mapping process.")
+                self.get_logger().warning(f"Found candidate with None score: {candidate} " + JoystickMapperLogMessages.TOPIC_STALE)
                 continue
 
             score_diff = abs(candidate.score - candidate.initial_score)
@@ -304,9 +378,11 @@ class JoystickMapper(Node):
 
             elif score_diff == best_score:
                 best_candidates.append(candidate)
-            
-        # If there are multiple candidates with the same best score, return None to indicate that no clear winner was found
-        return best_candidates[0] if len(best_candidates) == 1 else None
+        
+        # If there are multiple candidates with the same best score, return None to indicate that no clear winner was found, 
+        if len(best_candidates) == 1: return best_candidates[0]
+        elif len(best_candidates) == 0: return JoystickMapperLogMessages.MAPPING_NO_CANDIDATE
+        return JoystickMapperLogMessages.MAPPING_CANDIDATE_TIE
 
     def clear_activation_states(self) -> None:
         """
@@ -336,10 +412,8 @@ class JoystickMapper(Node):
 
         # This is a simple function, but I wanted to make the activation callback more readable
         for topic in self.js_topics:
-            self.get_logger().info(f"Subscribing to {topic}...")
             self.js_subscriptions.append(self.create_subscription(Joy, topic, lambda msg, bound_topic=topic: self.js_callback(bound_topic, msg), 10))
-
-        self.get_logger().info("Successfully subscribed to joystick topics.")
+            self.get_logger().info(JoystickMapperLogMessages.SUBSCRIPTION_CREATED + topic)
 
     def unsubscribe_from_joysticks(self) -> None:
         """
@@ -349,11 +423,8 @@ class JoystickMapper(Node):
 
         # This is a simple function, but I wanted to make the activation callback more readable
         for subscription in self.js_subscriptions:
-            self.get_logger().info(f"Unsubscribing from {subscription.topic_name}...")
             self.destroy_subscription(subscription)
-
-        self.js_subscriptions = None
-        self.get_logger().info("Successfully unsubscribed from joystick topics.")
+            self.get_logger().info(JoystickMapperLogMessages.SUBSCRIPTION_DESTROYED + subscription.topic_name)
 
     def start_candidate_updates(self) -> None:
         """
@@ -363,7 +434,7 @@ class JoystickMapper(Node):
 
         # This is a one-liner, but I wanted to make the activation callback more readable
         self.update_timer = self.create_timer(self.update_time, self.update_candidates)
-        self.get_logger().info("Started candidate update timer.")
+        self.get_logger().info(JoystickMapperLogMessages.START_TIMER + str(self.update_candidates))
 
     def stop_candidate_updates(self) -> None:
         """
@@ -371,9 +442,9 @@ class JoystickMapper(Node):
         This should be called during the deactivation process.
         """
 
-        self.get_logger().info("Stopping candidate update timer.")
         # This is a one-liner, but I wanted to make the activation callback more readable
         self.update_timer.cancel()
+        self.get_logger().info(JoystickMapperLogMessages.STOP_TIMER + str(self.update_candidates))
 
 
 def main(args=None):
