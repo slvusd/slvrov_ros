@@ -94,7 +94,7 @@ class ROVActionMapping:
         index = int(index_str) if index_str != "None" else None
         topic = topic_str if topic_str != "None" else None
 
-        return cls(action=action, topic=topic, index=index, **params)
+        return cls(action=action, topic=topic, index=index)
 
     def __json__(self):
         return {f"{str(self.action)}/{self.topic}/{self.index}": {"action": str(self.action),"topic": self.topic,"index": self.index}}
