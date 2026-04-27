@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joystick Mapper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <span class="logo">ROV</span>
+      <span class="subtitle">JOYSTICK MAPPER</span>
+    </div>
+    <div class="topbar-meta">
+      <span class="host-badge">STATIC UI CONCEPT</span>
+      <span class="status-bar" id="global-status">DISCONNECTED</span>
+    </div>
+  </header>
+
+  <main class="dashboard">
+    <section class="panel panel-wide">
+      <div class="panel-label">Activation</div>
+      <div class="panel-body">
+        <div class="field-group">
+          <label for="topic-input">Joystick Topics</label>
+          <textarea id="topic-input" rows="4" spellcheck="false" placeholder="/joy
+/pilot/joy"></textarea>
+          <p class="field-hint">One topic per line. The UI will send both the raw list and the comma-separated ROS service string.</p>
+        </div>
+
+        <div class="button-row">
+          <button class="btn btn-accent" id="activate-btn" type="button">Activate Mapper</button>
+          <button class="btn btn-warning" id="deactivate-btn" type="button">Deactivate Mapper</button>
+          <button class="btn btn-muted" id="refresh-btn" type="button">Refresh Status</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-label">Action Setup</div>
+      <div class="panel-body">
+        <div class="field-grid">
+          <div class="field-group">
+            <label for="action-preset">Preset Action</label>
+            <select id="action-preset">
+              <option value="">Custom</option>
+              <option value="forward|js_axis">forward</option>
+              <option value="strafe|js_axis">strafe</option>
+              <option value="yaw|js_axis">yaw</option>
+              <option value="heave|js_axis">heave</option>
+              <option value="roll|js_axis">roll</option>
+              <option value="pitch|js_axis">pitch</option>
+              <option value="move_servo|js_axis">move_servo</option>
+              <option value="move_motor|js_axis">move_motor</option>
+              <option value="claw_open|js_button">claw_open</option>
+              <option value="claw_rotate|js_button">claw_rotate</option>
+              <option value="claw_tilt|js_button">claw_tilt</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="action-name">Action Name</label>
+            <input id="action-name" type="text" placeholder="forward" autocomplete="off">
+          </div>
+
+          <div class="field-group">
+            <label for="action-type">Action Type</label>
+            <select id="action-type">
+              <option value="js_axis">js_axis</option>
+              <option value="js_button">js_button</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="inline-status">
+          <span class="mono-chip">ROS string</span>
+          <code id="action-preview">forward/js_axis/None/None</code>
+        </div>
+
+        <div class="button-row">
+          <button class="btn btn-accent2" id="set-action-btn" type="button">Set Current Action</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-label">Mapping Run</div>
+      <div class="panel-body">
+        <div class="mapping-stage">
+          <div class="stage-indicator" id="mapping-indicator">
+            <span class="indicator-dot"></span>
+            <span id="mapping-phase">Idle</span>
+          </div>
+          <p class="field-hint">Start mapping after setting an action, move the desired control, then stop mapping to let the node choose the best candidate.</p>
+        </div>
+
+        <div class="button-row">
+          <button class="btn btn-success" id="start-mapping-btn" type="button">Start Mapping</button>
+          <button class="btn btn-danger" id="stop-mapping-btn" type="button">Stop Mapping</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel panel-tall">
+      <div class="panel-label">Mapper Status</div>
+      <div class="panel-body">
+        <dl class="status-grid">
+          <div>
+            <dt>Backend</dt>
+            <dd id="status-backend">unknown</dd>
+          </div>
+          <div>
+            <dt>Mapper Active</dt>
+            <dd id="status-active">unknown</dd>
+          </div>
+          <div>
+            <dt>Mapping</dt>
+            <dd id="status-mapping">unknown</dd>
+          </div>
+          <div>
+            <dt>Current Action</dt>
+            <dd id="status-current-action">none</dd>
+          </div>
+          <div>
+            <dt>Topics</dt>
+            <dd id="status-topics">none</dd>
+          </div>
+          <div>
+            <dt>Last Result</dt>
+            <dd id="status-last-result">none</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="panel panel-tall">
+      <div class="panel-label">Request Console</div>
+      <div class="panel-body panel-console">
+        <div class="console-toolbar">
+          <span class="mono-chip">Browser -> bridge</span>
+          <button class="btn btn-muted btn-small" id="clear-log-btn" type="button">Clear Log</button>
+        </div>
+        <div class="console-log" id="console-log"></div>
+      </div>
+    </section>
+
+    <section class="panel panel-wide">
+      <div class="panel-label">Queued Mappings</div>
+      <div class="panel-body">
+        <p class="field-hint">This list is UI-side only for now. It helps visualize successful mapping responses before you build the client node or persistence flow.</p>
+        <div class="mapping-list" id="mapping-list">
+          <div class="mapping-empty">No successful mappings recorded in this session.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

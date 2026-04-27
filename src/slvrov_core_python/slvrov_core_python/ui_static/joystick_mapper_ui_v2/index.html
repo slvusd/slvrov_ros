@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joystick Mapper V2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <span class="logo">ROV</span>
+      <span class="subtitle">JOYSTICK MAPPER V2</span>
+    </div>
+    <div class="topbar-meta">
+      <span class="host-badge">STATIC UI CONCEPT</span>
+      <span class="status-bar" id="global-status">DISCONNECTED</span>
+    </div>
+  </header>
+
+  <section class="status-strip">
+    <div class="status-card">
+      <span class="status-chip-label">Backend</span>
+      <span class="status-chip-value" id="status-backend">unknown</span>
+    </div>
+    <div class="status-card">
+      <span class="status-chip-label">Mapper</span>
+      <span class="status-chip-value" id="status-active">unknown</span>
+    </div>
+    <div class="status-card">
+      <span class="status-chip-label">Mapping</span>
+      <span class="status-chip-value" id="status-mapping">unknown</span>
+    </div>
+    <div class="status-card">
+      <span class="status-chip-label">Saved</span>
+      <span class="status-chip-value" id="status-saved">unknown</span>
+    </div>
+    <div class="status-card status-card-actions">
+      <button class="btn btn-muted btn-small" id="refresh-btn" type="button">Refresh Status</button>
+    </div>
+  </section>
+
+  <main class="dashboard">
+    <section class="panel panel-wide">
+      <div class="panel-label">Activation</div>
+      <div class="panel-body">
+        <div class="field-group">
+          <label for="topic-input">Joystick Topics</label>
+          <textarea id="topic-input" rows="4" spellcheck="false" placeholder="/joy
+/pilot/joy"></textarea>
+          <p class="field-hint">One topic per line. The UI sends both the parsed list and the ROS service string to the bridge.</p>
+        </div>
+
+        <div class="button-row">
+          <button class="btn btn-accent" id="activate-btn" type="button">Activate Mapper</button>
+          <button class="btn btn-warning" id="deactivate-btn" type="button">Deactivate Mapper</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel panel-tall">
+      <div class="panel-label">Action Setup</div>
+      <div class="panel-body">
+        <div class="field-grid">
+          <div class="field-group">
+            <label for="action-preset">Preset Action</label>
+            <select id="action-preset">
+              <option value="">Custom</option>
+              <option value="forward|js_axis">forward</option>
+              <option value="strafe|js_axis">strafe</option>
+              <option value="yaw|js_axis">yaw</option>
+              <option value="heave|js_axis">heave</option>
+              <option value="roll|js_axis">roll</option>
+              <option value="pitch|js_axis">pitch</option>
+              <option value="move_servo|js_axis">move_servo</option>
+              <option value="move_motor|js_axis">move_motor</option>
+              <option value="claw_open|js_button">claw_open</option>
+              <option value="claw_rotate|js_button">claw_rotate</option>
+              <option value="claw_tilt|js_button">claw_tilt</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label for="action-name">Action Name</label>
+            <input id="action-name" type="text" placeholder="forward" autocomplete="off">
+          </div>
+
+          <div class="field-group">
+            <label for="action-type">Action Type</label>
+            <select id="action-type">
+              <option value="js_axis">js_axis</option>
+              <option value="js_button">js_button</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="inline-status">
+          <span class="mono-chip">ROS string</span>
+          <code id="action-preview">forward/js_axis/None/None</code>
+        </div>
+
+        <div class="button-row">
+          <button class="btn btn-success" id="add-action-queue-btn" type="button">Add Action To Queue</button>
+          <button class="btn btn-accent" id="map-action-now-btn" type="button">Map Action Now</button>
+        </div>
+
+        <div class="queue-block">
+          <div class="queue-header">
+            <span class="mono-chip">Action Queue</span>
+            <span class="queue-count" id="queue-count">0 queued</span>
+          </div>
+          <div class="queue-list" id="queue-list">
+            <div class="mapping-empty">No queued actions yet.</div>
+          </div>
+          <div class="button-row queue-footer">
+            <button class="btn btn-accent2" id="map-next-action-btn" type="button">Map Next Action</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel panel-console-area">
+      <div class="panel-label">Request Console</div>
+      <div class="panel-body panel-console">
+        <div class="console-toolbar">
+          <span class="mono-chip">Browser -> bridge</span>
+          <button class="btn btn-muted btn-small" id="clear-log-btn" type="button">Clear Log</button>
+        </div>
+        <div class="console-log" id="console-log"></div>
+      </div>
+    </section>
+
+    <section class="panel panel-wide">
+      <div class="panel-label">Completed Mappings</div>
+      <div class="panel-body">
+        <p class="field-hint">Successful mapping responses are collected here so you can inspect the session flow before the real backend exists.</p>
+        <div class="mapping-list" id="mapping-list">
+          <div class="mapping-empty">No successful mappings recorded in this session.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

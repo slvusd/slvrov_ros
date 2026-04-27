@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Joystick Mapper V3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-block">
+      <span class="logo">ROV</span>
+      <span class="subtitle">JOYSTICK MAPPER V3</span>
+    </div>
+    <div class="topbar-tools">
+      <button class="btn btn-muted btn-small" id="refresh-btn" type="button">Refresh Status</button>
+      <span class="status-bar" id="global-status">NO REQUEST YET</span>
+    </div>
+  </header>
+
+  <section class="status-strip">
+    <div class="status-card">
+      <span class="status-chip-label">Mapper</span>
+      <span class="status-chip-value" id="status-mapper">inactive</span>
+    </div>
+    <div class="status-card">
+      <span class="status-chip-label">Mapping</span>
+      <span class="status-chip-value" id="status-mapping">inactive</span>
+    </div>
+    <div class="status-card status-card-topics">
+      <span class="status-chip-label">Topics</span>
+      <span class="status-chip-value" id="status-topics">none</span>
+    </div>
+    <div class="status-card status-card-action">
+      <span class="status-chip-label">Current Action</span>
+      <span class="status-chip-value" id="status-current-action">none</span>
+    </div>
+    <div class="status-card">
+      <span class="status-chip-label">Save State</span>
+      <span class="status-chip-value" id="status-save">saved</span>
+    </div>
+  </section>
+
+  <main class="dashboard">
+    <section class="panel panel-column">
+      <div class="panel-label">Activation</div>
+      <div class="panel-body">
+        <div class="field-group">
+          <label for="topic-input">Joystick Topics</label>
+          <textarea id="topic-input" rows="8" spellcheck="false" placeholder="/js0
+/js1"></textarea>
+          <p class="field-hint">One topic per line. Topics are sent only when activating the mapper.</p>
+        </div>
+        <button class="btn btn-success btn-block" id="mapper-toggle-btn" type="button">Activate</button>
+      </div>
+    </section>
+
+    <section class="panel panel-column panel-wizard">
+      <div class="panel-label">Action Wizard</div>
+      <div class="panel-body">
+        <div class="field-group">
+          <label for="action-preset">Preset Action</label>
+          <select id="action-preset">
+            <option value="">Custom</option>
+            <option value="forward|js_axis">forward</option>
+            <option value="strafe|js_axis">strafe</option>
+            <option value="yaw|js_axis">yaw</option>
+            <option value="heave|js_axis">heave</option>
+            <option value="roll|js_axis">roll</option>
+            <option value="pitch|js_axis">pitch</option>
+            <option value="move_servo|js_axis">move_servo</option>
+            <option value="move_motor|js_axis">move_motor</option>
+            <option value="claw_open|js_button">claw_open</option>
+            <option value="claw_rotate|js_button">claw_rotate</option>
+            <option value="claw_tilt|js_button">claw_tilt</option>
+          </select>
+        </div>
+
+        <div class="field-grid equal-grid">
+          <div class="field-group field-align-right">
+            <label for="action-name">Action Name</label>
+            <input id="action-name" type="text" placeholder="myAction" autocomplete="off">
+          </div>
+          <div class="field-group field-align-right">
+            <label for="action-type">Action Type</label>
+            <select id="action-type">
+              <option value="js_axis">js_axis</option>
+              <option value="js_button">js_button</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="inline-status">
+          <span class="mono-chip">ROS action str</span>
+          <code id="action-preview">myAction/js_axis</code>
+        </div>
+
+        <div class="button-row">
+          <button class="btn btn-danger" id="queue-add-btn" type="button">Add To Queue</button>
+          <button class="btn btn-danger" id="map-now-btn" type="button">Map Now</button>
+        </div>
+
+        <div class="queue-block">
+          <div class="queue-header">
+            <span class="mono-chip">Action Queue</span>
+            <span class="queue-count" id="queue-count">0 queued</span>
+          </div>
+          <div class="queue-list" id="queue-list">
+            <div class="queue-empty">No queued actions yet.</div>
+          </div>
+        </div>
+
+        <button class="btn btn-accent2 btn-block" id="map-next-btn" type="button">Map Next Action</button>
+      </div>
+    </section>
+
+    <section class="panel panel-column panel-wizard">
+      <div class="panel-label">Mapping Wizard</div>
+      <div class="panel-body">
+        <button class="btn btn-success btn-block" id="mapping-toggle-btn" type="button">Start Mapping</button>
+
+        <div class="field-group">
+          <label for="save-path-input">Save Path For Mappings</label>
+          <input id="save-path-input" type="text" placeholder="/path/to/mappings.json" autocomplete="off">
+        </div>
+
+        <div class="queue-block">
+          <div class="queue-header">
+            <span class="mono-chip">Completed Mappings</span>
+            <span class="queue-count" id="completed-count">0 completed</span>
+          </div>
+          <div class="queue-list" id="completed-list">
+            <div class="queue-empty">No completed mappings yet.</div>
+          </div>
+        </div>
+
+        <button class="btn btn-muted btn-block" id="save-mappings-btn" type="button">Save Completed Mappings</button>
+      </div>
+    </section>
+
+    <section class="panel panel-console">
+      <div class="panel-label">Request Console</div>
+      <div class="panel-body panel-body-console">
+        <div class="console-toolbar">
+          <span class="mono-chip">Browser -> server</span>
+          <button class="btn btn-muted btn-small" id="clear-log-btn" type="button">Clear Log</button>
+        </div>
+        <div class="console-log" id="console-log"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

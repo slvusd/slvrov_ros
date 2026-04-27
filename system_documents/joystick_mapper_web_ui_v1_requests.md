@@ -1,0 +1,297 @@
+# Joystick Mapper Web UI V1 Request Contract
+
+This document describes the browser requests the new static UI expects a future web bridge to handle.
+
+The V1 UI files live at:
+
+- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v1/index.html`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v1/style.css`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v1/app.js`
+
+## ROS services exposed by `joystick_mapper.py`
+
+The mapper node currently exposes these ROS services:
+
+1. `joystick_mapper/activation`
+   - Type: `slvrov_interfaces/srv/String`
+   - Request field: `data`
+   - Response fields: `success`, `message`
+   - Behavior:
+     - If mapper is inactive, calling this activates it and subscribes to joystick topics.
+     - If mapper is already active, calling this deactivates it.
+   - Activation request format:
+     - `"/joy1,/joy2"`
+   - Deactivation request format:
+     - Any string is effectively ignored by the node while active, because the callback deactivates based on current state.
+
+2. `joystick_mapper/set_action`
+   - Type: `slvrov_interfaces/srv/String`
+   - Request field: `data`
+   - Response fields: `success`, `message`
+   - Request format:
+     - `"action_name/js_axis/None/None"`
+     - `"action_name/js_button/None/None"`
+   - Example:
+     - `"forward/js_axis/None/None"`
+
+3. `joystick_mapper/toggle_mapping`
+   - Type: `std_srvs/srv/Trigger`
+   - Request fields: none
+   - Response fields: `success`, `message`
+   - Behavior:
+     - First call starts a mapping run.
+     - Second call stops the mapping run and selects the best candidate.
+
+## Browser-to-backend API naming
+
+The browser should not call ROS directly. A future bridge should expose HTTP endpoints that translate browser requests into ROS service calls.
+
+The static UI now uses the same names as the mapper services whenever the request maps to a real ROS service:
+
+- `/joystick_mapper/activation`
+- `/joystick_mapper/set_action`
+- `/joystick_mapper/toggle_mapping`
+
+The one exception is `/joystick_mapper/status`, which is a bridge-only helper because `joystick_mapper.py` does not currently expose a status service.
+
+### `GET /joystick_mapper/status`
+
+Purpose:
+- Populate the status cards when the page loads or when the user clicks refresh.
+
+Suggested response:
+
+```json
+{
+  "backend": "reachable",
+  "active": true,
+  "mapping": false,
+  "current_action": "forward/js_axis/None/None",
+  "topics": ["/joy", "/pilot/joy"],
+  "message": "optional status message"
+}
+```
+
+Notes:
+- `joystick_mapper.py` does not currently expose a status service.
+- The future client node or web bridge will need to track this state itself, derive it from its own calls, or add a new ROS status service later.
+
+### `POST /joystick_mapper/activation`
+
+Purpose:
+- Activate the mapper with joystick topics.
+
+Browser request body:
+
+```json
+{
+  "desired_state": "activate",
+  "topics": ["/joy", "/pilot/joy"],
+  "rosServiceData": "/joy,/pilot/joy"
+}
+```
+
+ROS call to make:
+
+- Service: `joystick_mapper/activation`
+- Request:
+
+```text
+data="/joy,/pilot/joy"
+```
+
+Suggested response:
+
+```json
+{
+  "success": true,
+  "message": "Successfully activated joystick mapper.",
+  "active": true,
+  "topics": ["/joy", "/pilot/joy"]
+}
+```
+
+### `POST /joystick_mapper/activation`
+
+Purpose:
+- Deactivate the mapper.
+
+Browser request body:
+
+```json
+{
+  "desired_state": "deactivate"
+}
+```
+
+ROS call to make:
+
+- Service: `joystick_mapper/activation`
+- Request:
+
+```text
+data=""
+```
+
+Suggested response:
+
+```json
+{
+  "success": true,
+  "message": "Successfully deactivated joystick mapper.",
+  "active": false,
+  "topics": []
+}
+```
+
+Important:
+- The underlying ROS service is toggle-based, not explicit activate/deactivate.
+- The bridge should avoid calling this service if the mapper is already inactive.
+
+Because the webpage uses the same HTTP route for both activation and deactivation, the bridge should inspect the JSON body to decide whether it is being asked to activate or deactivate.
+
+### `POST /joystick_mapper/set_action`
+
+Purpose:
+- Set the action that should be mapped next.
+
+Browser request body:
+
+```json
+{
+  "name": "forward",
+  "type": "js_axis",
+  "rosServiceData": "forward/js_axis/None/None"
+}
+```
+
+ROS call to make:
+
+- Service: `joystick_mapper/set_action`
+- Request:
+
+```text
+data="forward/js_axis/None/None"
+```
+
+Suggested response:
+
+```json
+{
+  "success": true,
+  "message": "Set current action to forward/js_axis/None/None",
+  "current_action": "forward/js_axis/None/None"
+}
+```
+
+Validation rules the bridge should enforce before calling ROS:
+
+- `name` must be non-empty.
+- `type` must be either `js_axis` or `js_button`.
+- `rosServiceData` should always be generated by the bridge, not trusted from the browser.
+
+### `POST /joystick_mapper/toggle_mapping`
+
+Purpose:
+- Start a mapping run after activation and after an action has been set.
+
+Browser request body:
+
+```json
+{
+  "desired_state": "start"
+}
+```
+
+ROS call to make:
+
+- Service: `joystick_mapper/toggle_mapping`
+- Request: empty `Trigger` request
+
+Suggested response:
+
+```json
+{
+  "success": true,
+  "message": "Started mapping process for forward/js_axis. Please interact with the desired control. Toggle mapping to find the best match.",
+  "mapping": true
+}
+```
+
+Important:
+- The bridge should only call this when it believes mapping is currently stopped.
+
+### `POST /joystick_mapper/toggle_mapping`
+
+Purpose:
+- Stop the current mapping run and collect the result.
+
+Browser request body:
+
+```json
+{
+  "desired_state": "stop"
+}
+```
+
+ROS call to make:
+
+- Service: `joystick_mapper/toggle_mapping`
+- Request: empty `Trigger` request
+
+Suggested response:
+
+```json
+{
+  "success": true,
+  "message": "Mapped forward/js_axis to js_axis 1 on /joy with score 0.98.",
+  "mapping": false
+}
+```
+
+Possible failure response:
+
+```json
+{
+  "success": false,
+  "message": "No clear winner found for forward/js_axis. This action will not be mapped to any joystick controls.",
+  "mapping": false
+}
+```
+
+Important:
+- The bridge should only call this when it believes mapping is currently running.
+
+Because the webpage uses the same HTTP route for both start and stop, the bridge should inspect the JSON body to decide whether it is being asked to start or stop mapping.
+
+## Browser flow expected by the UI
+
+1. User enters joystick topics.
+2. Browser calls `POST /joystick_mapper/activation`.
+3. User chooses or types an action.
+4. Browser calls `POST /joystick_mapper/set_action`.
+5. User starts mapping.
+6. Browser calls `POST /joystick_mapper/toggle_mapping`.
+7. User moves the joystick control to map.
+8. User stops mapping.
+9. Browser calls `POST /joystick_mapper/toggle_mapping`.
+10. When finished, user calls `POST /joystick_mapper/activation`.
+
+## Important implementation notes for the future bridge
+
+- The ROS mapper uses toggle semantics for both activation and mapping lifecycle.
+- The HTTP layer should expose explicit intent-based endpoints anyway, then guard against invalid repeated calls.
+- The bridge should maintain state for:
+  - whether the mapper is active
+  - whether a mapping run is in progress
+  - the most recently set action
+  - the active joystick topic list
+- The browser UI currently assumes JSON responses from every HTTP endpoint.
+- The browser UI also logs every request and response so it is easy to verify the bridge behavior during bring-up.
+
+## Known code-side caveats noticed while designing the UI
+
+- `joystick_mapper.py` does not expose a read-only status service yet.
+- Activation and mapping are toggle services, so the bridge needs state awareness.
+- The mapper expects `set_action` data in full mapping-string form, not just `name/type`.
+- The node appears to rely on subscription state before mapping candidates can be created, so the bridge should not allow `start` before activation has succeeded.
