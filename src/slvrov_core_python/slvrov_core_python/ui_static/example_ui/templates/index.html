@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROV Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <header>
+    <span class="logo">⬡ ROV</span>
+    <span class="subtitle">CONTROL STATION</span>
+    <span class="host-badge" title="your IP: {{ client_ip }}">{{ host }}:{{ port }}</span>
+    <a class="host-badge" href="/playback" style="text-decoration:none;color:var(--text-dim)">⏵ PLAYBACK</a>
+    <button class="btn btn-record" id="btn-record" onclick="toggleRecording()">⏺ RECORD</button>
+    <span class="status-bar" id="global-status">STANDBY</span>
+  </header>
+
+  <div class="grid">
+
+    <!-- Camera panes 0–2 -->
+    {% for cam in ['cam0', 'cam1', 'cam2'] %}
+    <div class="cam-pane" id="pane-{{ cam }}">
+      <div class="cam-label">{{ cam.upper() }} <span class="cam-state" id="state-{{ cam }}">connecting…</span></div>
+      <video id="{{ cam }}" autoplay muted playsinline></video>
+      <div class="cam-controls">
+        <button class="btn btn-capture" id="btn-capture-{{ cam }}"
+                onclick="toggleCapture('{{ cam }}')">
+          ● CAPTURE
+        </button>
+        <button class="btn btn-snap" onclick="takeSnapshot('{{ cam }}')">
+          ◎ SNAP
+        </button>
+        <span class="frame-count" id="count-{{ cam }}">0 frames</span>
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Pane 4: Gallery / viewer -->
+    <div class="cam-pane gallery-pane" id="pane-gallery">
+      <div class="cam-label">GALLERY</div>
+
+      <div class="gallery-image-wrap">
+        <img id="gallery-img" src="" alt="" style="display:none;cursor:pointer"
+             title="Click to open full size" onclick="if(this.src)window.open(this.src,'_blank')">
+        <div class="gallery-empty" id="gallery-empty">
+          <span>Take a snapshot or<br>start a capture session</span>
+        </div>
+      </div>
+
+      <div class="gallery-controls">
+        <button class="btn btn-nav" id="btn-prev" onclick="galleryNav(-1)">◀</button>
+        <span class="gallery-counter" id="gallery-counter">— / —</span>
+        <button class="btn btn-nav" id="btn-next" onclick="galleryNav(1)">▶</button>
+      </div>
+
+      <div class="gallery-strip" id="gallery-strip"></div>
+
+      <div class="blend-badge" id="blend-badge" style="display:none">
+        ✦ Blender file ready
+      </div>
+    </div>
+
+  </div><!-- .grid -->
+
+  <script>
+    // ── WebRTC stream setup ──────────────────────────────────────────
+    const WHEP_BASE = "http://{{ host }}:{{ port }}";
+
+    const peerConns = {};
+    const pendingPlay = new Set();
+    let liveSet = new Set();
+
+    // On first interaction anywhere, start any videos blocked by autoplay policy
+    ["click","keydown","touchstart"].forEach(ev =>
+      document.addEventListener(ev, () => {
+        pendingPlay.forEach(v => v.play().catch(() => {}));
+        pendingPlay.clear();
+      }, { once: true, capture: true })
+    );
+
+    function camState(cam, msg) {
+      const el = document.getElementById(`state-${cam}`);
+      if (el) el.textContent = msg;
+    }
+
+    function playVideo(cam, video) {
+      video.muted = true;
+      video.play().then(() => {
+        camState(cam, "▶ live");
+        liveSet.add(cam);
+      }).catch(() => {
+        // Autoplay blocked — queue for first user interaction
+        pendingPlay.add(video);
+        camState(cam, "tap anywhere to start");
+      });
+    }
+
+    async function startCam(cam) {
+      if (peerConns[cam]) { try { peerConns[cam].close(); } catch(_) {} }
+      liveSet.delete(cam);
+      camState(cam, "connecting…");
+
+      const video = document.getElementById(cam);
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+      peerConns[cam] = pc;
+
+      pc.addTransceiver("video", { direction: "recvonly" });
+      pc.ontrack = (e) => {
+        video.srcObject = e.streams[0] ?? new MediaStream([e.track]);
+        playVideo(cam, video);
+      };
+      pc.onconnectionstatechange = () => {
+        const s = pc.connectionState;
+        if (!liveSet.has(cam)) camState(cam, s);
+        if (["failed", "closed"].includes(s)) {
+          setTimeout(() => startCam(cam), 3000);
+        }
+      };
+
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        const res = await fetch(`${WHEP_BASE}/${cam}/whep`, {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: pc.localDescription.sdp,
+        });
+        if (!res.ok) throw new Error(`whep ${res.status}`);
+        await pc.setRemoteDescription({ type: "answer", sdp: await res.text() });
+      } catch(e) {
+        camState(cam, `retry (${e.message})`);
+        pc.close();
+        setTimeout(() => startCam(cam), 3000);
+      }
+    }
+
+    ["cam0","cam1","cam2"].forEach(c => startCam(c));
+    ["cam0","cam1","cam2"].forEach(c => refreshGallery(c));
+
+    // ── Capture state ────────────────────────────────────────────────
+    const capturing = { cam0: false, cam1: false, cam2: false };
+
+    async function toggleCapture(cam) {
+      const btn = document.getElementById(`btn-capture-${cam}`);
+      if (!capturing[cam]) {
+        btn.disabled = true;
+        const r = await fetch(`/capture/${cam}/start`, { method: "POST" });
+        if (r.ok) {
+          capturing[cam] = true;
+          btn.textContent = "■ STOP";
+          btn.classList.add("active");
+          setStatus(`${cam.toUpperCase()} capturing…`);
+          pollStatus(cam);
+        }
+        btn.disabled = false;
+      } else {
+        btn.disabled = true;
+        const r = await fetch(`/capture/${cam}/stop`, { method: "POST" });
+        const data = await r.json();
+        capturing[cam] = false;
+        btn.textContent = "● CAPTURE";
+        btn.classList.remove("active");
+        setStatus(`${cam.toUpperCase()} stopped — ${data.frame_count} frames`);
+        btn.disabled = false;
+        refreshGallery(cam);
+      }
+    }
+
+    function pollStatus(cam) {
+      if (!capturing[cam]) return;
+      fetch(`/capture/${cam}/status`)
+        .then(r => r.json())
+        .then(d => {
+          document.getElementById(`count-${cam}`).textContent =
+            `${d.frame_count} frames`;
+          if (d.capturing) setTimeout(() => pollStatus(cam), 2000);
+        });
+    }
+
+    // ── Snapshot ─────────────────────────────────────────────────────
+    function takeSnapshot(cam) {
+      const video = document.getElementById(cam);
+      if (!video.videoWidth) { setStatus(`${cam.toUpperCase()} not streaming`); return; }
+
+      const canvas = document.createElement("canvas");
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+
+      // Show immediately in gallery — no waiting
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      addToGallery([dataUrl]);
+      setStatus(`Snapshot captured`);
+
+      // Upload to server in background so it persists
+      canvas.toBlob(async blob => {
+        const r = await fetch(`/snapshot/${cam}/upload`, { method: "POST", body: blob,
+          headers: { "Content-Type": "image/jpeg" } });
+        if (r.ok) {
+          const data = await r.json();
+          const idx = galleryImages.indexOf(dataUrl);
+          if (idx !== -1) { galleryImages[idx] = data.path; renderStrip(); }
+        }
+      }, "image/jpeg", 0.92);
+    }
+
+    // ── Gallery ──────────────────────────────────────────────────────
+    let galleryImages = [];
+    let galleryIndex  = 0;
+
+    async function refreshGallery(cam) {
+      const r = await fetch(`/gallery/${cam}`);
+      const data = await r.json();
+      if (data.frames.length) addToGallery(data.frames);
+      if (data.blend) {
+        document.getElementById("blend-badge").style.display = "block";
+      }
+    }
+
+    function addToGallery(paths) {
+      paths.forEach(p => {
+        if (!galleryImages.includes(p)) galleryImages.push(p);
+      });
+      renderStrip();
+      showImage(galleryImages.length - 1);
+    }
+
+    function renderStrip() {
+      const strip = document.getElementById("gallery-strip");
+      strip.innerHTML = "";
+      galleryImages.forEach((src, i) => {
+        const thumb = document.createElement("img");
+        thumb.src = src;
+        thumb.className = "thumb" + (i === galleryIndex ? " active" : "");
+        thumb.onclick = () => showImage(i);
+        strip.appendChild(thumb);
+      });
+    }
+
+    function showImage(i) {
+      if (!galleryImages.length) return;
+      galleryIndex = Math.max(0, Math.min(i, galleryImages.length - 1));
+      const img = document.getElementById("gallery-img");
+      const empty = document.getElementById("gallery-empty");
+      img.src = galleryImages[galleryIndex];
+      img.style.display = "block";
+      empty.style.display = "none";
+      document.getElementById("gallery-counter").textContent =
+        `${galleryIndex + 1} / ${galleryImages.length}`;
+      // highlight active thumb
+      document.querySelectorAll(".thumb").forEach((t, i) =>
+        t.classList.toggle("active", i === galleryIndex));
+      // scroll thumb into view
+      const thumbs = document.querySelectorAll(".thumb");
+      if (thumbs[galleryIndex]) thumbs[galleryIndex].scrollIntoView({ inline: "center", behavior: "smooth" });
+    }
+
+    function galleryNav(dir) {
+      showImage(galleryIndex + dir);
+    }
+
+    // keyboard arrows
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight") galleryNav(1);
+      if (e.key === "ArrowLeft")  galleryNav(-1);
+    });
+
+    // ── Recording ────────────────────────────────────────────────────
+    let _recording = false;
+
+    function setRecordingUI(on) {
+      _recording = on;
+      const btn = document.getElementById("btn-record");
+      btn.textContent = on ? "⏹ STOP REC" : "⏺ RECORD";
+      btn.classList.toggle("active", on);
+    }
+
+    async function toggleRecording() {
+      const url = _recording ? "/recording/stop" : "/recording/start";
+      const r = await fetch(url, { method: "POST" });
+      const d = await r.json();
+      if (r.ok) {
+        setRecordingUI(d.recording);
+        setStatus(d.recording ? "Recording started" : "Recording stopped");
+      } else {
+        setStatus(`Recording error: ${d.error ?? r.status}`);
+      }
+    }
+
+    // Sync button state with server on load
+    fetch("/recording/status").then(r => r.json()).then(d => {
+      if (d.recording != null) setRecordingUI(d.recording);
+    }).catch(() => {});
+
+    // ── Status bar ───────────────────────────────────────────────────
+    function setStatus(msg) {
+      document.getElementById("global-status").textContent = msg;
+    }
+  </script>
+
+</body>
+</html>

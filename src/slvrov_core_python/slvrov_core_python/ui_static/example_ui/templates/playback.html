@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROV Playback</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .pb-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 16px; height: var(--header-h);
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .back-btn {
+      font-family: var(--mono); font-size: 0.65rem; letter-spacing: 1.5px;
+      color: var(--text-dim); border: 1px solid var(--border);
+      border-radius: 2px; padding: 3px 8px; text-decoration: none;
+      background: transparent;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--text-dim); }
+    .pb-title { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 3px; color: var(--accent); }
+    select.seg-select {
+      font-family: var(--mono); font-size: 0.65rem; letter-spacing: 1px;
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+      border-radius: 2px; padding: 3px 8px; cursor: pointer; min-width: 200px;
+    }
+    select.seg-select:focus { outline: none; border-color: var(--accent); }
+    .speed-group { display: flex; gap: 4px; }
+    .btn-speed {
+      font-family: var(--mono); font-size: 0.6rem; letter-spacing: 1px;
+      border: 1px solid var(--border); border-radius: 2px; padding: 2px 7px;
+      cursor: pointer; background: transparent; color: var(--text-dim);
+    }
+    .btn-speed:hover { color: var(--text); border-color: var(--text-dim); }
+    .btn-speed.active { color: var(--accent); border-color: var(--accent); background: rgba(0,229,255,0.07); }
+    .btn-playpause {
+      font-family: var(--mono); font-size: 0.7rem; letter-spacing: 1.5px;
+      border: 1px solid rgba(0,229,255,0.4); border-radius: 2px; padding: 3px 12px;
+      cursor: pointer; background: transparent; color: var(--accent);
+    }
+    .btn-playpause:hover { background: rgba(0,229,255,0.08); }
+    .time-display {
+      font-family: var(--mono); font-size: 0.65rem; color: var(--text-dim);
+      letter-spacing: 1px; margin-left: auto;
+    }
+    .pb-grid {
+      flex: 1; display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 2px; background: var(--border); overflow: hidden;
+    }
+    .pb-pane {
+      background: var(--surface); display: flex;
+      flex-direction: column; position: relative; overflow: hidden;
+    }
+    .pb-pane video {
+      flex: 1; width: 100%; object-fit: contain; background: #000; min-height: 0;
+    }
+    .pb-cam-label {
+      position: absolute; top: 6px; left: 8px;
+      font-family: var(--mono); font-size: 0.55rem; color: var(--accent);
+      letter-spacing: 2px; opacity: 0.7; z-index: 2; pointer-events: none;
+    }
+    .pb-cam-status {
+      font-size: 0.5rem; opacity: 0.6; letter-spacing: 1px; margin-left: 6px;
+    }
+    .seek-bar-wrap {
+      padding: 4px 8px; background: var(--surface); border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    input[type=range].seek-bar {
+      width: 100%; accent-color: var(--accent); cursor: pointer;
+      height: 3px;
+    }
+    .no-recordings {
+      font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim);
+      text-align: center; padding: 20px; letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;overflow:hidden">
+
+  <div class="pb-header">
+    <a class="back-btn" href="/">← LIVE</a>
+    <span class="pb-title">PLAYBACK</span>
+
+    <select class="seg-select" id="seg-select">
+      <option value="">Loading…</option>
+    </select>
+
+    <div class="speed-group" id="speed-group">
+      <button class="btn-speed" onclick="setSpeed(0.5)">0.5×</button>
+      <button class="btn-speed active" onclick="setSpeed(1)">1×</button>
+      <button class="btn-speed" onclick="setSpeed(2)">2×</button>
+      <button class="btn-speed" onclick="setSpeed(4)">4×</button>
+      <button class="btn-speed" onclick="setSpeed(8)">8×</button>
+      <button class="btn-speed" onclick="setSpeed(16)">16×</button>
+    </div>
+
+    <button class="btn-playpause" id="btn-pp" onclick="togglePlay()">▶ PLAY</button>
+
+    <span class="time-display" id="time-display">— / —</span>
+  </div>
+
+  <div class="pb-grid" id="pb-grid">
+    {% for cam in ['cam0', 'cam1', 'cam2'] %}
+    <div class="pb-pane">
+      <div class="pb-cam-label">
+        {{ cam.upper() }} <span class="pb-cam-status" id="status-{{ cam }}">no recording</span>
+      </div>
+      <video id="v-{{ cam }}" preload="metadata" playsinline></video>
+      <div class="seek-bar-wrap">
+        <input type="range" class="seek-bar" id="seek-{{ cam }}" min="0" max="100" value="0" step="0.1">
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    const CAMS = ["cam0", "cam1", "cam2"];
+    const videos = {};
+    const seeks  = {};
+    CAMS.forEach(c => {
+      videos[c] = document.getElementById(`v-${c}`);
+      seeks[c]  = document.getElementById(`seek-${c}`);
+    });
+
+    let segments = {};   // cam -> [{name, url, mb}]
+    let allNames = [];   // sorted union of segment names
+    let currentSpeed = 1;
+    let syncing = false;
+
+    // ── Segment loading ───────────────────────────────────────────
+    async function loadSegmentList() {
+      const r = await fetch("/recordings/list");
+      const d = await r.json();
+      segments = d.segments;
+      allNames = d.all_names;
+
+      const sel = document.getElementById("seg-select");
+      sel.innerHTML = "";
+      if (!allNames.length) {
+        sel.innerHTML = '<option value="">No recordings found</option>';
+        return;
+      }
+
+      // Group by date
+      let lastDate = null;
+      let grp = null;
+      allNames.slice().reverse().forEach(name => {
+        const [date, time] = name.split("_");
+        const pretty = time.replace(/-/g, ":");
+        if (date !== lastDate) {
+          grp = document.createElement("optgroup");
+          grp.label = date;
+          sel.appendChild(grp);
+          lastDate = date;
+        }
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = pretty;
+        // Show which cameras have this segment
+        const avail = CAMS.filter(c => (segments[c]||[]).some(s => s.name === name));
+        const mb = CAMS.map(c => {
+          const s = (segments[c]||[]).find(x => x.name === name);
+          return s ? s.mb : null;
+        });
+        opt.textContent = `${pretty}  [${avail.join(" ")}]`;
+        grp.appendChild(opt);
+      });
+
+      sel.onchange = () => loadSegment(sel.value);
+
+      // Auto-load the most recent segment
+      if (allNames.length) {
+        sel.value = allNames[allNames.length - 1];
+        loadSegment(allNames[allNames.length - 1]);
+      }
+    }
+
+    function loadSegment(name) {
+      if (!name) return;
+      pauseAll();
+      CAMS.forEach(c => {
+        const seg = (segments[c]||[]).find(s => s.name === name);
+        const v = videos[c];
+        const status = document.getElementById(`status-${c}`);
+        if (seg) {
+          v.src = seg.url;
+          v.load();
+          v.playbackRate = currentSpeed;
+          status.textContent = `${seg.mb} MB`;
+        } else {
+          v.src = "";
+          status.textContent = "no recording";
+        }
+        seeks[c].value = 0;
+      });
+      document.getElementById("time-display").textContent = "— / —";
+      document.getElementById("btn-pp").textContent = "▶ PLAY";
+    }
+
+    // ── Playback control ──────────────────────────────────────────
+    function master() {
+      // Use the first available video as master
+      return CAMS.map(c => videos[c]).find(v => v.src && v.readyState > 0) || videos["cam0"];
+    }
+
+    function playAll() {
+      CAMS.forEach(c => { if (videos[c].src) videos[c].play().catch(() => {}); });
+      document.getElementById("btn-pp").textContent = "⏸ PAUSE";
+    }
+
+    function pauseAll() {
+      CAMS.forEach(c => videos[c].pause());
+      document.getElementById("btn-pp").textContent = "▶ PLAY";
+    }
+
+    function togglePlay() {
+      const m = master();
+      if (m.paused) playAll(); else pauseAll();
+    }
+
+    function setSpeed(s) {
+      currentSpeed = s;
+      CAMS.forEach(c => { videos[c].playbackRate = s; });
+      document.querySelectorAll(".btn-speed").forEach(b => {
+        b.classList.toggle("active", b.textContent === `${s}×`);
+      });
+    }
+
+    // ── Seek sync & time display ──────────────────────────────────
+    function fmtTime(s) {
+      if (!isFinite(s)) return "--:--";
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = Math.floor(s % 60);
+      return h > 0
+        ? `${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`
+        : `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+    }
+
+    // Keep seek bars and time display in sync
+    CAMS.forEach(c => {
+      const v = videos[c];
+      const sk = seeks[c];
+
+      v.addEventListener("timeupdate", () => {
+        if (!v.duration) return;
+        sk.value = (v.currentTime / v.duration) * 100;
+        if (c === CAMS[0]) {
+          document.getElementById("time-display").textContent =
+            `${fmtTime(v.currentTime)} / ${fmtTime(v.duration)}`;
+        }
+      });
+
+      // Dragging seek bar on any camera seeks all
+      sk.addEventListener("input", () => {
+        if (syncing) return;
+        syncing = true;
+        const t = (sk.value / 100) * (v.duration || 0);
+        CAMS.forEach(cc => {
+          if (videos[cc].src && videos[cc].duration) {
+            videos[cc].currentTime = t;
+            seeks[cc].value = sk.value;
+          }
+        });
+        syncing = false;
+      });
+
+      // Sync others when master finishes seeking
+      v.addEventListener("seeked", () => {
+        if (c !== CAMS[0] || syncing) return;
+        syncing = true;
+        CAMS.slice(1).forEach(cc => {
+          if (videos[cc].src && videos[cc].readyState > 0)
+            videos[cc].currentTime = v.currentTime;
+        });
+        syncing = false;
+      });
+
+      // Auto-pause button state on end
+      v.addEventListener("ended", () => {
+        if (c === CAMS[0]) document.getElementById("btn-pp").textContent = "▶ PLAY";
+      });
+    });
+
+    // ── Init ──────────────────────────────────────────────────────
+    loadSegmentList();
+  </script>
+</body>
+</html>

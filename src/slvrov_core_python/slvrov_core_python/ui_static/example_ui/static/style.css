@@ -1,0 +1,321 @@
+/* ── Tokens ───────────────────────────────────────────────────── */
+:root {
+  --bg:         #0a0c0f;
+  --surface:    #111418;
+  --border:     #1e2530;
+  --accent:     #00e5ff;
+  --accent2:    #ff6b35;
+  --danger:     #ff3b5c;
+  --text:       #c8d6e5;
+  --text-dim:   #7a9eb8;
+  --mono:       'Share Tech Mono', monospace;
+  --sans:       'Barlow', sans-serif;
+  --header-h:   42px;
+  --ctrl-h:     36px;
+  --strip-h:    52px;
+}
+
+/* ── Reset ────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────────── */
+header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.logo {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 4px;
+  margin-top: 2px;
+}
+
+.btn-record {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  border: 1px solid rgba(255,59,92,0.5);
+  border-radius: 2px;
+  padding: 3px 10px;
+  cursor: pointer;
+  background: transparent;
+  color: var(--danger);
+  transition: background 0.15s;
+}
+.btn-record:hover { background: rgba(255,59,92,0.1); }
+.btn-record.active {
+  background: rgba(255,59,92,0.15);
+  animation: pulse-border 1.4s infinite;
+}
+
+.host-badge {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  cursor: default;
+}
+
+.status-bar {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+  background: rgba(0,229,255,0.06);
+  padding: 3px 10px;
+  border: 1px solid rgba(0,229,255,0.2);
+  border-radius: 2px;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Grid ─────────────────────────────────────────────────────── */
+.grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+/* ── Camera pane ──────────────────────────────────────────────── */
+.cam-pane {
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.cam-state {
+  font-size: 0.55rem;
+  opacity: 0.6;
+  letter-spacing: 1px;
+  margin-left: 6px;
+}
+
+.cam-label {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--accent);
+  letter-spacing: 3px;
+  opacity: 0.7;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.cam-pane video {
+  flex: 1;
+  width: 100%;
+  object-fit: contain;
+  background: #000;
+  min-height: 0;
+}
+
+/* ── Per-camera controls ──────────────────────────────────────── */
+.cam-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  height: var(--ctrl-h);
+  flex-shrink: 0;
+}
+
+.frame-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────── */
+.btn {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  border: 1px solid;
+  border-radius: 2px;
+  padding: 3px 10px;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.btn:disabled { opacity: 0.35; cursor: default; }
+
+.btn-capture {
+  color: var(--accent);
+  border-color: rgba(0,229,255,0.35);
+}
+.btn-capture:hover:not(:disabled) {
+  background: rgba(0,229,255,0.1);
+}
+.btn-capture.active {
+  color: var(--danger);
+  border-color: rgba(255,59,92,0.5);
+  background: rgba(255,59,92,0.08);
+  animation: pulse-border 1.4s infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(255,59,92,0.5); }
+  50%       { border-color: rgba(255,59,92,0.15); }
+}
+
+.btn-snap {
+  color: var(--accent2);
+  border-color: rgba(255,107,53,0.35);
+}
+.btn-snap:hover:not(:disabled) {
+  background: rgba(255,107,53,0.1);
+}
+
+.btn-nav {
+  color: var(--text-dim);
+  border-color: var(--border);
+  padding: 3px 8px;
+}
+.btn-nav:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-dim);
+}
+
+/* ── Gallery pane ─────────────────────────────────────────────── */
+.gallery-pane {
+  background: #0d1014;
+}
+
+.gallery-image-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
+}
+
+#gallery-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.gallery-empty {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.8;
+  letter-spacing: 1px;
+}
+
+.gallery-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 5px 8px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  height: var(--ctrl-h);
+}
+
+.gallery-counter {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ── Thumbnail strip ──────────────────────────────────────────── */
+.gallery-strip {
+  display: flex;
+  gap: 3px;
+  padding: 4px 6px;
+  height: var(--strip-h);
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--bg);
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.gallery-strip::-webkit-scrollbar { height: 3px; }
+.gallery-strip::-webkit-scrollbar-thumb { background: var(--border); }
+
+.thumb {
+  height: calc(var(--strip-h) - 12px);
+  width: auto;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 1px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.thumb:hover { opacity: 0.8; }
+.thumb.active {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+/* ── Blender badge ────────────────────────────────────────────── */
+.blend-badge {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 2px;
+  color: var(--accent2);
+  text-align: center;
+  padding: 3px;
+  background: rgba(255,107,53,0.07);
+  border-top: 1px solid rgba(255,107,53,0.2);
+  flex-shrink: 0;
+}
