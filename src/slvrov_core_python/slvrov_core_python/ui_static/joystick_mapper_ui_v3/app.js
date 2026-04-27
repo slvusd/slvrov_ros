@@ -39,6 +39,11 @@ const elements = {
   statusSave: document.getElementById("status-save"),
 };
 
+/**
+ * Collect joystick topics from the activation textarea.
+ *
+ * @returns {string[]} A list of non-empty topic names entered by the user.
+ */
 function getTopics() {
   return elements.topicInput.value
     .split(/\n|,/)
@@ -46,6 +51,12 @@ function getTopics() {
     .filter(Boolean);
 }
 
+/**
+ * Build the current action payload from the Action Wizard inputs.
+ *
+ * @returns {{name: string, type: string, actionString: string}} The normalized
+ * action fields plus a display-friendly `name/type` string.
+ */
 function buildActionPayload() {
   const name = elements.actionName.value.trim();
   const type = elements.actionType.value;
@@ -56,6 +67,14 @@ function buildActionPayload() {
   };
 }
 
+/**
+ * Update the top-right request status message.
+ *
+ * @param {string} message The status text to show.
+ * @param {"info"|"success"|"warning"|"danger"} [level="info"] The color theme
+ * used for the status text.
+ * @returns {void}
+ */
 function setGlobalStatus(message, level = "info") {
   elements.globalStatus.textContent = message;
   const palette = {
@@ -67,6 +86,15 @@ function setGlobalStatus(message, level = "info") {
   elements.globalStatus.style.color = palette[level] || palette.info;
 }
 
+/**
+ * Add a request or response entry to the on-page console log.
+ *
+ * @param {string} direction A label such as `REQUEST` or `RESPONSE`.
+ * @param {string} url The endpoint associated with the log entry.
+ * @param {unknown} payload The request payload to display, if any.
+ * @param {string} [resultText] Optional response summary text.
+ * @returns {void}
+ */
 function logRequest(direction, url, payload, resultText) {
   const line = document.createElement("div");
   line.className = "console-line";
@@ -74,11 +102,22 @@ function logRequest(direction, url, payload, resultText) {
   elements.consoleLog.prepend(line);
 }
 
+/**
+ * Limit the topics string shown in the status strip so it stays compact.
+ *
+ * @param {string[]} topics The currently subscribed joystick topics.
+ * @returns {string} A comma-separated topic string capped at 32 characters.
+ */
 function truncateTopics(topics) {
   const joined = topics.join(", ");
   return joined.length > 32 ? `${joined.slice(0, 29)}...` : (joined || "none");
 }
 
+/**
+ * Re-render the mapper, mapping, topic, action, and save-state status boxes.
+ *
+ * @returns {void}
+ */
 function updateStatusStrip() {
   elements.statusMapper.textContent = state.mapperActive ? "active" : "inactive";
   elements.statusMapping.textContent = state.mappingActive ? "active" : "inactive";
@@ -87,6 +126,12 @@ function updateStatusStrip() {
   elements.statusSave.textContent = state.saveState;
 }
 
+/**
+ * Update the activation and mapping toggle button labels and colors to match
+ * the current frontend state.
+ *
+ * @returns {void}
+ */
 function updateButtons() {
   elements.mapperToggleBtn.textContent = state.mapperActive ? "Deactivate" : "Activate";
   elements.mapperToggleBtn.className = `btn btn-block ${state.mapperActive ? "btn-danger" : "btn-success"}`;
@@ -95,11 +140,21 @@ function updateButtons() {
   elements.mappingToggleBtn.className = `btn btn-block ${state.mappingActive ? "btn-danger" : "btn-success"}`;
 }
 
+/**
+ * Refresh the inline action preview string shown in the Action Wizard.
+ *
+ * @returns {void}
+ */
 function updateActionPreview() {
   const payload = buildActionPayload();
   elements.actionPreview.textContent = payload.actionString;
 }
 
+/**
+ * Render the queued actions list from the frontend-only queue state.
+ *
+ * @returns {void}
+ */
 function renderQueue() {
   elements.queueCount.textContent = `${state.queue.length} queued`;
 
@@ -117,6 +172,11 @@ function renderQueue() {
     .join("");
 }
 
+/**
+ * Render the completed mappings list shown in the Mapping Wizard.
+ *
+ * @returns {void}
+ */
 function renderCompletedMappings() {
   elements.completedCount.textContent = `${state.completedMappings.length} completed`;
 
@@ -135,6 +195,15 @@ function renderCompletedMappings() {
     .join("");
 }
 
+/**
+ * Send a JSON HTTP request and log both the request and response.
+ *
+ * @param {string} url The endpoint to call.
+ * @param {unknown} payload The JSON payload to send. Ignored for GET requests.
+ * @param {string} [method="POST"] The HTTP method to use.
+ * @returns {Promise<object>} The parsed JSON response body.
+ * @throws {Error} When the response is not OK.
+ */
 async function sendJson(url, payload, method = "POST") {
   logRequest("REQUEST", url, payload);
 
@@ -156,6 +225,18 @@ async function sendJson(url, payload, method = "POST") {
   return data;
 }
 
+/**
+ * Apply a status response from the server to local UI state.
+ *
+ * @param {{
+ *   isMapperActive?: boolean,
+ *   isMappingActive?: boolean,
+ *   subscribedTopics?: string[],
+ *   currentAction?: string | null,
+ *   saveState?: string
+ * }} data The JSON status payload returned by the server.
+ * @returns {void}
+ */
 function applyStatusResponse(data) {
   state.mapperActive = Boolean(data.isMapperActive);
   state.mappingActive = Boolean(data.isMappingActive);
@@ -166,6 +247,11 @@ function applyStatusResponse(data) {
   updateButtons();
 }
 
+/**
+ * Fetch the latest mapper status from the server.
+ *
+ * @returns {Promise<void>}
+ */
 async function refreshStatus() {
   try {
     const data = await sendJson(endpoints.status, null, "GET");
@@ -176,6 +262,13 @@ async function refreshStatus() {
   }
 }
 
+/**
+ * Request that the server activate or deactivate the mapper.
+ *
+ * @param {"active"|"inactive"} nextState The desired mapper state.
+ * @returns {Promise<void>}
+ * @throws {Error} When activation is requested without topics.
+ */
 async function setMapperState(nextState) {
   const topics = nextState === "active" ? getTopics() : [];
 
@@ -201,6 +294,13 @@ async function setMapperState(nextState) {
   setGlobalStatus(`MAPPER ${nextState.toUpperCase()} REQUEST OK`, "success");
 }
 
+/**
+ * Send the current action to the server so the mapper knows what to map next.
+ *
+ * @param {{name: string, type: string, actionString: string}} action The action
+ * selected in the Action Wizard or popped from the queue.
+ * @returns {Promise<void>}
+ */
 async function setAction(action) {
   const payload = {
     action_name: action.name,
@@ -214,6 +314,12 @@ async function setAction(action) {
   setGlobalStatus("ACTION SET OK", "success");
 }
 
+/**
+ * Request that the server start or stop the mapping process.
+ *
+ * @param {"active"|"inactive"} nextState The desired mapping state.
+ * @returns {Promise<void>}
+ */
 async function setMappingState(nextState) {
   const payload = {
     setMappingState: nextState,
@@ -242,6 +348,12 @@ async function setMappingState(nextState) {
   setGlobalStatus(`MAPPING ${nextState.toUpperCase()} REQUEST OK`, "success");
 }
 
+/**
+ * Add the currently configured action to the frontend-only queue.
+ *
+ * @returns {void}
+ * @throws {Error} When the action name is empty.
+ */
 function addToQueue() {
   const action = buildActionPayload();
   if (!action.name) {
@@ -253,6 +365,12 @@ function addToQueue() {
   setGlobalStatus("ACTION QUEUED", "success");
 }
 
+/**
+ * Immediately send the currently configured action to the server.
+ *
+ * @returns {Promise<void>}
+ * @throws {Error} When the action name is empty.
+ */
 async function mapNow() {
   const action = buildActionPayload();
   if (!action.name) {
@@ -262,6 +380,12 @@ async function mapNow() {
   await setAction(action);
 }
 
+/**
+ * Pop the next queued action and send it to the server.
+ *
+ * @returns {Promise<void>}
+ * @throws {Error} When the queue is empty.
+ */
 async function mapNext() {
   if (!state.queue.length) {
     throw new Error("No queued actions available.");
@@ -272,6 +396,11 @@ async function mapNext() {
   await setAction(nextAction);
 }
 
+/**
+ * Clear the completed mappings list and mark the save state as saved.
+ *
+ * @returns {void}
+ */
 function saveCompletedMappings() {
   state.completedMappings = [];
   state.saveState = "saved";
@@ -280,6 +409,11 @@ function saveCompletedMappings() {
   setGlobalStatus("COMPLETED LIST CLEARED", "warning");
 }
 
+/**
+ * Attach all UI event handlers for the V3 page.
+ *
+ * @returns {void}
+ */
 function bindEvents() {
   elements.actionPreset.addEventListener("change", (event) => {
     if (!event.target.value) {
