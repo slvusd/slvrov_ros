@@ -32,7 +32,7 @@ class ROVAction:
         return cls(name=name, type=instance_type)
 
     def __hash__(self):
-        return str(self)
+        return hash(str(self))
 
 
 class ROVActions(Enum):
@@ -56,52 +56,59 @@ class ROVActions(Enum):
 
 
 @dataclass
-class ROVActionMapping:
-    action: ROVAction
-
-    topic: str | None = None
-    index: int | None = None
+class JoystickInput:
+    type: ROVActionType
+    topic: str
+    index: int
 
     invert: bool = False
 
-    # Only for when action.type = ROVActionType.JS_AXIS
+    # Only for when type = ROVActionType.JS_AXIS
     min: float = -1.0
     mid: float = 0.0
     max: float = 1.0
 
     scale: float = 1.0
-    deadzone: float = 0.0
+    deadzone: float = 0.05  # made this match joy_node default
+
+
+@dataclass
+class ROVActionMapping:
+    action: ROVAction
+
+    # these will be set by the joystick mapper
+    topic: str | None = None
+    index: int | None = None
 
     def __str__(self):
-        return f"{self.action}/{self.topic}/{self.index} invert={self.invert} min={self.min} mid={self.mid} max={self.max} scale={self.scale} deadzone={self.deadzone}"
+        return f"{self.action}/{self.topic}/{self.index}"
     
     @classmethod
-    def from_string(cls, mapping_str: str) -> ROVActionMapping:
+    def from_string(cls, mapping_str: str) -> 'ROVActionMapping':
         """
-        Create ROVActionMapping from string.
-        Format is "name/type/topic/index invert=bool min=float mid=float max=float scale=float deadzone=float", where type is an ROVActionType Enum.
-        topic and index can be "None" if not applicable (e.g. for non-Joystick actions or unmapped actions).
-        invert, min, mid, max, scale, and deadzone are optional parameters that can be included in any order. 
-        If not included, they will default to False for invert and -1.0, 0.0, 1.0, 1.0, and 0.0 for min, mid, max, scale, and deadzone respectively.
+        Create ROVActionMapping from string (e.g., "action_name/action_type/topic/index").
         """
-        action_topic_index, *params_str = mapping_str.split()
-        *action_str, topic_str, index_str = action_topic_index.split("/")
+        action_name, action_type, topic_str, index_str = mapping_str.split("/")
 
-        action = ROVAction.from_string('/'.join(action_str))
+        action = ROVAction(name=action_name, type=ROVActionType(action_type))
         index = int(index_str) if index_str != "None" else None
         topic = topic_str if topic_str != "None" else None
 
-        params = dict()
-        for param in params_str:
-            key, value_str = param.split("=")
-
-            if key == "invert": value = value_str == "True"
-            elif key in ["min", "mid", "max", "scale", "deadzone"]: value = float(value_str)
-            else: raise ValueError(f"Invalid parameter: {key}")
-
-            params[key] = value
-
         return cls(action=action, topic=topic, index=index, **params)
+
+    def __json__(self):
+        return {f"{str(self.action)}/{self.topic}/{self.index}": {"action": str(self.action),"topic": self.topic,"index": self.index}}
+
+    @classmethod
+    def from_json(cls, json_dict: dict) -> 'ROVActionMapping':
+        """
+        Create ROVActionMapping from JSON dict of format {key: {"action": "name/type", "topic": str, "index": int}}.
+        """
+        if len(json_dict) != 1:
+            raise ValueError(f"JSON dict must contain exactly one mapping. Received: {json_dict}")
+
+        parameters = json_dict.values()[0]
+        return cls(action=ROVAction.from_string(parameters["action"]), topic=parameters["topic"], index=parameters["index"])
 
 
 @dataclass
@@ -109,10 +116,11 @@ class MappingCandidate:
     topic: str
     source_type: ROVActionType
     source_index: int
+    initial_score: float = 0.0
     score: float | None = None
 
     def __str__(self):
-        return f"{self.topic}/{self.source_type}/{self.source_index}/{self.score}"
+        return f"{self.topic}/{self.source_type}/{self.source_index}"
     
     @classmethod
     def from_string(cls, candidate_str: str) -> 'MappingCandidate':
@@ -131,4 +139,4 @@ class MappingCandidate:
         return cls(topic=topic, source_type=source_type, source_index=source_index, score=score)
 
     def __hash__(self):
-        return str(self)
+        return hash(str(self))

@@ -18,8 +18,10 @@ def save_to_json(data: dict | object, filename: str | Path, indent: int = 2, enf
     else: 
         if hasattr(data, "__dict__") and callable(getattr(data, "__dict__")):
             json_dict.update(data.__dict__())
+        elif hasattr(data, "__json__") and callable(getattr(data, "__json__")):
+            json_dict.update(data.__json__())
         else:
-            raise ValueError(f"Data of type {type(data)} is not JSON serializable. Please provide a dict or an object with a __dict__ method.")
+            raise ValueError(f"Data of type {type(data)} is not JSON serializable. Please provide a dict or an object with a __dict__ or __json__ method.")
 
     # Loads existing data
     if not overwrite and json_file.stat().st_size > 0:
@@ -38,3 +40,17 @@ def save_to_json(data: dict | object, filename: str | Path, indent: int = 2, enf
     # Saves data
     with json_file.open("w") as file:
         json.dump(json_dict, file, indent=indent)
+
+
+def load_from_json(filename: str | Path) -> dict:
+    ... # TODO
+
+
+def update_json_key(filename: str | Path, data: dict | object, indent: int = 2, enforce_unique_key: bool = False) -> None:
+    ... # TODO
+    # look for new data key in existing data
+    # update that key to match new data value
+
+
+def delete_from_json(filename: str | Path, keys: list[str]) -> None:
+    ... # TODO
