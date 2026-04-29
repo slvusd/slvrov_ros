@@ -19,13 +19,17 @@ class Position:
 @dataclass
 class Motor:
     id: str
-    min: int
     default: int
-    max: int
     pin: int
+
+    min: int | None = None
+    max: int | None = None
+    delta: int | None = None
     clamp_delta: int = 0
+    
     direction: MotorDirection | None = None
     position: Position | None = None
+    angle: float | None = None
 
 
 @dataclass
