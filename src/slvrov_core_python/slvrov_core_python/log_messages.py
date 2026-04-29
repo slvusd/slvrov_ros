@@ -26,6 +26,8 @@ class LogMessages(Enum):
     CLIENT_CREATED = "client created"
     CLIENT_WAIT_ON_SERVICE = "client waiting for service to become available"
     NODE_READY = "node ready"
+    NO_PATH_PROVIDED = "no path provided"
+    MISSING_FIELD = "missing field"
     # TODO Are there destroy function for pub and srv and clients?
 
     def __str__(self):
@@ -54,3 +56,4 @@ class JoystickMapperLogMessages(LogMessages):
     MAPPING_CANDIDATE_TIE = "mapping has more than one candidate for action"
     MAPPING_FAILED = "mapping failed"
     MAPPING_SUCCEEDED = "mapping succeeded"
+    SAVE_MAPPED_ACTIONS = "save mapped actions"

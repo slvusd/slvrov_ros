@@ -54,11 +54,19 @@ class ROVActions(Enum):
     CLAW_ROTATE = ROVAction("claw_rotate", ROVActionType.JS_BUTTON)
     CLAW_TILT = ROVAction("claw_tilt", ROVActionType.JS_BUTTON)
 
+    def __str__(self):
+        return str(self.value)
+    
+
+@dataclass
+class InputSource:
+    ...  # TODO: change these structures to use this
+
 
 @dataclass
 class JoystickInput:
-    type: ROVActionType
     topic: str
+    type: ROVActionType
     index: int
 
     invert: bool = False
@@ -83,7 +91,7 @@ class ROVActionMapping:
     def __str__(self):
         return f"{self.action}/{self.topic}/{self.index}"
     
-    @classmethod
+    @classmethod  # TODO: see where this function is used
     def from_string(cls, mapping_str: str) -> 'ROVActionMapping':
         """
         Create ROVActionMapping from string (e.g., "action_name/action_type/topic/index").
@@ -97,18 +105,15 @@ class ROVActionMapping:
         return cls(action=action, topic=topic, index=index)
 
     def __json__(self):
-        return {f"{str(self.action)}/{self.topic}/{self.index}": {"action": str(self.action),"topic": self.topic,"index": self.index}}
+        return {f"{self.topic}/{self.action.type}/{self.index}": 
+                {"action": self.action.name, 
+                 "action_type": self.action.type, 
+                 "topic": self.topic,
+                 "index": self.index}}
 
     @classmethod
     def from_json(cls, json_dict: dict) -> 'ROVActionMapping':
-        """
-        Create ROVActionMapping from JSON dict of format {key: {"action": "name/type", "topic": str, "index": int}}.
-        """
-        if len(json_dict) != 1:
-            raise ValueError(f"JSON dict must contain exactly one mapping. Received: {json_dict}")
-
-        parameters = json_dict.values()[0]
-        return cls(action=ROVAction.from_string(parameters["action"]), topic=parameters["topic"], index=parameters["index"])
+        ...  # TODO: this will be used in joystick logic
 
 
 @dataclass
@@ -122,7 +127,7 @@ class MappingCandidate:
     def __str__(self):
         return f"{self.topic}/{self.source_type}/{self.source_index}"
     
-    @classmethod
+    @classmethod  # TODO: see if this function is actuallly used
     def from_string(cls, candidate_str: str) -> 'MappingCandidate':
         """
         Create MappingCandidate from string of format "topic/type/index/score", where type is an ROVActionType Enum and score is a float or None.

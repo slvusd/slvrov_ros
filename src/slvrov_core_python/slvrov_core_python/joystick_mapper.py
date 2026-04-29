@@ -60,6 +60,10 @@ class JoystickMapper(Node):
         self.set_mapping_state_service = self.create_service(Trigger, "joystick_mapper/set_mapping_state", self.set_mapping_state_callback)
         self.get_logger().info(JoystickMapperLogMessages.SERVICE_CREATED + "joystick_mapper/set_mapping_state")
 
+        self.save_state: bool | None = None  # set to none here because there are neither unsaved or saved changes
+        self.save_mapped_actions_service = self.create_service(String, "joystick_mapper/save_mapped_actions", self.save_mapped_actions_callback)
+        self.get_logger().info(JoystickMapperLogMessages.SERVICE_CREATED + "joystick_mapper/save_mapped_actions")
+
         self.get_logger().info(JoystickMapperLogMessages.NODE_READY + "joystick_mapper")
 
     def js_callback(self, topic: str, msg: Joy) -> None:
@@ -130,14 +134,33 @@ class JoystickMapper(Node):
         else: resp = self.set_mapper_inactive(req, resp)
         return resp
 
-    def save_mappings(self) -> None:
+    def save_mapped_actions_callback(self, req, resp):
+        if req.data != "": mappings_path = req.data
+        # if user hasn't sent new path and path parameter is empty
+        elif self.js_mappings_path == "":
+            msg = (JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS +
+                   JoystickMapperLogMessages.SERVICE_CALL_FAILED +
+                   JoystickMapperLogMessages.NO_PATH_PROVIDED)
+            
+            self.get_logger().warning(msg)
+            resp.success, resp.message = False, msg
+            return resp
+        
+        else: mappings_path = self.js_mappings_path
+        
         mappings_dict = dict()
-
         for mapping in self.js_mappings:
             mappings_dict.update(mapping.__json__())
 
-        save_to_json(mappings_dict, self.js_mappings_path)
-        self.get_logger().info(f"Saved {len(self.js_mappings)} joystick mappings to {self.js_mappings_path}.")
+        save_to_json(mappings_dict, mappings_path)
+        self.js_mappings = list()  # return to pre-save state
+
+        msg = (JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS +
+               JoystickMapperLogMessages.SERVICE_CALL_SUCCEEDED +
+               JoystickMapperLogMessages.SAVE_SUCCESSFUL)
+        
+        self.get_logger().info(msg)
+        resp.success, resp.message = True, msg
 
     def set_mapper_active(self, req: object, resp: object) -> object:
         # validate input
