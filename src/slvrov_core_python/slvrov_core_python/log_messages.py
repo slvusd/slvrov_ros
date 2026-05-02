@@ -1,8 +1,18 @@
-from dataclasses import dataclass
 from enum import Enum
 
 
-class LogMessages(Enum):
+class BaseLogMessagesFunctions:
+    def __str__(self):
+        return f"<{self.value}> "
+
+    def __add__(self, other):
+        return str(self) + str(other)
+
+    def __radd__(self, other):
+        return str(other) + str(self)
+
+
+class BaseLogMessages(BaseLogMessagesFunctions, Enum):
     SERVER_ERROR = "server error"
     UNCAUGHT_EXCEPTION = "uncaught exception"
     TOPIC_STALE = "topic might be stale"
@@ -14,7 +24,7 @@ class LogMessages(Enum):
     STOP_TIMER = "stopped timer"
     PUBLISHER_CREATED = "publisher created"
     SEND_MSG = "publisher sent message"
-    SUBSCRIPTION_CREATED= "subscription created"
+    SUBSCRIPTION_CREATED = "subscription created"
     SUBSCRIPTION_DESTROYED = "subscription destroyed"
     RECIEVED_MSG = "subscription recieved message"
     SERVICE_CREATED = "service created"
@@ -28,16 +38,9 @@ class LogMessages(Enum):
     NODE_READY = "node ready"
     NO_PATH_PROVIDED = "no path provided"
     MISSING_FIELD = "missing field"
-    # TODO Are there destroy function for pub and srv and clients?
-
-    def __str__(self):
-        return f"<{self.value}> "
-
-    def __eq__(self, value):
-        return self.value == value
 
 
-class JoystickMapperLogMessages(LogMessages):
+class JoystickMapperLogMessages(BaseLogMessagesFunctions, Enum):
     MAPPER_IS_ACTIVE = "mapper is active"
     MAPPER_IS_INACTIVE = "mapper is inactive"
     MAPPER_SET_ACTIVE = "set mapper active"
@@ -51,7 +54,7 @@ class JoystickMapperLogMessages(LogMessages):
     MAPPING_IS_INACTIVE = "mapping is inactive"
     MAPPING_SET_ACTIVE = "set mapping active"
     MAPPING_SET_INACTIVE = "set mapping inactive"
-    MAPPING_FOUND_CANDIDATE= "mapping found candidate for action"
+    MAPPING_FOUND_CANDIDATE = "mapping found candidate for action"
     MAPPING_NO_CANDIDATE = "mapping does not have candidate for action"
     MAPPING_CANDIDATE_TIE = "mapping has more than one candidate for action"
     MAPPING_FAILED = "mapping failed"

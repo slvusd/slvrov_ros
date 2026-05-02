@@ -107,7 +107,7 @@ class ROVActionMapping:
     def __json__(self):
         return {f"{self.topic}/{self.action.type}/{self.index}": 
                 {"action": self.action.name, 
-                 "action_type": self.action.type, 
+                 "action_type": str(self.action.type), 
                  "topic": self.topic,
                  "index": self.index}}
 
@@ -122,7 +122,7 @@ class MappingCandidate:
     source_type: ROVActionType
     source_index: int
     initial_score: float = 0.0
-    score: float | None = None
+    score_delta: float | None = None
 
     def __str__(self):
         return f"{self.topic}/{self.source_type}/{self.source_index}"
