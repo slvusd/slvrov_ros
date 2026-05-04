@@ -82,33 +82,20 @@ class JoystickInput:
 
 @dataclass
 class ROVActionMapping:
-    action: ROVAction
+    action_name: str
 
-    # these will be set by the joystick mapper
-    topic: str | None = None
-    index: int | None = None
+    topic: str | None
+    type: ROVActionType
+    index: int | None
 
     def __str__(self):
         return f"{self.action}/{self.topic}/{self.index}"
-    
-    @classmethod  # TODO: see where this function is used
-    def from_string(cls, mapping_str: str) -> 'ROVActionMapping':
-        """
-        Create ROVActionMapping from string (e.g., "action_name/action_type/topic/index").
-        """
-        action_name, action_type, topic_str, index_str = mapping_str.split("/")
-
-        action = ROVAction(name=action_name, type=ROVActionType(action_type))
-        index = int(index_str) if index_str != "None" else None
-        topic = topic_str if topic_str != "None" else None
-
-        return cls(action=action, topic=topic, index=index)
 
     def __json__(self):
-        return {f"{self.topic}/{self.action.type}/{self.index}": 
-                {"action": self.action.name, 
-                 "action_type": str(self.action.type), 
+        return {f"{self.topic}/{self.type}/{self.index}": 
+                {"action": self.action_name, 
                  "topic": self.topic,
+                 "type": str(self.type), 
                  "index": self.index}}
 
     @classmethod
@@ -119,29 +106,14 @@ class ROVActionMapping:
 @dataclass
 class MappingCandidate:
     topic: str
-    source_type: ROVActionType
-    source_index: int
+    type: ROVActionType
+    index: int
+    
     initial_score: float = 0.0
     score_delta: float | None = None
 
     def __str__(self):
-        return f"{self.topic}/{self.source_type}/{self.source_index}"
-    
-    @classmethod  # TODO: see if this function is actuallly used
-    def from_string(cls, candidate_str: str) -> 'MappingCandidate':
-        """
-        Create MappingCandidate from string of format "topic/type/index/score", where type is an ROVActionType Enum and score is a float or None.
-        """
-        topic, source_str, score_str = candidate_str.split("/")
-
-        source_type, source_index_str = source_str.split("/")
-        source_type = ROVActionType(source_type)
-        source_index = int(source_index_str)
-
-        if score_str == "None": score = None
-        else: score = float(score_str)
-
-        return cls(topic=topic, source_type=source_type, source_index=source_index, score=score)
+        return f"{self.topic}/{self.type}/{self.index}"
 
     def __hash__(self):
         return hash(str(self))

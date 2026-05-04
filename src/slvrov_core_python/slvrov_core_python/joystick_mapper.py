@@ -63,14 +63,15 @@ class JoystickMapper(Node):
         self.set_mapping_state_service = self.create_service(Trigger, "joystick_mapper/set_mapping_state", self.set_mapping_state_callback)
         self.get_logger().info(BaseLogMessages.SERVICE_CREATED + "joystick_mapper/set_mapping_state")
 
-        self.save_state: bool | None = None  # set to none here because there are neither unsaved or saved changes
+        self.save_state: bool = True  # No mappings to save (a.k.a. everything saved)
         self.save_mapped_actions_service = self.create_service(String, "joystick_mapper/save_mapped_actions", self.save_mapped_actions_callback)
         self.get_logger().info(BaseLogMessages.SERVICE_CREATED + "joystick_mapper/save_mapped_actions")
+
+        self.fetch_status_service = self.create_service(Trigger, "joystick_mapper/fetch_status", self.fetch_status_callback)
 
         self.get_logger().info(BaseLogMessages.NODE_READY + "joystick_mapper")
 
     def js_callback(self, topic: str, msg: Joy) -> None:
-        #self.get_logger().info(f"Received joystick message on topic {topic}: {msg}")
         if self.current_action_mapping is None: return  # if no action is currently being mapped but mapper is active, ignore joystick inputs
         self.latest_js_states[topic] = msg
 
@@ -97,9 +98,16 @@ class JoystickMapper(Node):
             return resp
 
         try:
-            self.current_action_mapping = ROVActionMapping.from_string(req.data)
+            action_name, action_type = req.data.split('/')
 
-        except ValueError as exception:  # While this validation should be handled client-side, best practice to call it here, too
+            # The mapper will find topic and index, so set to None
+            self.current_action_mapping = ROVActionMapping(
+                                            action_name=action_name, 
+                                            topic=None, 
+                                            type=ROVActionType(action_type), 
+                                            index=None)
+
+        except ValueError as exception:
             msg = (JoystickMapperLogMessages.ACTION_SET +
                    BaseLogMessages.SERVICE_CALL_FAILED +
                    JoystickMapperLogMessages.ACTION_INVALID +
@@ -170,6 +178,7 @@ class JoystickMapper(Node):
             return resp
 
         self.js_mappings = list()  # return to pre-save state
+        self.save_state = True  # All mappings saved
 
         msg = (JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS +
                BaseLogMessages.SERVICE_CALL_SUCCEEDED +
@@ -177,6 +186,10 @@ class JoystickMapper(Node):
         
         self.get_logger().info(msg)
         resp.success, resp.message = True, msg
+        return resp
+
+    def fetch_status_callback(self, req, resp):
+        # TODO
         return resp
 
     def set_mapper_active(self, req: object, resp: object) -> object:
@@ -291,6 +304,9 @@ class JoystickMapper(Node):
                     JoystickMapperLogMessages.MAPPING_FAILED + 
                     JoystickMapperLogMessages.MAPPING_NO_CANDIDATE +
                     BaseLogMessages.SERVER_ERROR)  # if no candidates were found, then there's an issue with the server
+            
+            # reset candidates so error doesn't affect next run
+            self.clear_candidates()
 
             self.get_logger().warning(msg)
             resp.success, resp.message = False, msg
@@ -312,8 +328,10 @@ class JoystickMapper(Node):
             return resp
 
         self.current_action_mapping.topic = candidate.topic
-        self.current_action_mapping.index = candidate.source_index
+        self.current_action_mapping.index = candidate.index
+
         self.js_mappings.append(self.current_action_mapping)
+        self.save_state = False  # Now there are unsaved changes
 
         msg = (JoystickMapperLogMessages.MAPPER_SET_INACTIVE +
                 BaseLogMessages.SERVICE_CALL_SUCCEEDED +
@@ -322,8 +340,8 @@ class JoystickMapper(Node):
                 JoystickMapperLogMessages.MAPPING_FOUND_CANDIDATE + 
                 f"{self.current_action_mapping.action}->" +
                 f"{candidate.topic}/" +
-                f"{candidate.source_type}/" +
-                f"{candidate.source_index}={candidate.score_delta}")
+                f"{candidate.type}/" +
+                f"{candidate.index}@{candidate.score_delta}")
         
         self.get_logger().info(msg)
         resp.success, resp.message = True, msg
@@ -380,8 +398,8 @@ class JoystickMapper(Node):
             return  # if candidates haven't been created yet, don't update
 
         for candidate in self.candidates.values():
-            source_type = candidate.source_type
-            if source_type != self.current_action_mapping.action.type: continue  # skip candidates that are unrelated to current action
+            source_type = candidate.type
+            if source_type != self.current_action_mapping.type: continue  # skip candidates that are unrelated to current action
 
             js_state = self.latest_js_states[candidate.topic]
 
@@ -410,7 +428,7 @@ class JoystickMapper(Node):
 
         for candidate in self.candidates.values():
             # skip candidates that are unrelated to current action
-            if candidate.source_type != self.current_action_mapping.action.type: continue
+            if candidate.type != self.current_action_mapping.type: continue
             if candidate.score_delta is None: 
                 self.get_logger().warning(
                     f"Found candidate with None score_delta: {candidate} " + 
