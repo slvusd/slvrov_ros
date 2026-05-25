@@ -1,0 +1,7 @@
+string action_name
+string topic
+bool type
+int index
+---
+bool success
+string message

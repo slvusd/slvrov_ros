@@ -89,7 +89,7 @@ class ROVActionMapping:
     index: int | None
 
     def __str__(self):
-        return f"{self.action}/{self.topic}/{self.index}"
+        return f"{self.action_name}/{self.topic}/{self.type}/{self.index}"
 
     def __json__(self):
         return {f"{self.topic}/{self.type}/{self.index}": 

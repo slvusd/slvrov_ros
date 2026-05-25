@@ -7,6 +7,7 @@ from rclpy.node import Node  # type: ignore
 from sensor_msgs.msg import Joy  # type: ignore
 from std_srvs.srv import Trigger  # type: ignore
 from slvrov_interfaces.srv import String
+from slvrov_interfaces.srv.JoystickMapper import SetAction, FetchStatus, SetMapperState, SendMapping, DeleteMapping
 
 from .control_objects import *
 from .json_crud import *
@@ -52,22 +53,27 @@ class JoystickMapper(Node):
         self.candidates: dict[str, MappingCandidate] | None = None  # topic/type/index: MappingCandidate, returns to None when mapper is inactive
 
         self.mapper_active = False
-        self.set_mapper_state_service = self.create_service(String, "joystick_mapper/set_mapper_state", self.set_mapper_state_callback)
+        self.set_mapper_state_service = self.create_service(SetMapperState, "joystick_mapper/set_mapper_state", self.set_mapper_state_callback)
         self.get_logger().info(BaseLogMessages.SERVICE_CREATED + "joystick_mapper/set_mapper_state")
 
         self.current_action_mapping: ROVActionMapping | None = None  # returns to None when mapping is inactive
-        self.set_action_service = self.create_service(String, "joystick_mapper/set_action", self.set_action_callback)
+        self.set_action_service = self.create_service(SetAction, "joystick_mapper/set_action", self.set_action_callback)
         self.get_logger().info(BaseLogMessages.SERVICE_CREATED + "joystick_mapper/set_action")
 
         self.mapping_active = False
         self.set_mapping_state_service = self.create_service(Trigger, "joystick_mapper/set_mapping_state", self.set_mapping_state_callback)
         self.get_logger().info(BaseLogMessages.SERVICE_CREATED + "joystick_mapper/set_mapping_state")
 
-        self.save_state: bool = True  # No mappings to save (a.k.a. everything saved)
+        self.mappings_saved: bool = True  # No mappings to save (a.k.a. everything saved)
         self.save_mapped_actions_service = self.create_service(String, "joystick_mapper/save_mapped_actions", self.save_mapped_actions_callback)
         self.get_logger().info(BaseLogMessages.SERVICE_CREATED + "joystick_mapper/save_mapped_actions")
 
-        self.fetch_status_service = self.create_service(Trigger, "joystick_mapper/fetch_status", self.fetch_status_callback)
+        self.fetch_status_service = self.create_service(FetchStatus, "joystick_mapper/fetch_status", self.fetch_status_callback)
+
+        self.delete_mapping_service = self.create_service(DeleteMapping, "joystick_mapper/delete_mapping", self.delete_mapping_callback)
+        self.edit_mapping_service = self.create_service(SendMapping, "joystick_mapper/edit_mapping", self.edit_mapping_callback)
+        self.add_mapping_service = self.create_service(SendMapping, "joystick_mapper/add_mapping", self.add_mapping_callback)
+        self.view_mappings_service = self.create_service(Trigger, "joystick_mapper/edit_mapping", self.edit_mapping_callback)
 
         self.get_logger().info(BaseLogMessages.NODE_READY + "joystick_mapper")
 
@@ -98,7 +104,7 @@ class JoystickMapper(Node):
             return resp
 
         try:
-            action_name, action_type = req.data.split('/')
+            action_name, action_type = req.action_name, req.action_type
 
             # The mapper will find topic and index, so set to None
             self.current_action_mapping = ROVActionMapping(
@@ -146,8 +152,61 @@ class JoystickMapper(Node):
         else: resp = self.set_mapper_inactive(req, resp)
         return resp
 
+    def delete_mapping_callback(self, req, resp):
+        if req.check_unsaved_mappings:  # look through unsaved mappings for action
+            delete_index = None
+            for index, mapping in enumerate(self.js_mappings):
+                if req.data == mapping.action_name:
+                    delete_index = index
+
+            self.js_mappings.pop(delete_index)
+            self.get_logger().info(f"<deleted mapping from unsaved mappings>")
+
+        if req.check_mappings_file:  # look through saved mappings for action
+            if req.action_name != "": mappings_file = req.mappings_file
+            elif self.js_mappings_path == "":
+                msg = (JoystickMapperLogMessages.DELETE_MAPPING +
+                       BaseLogMessages.SERVICE_CALL_FAILED +
+                       BaseLogMessages.NO_PATH_PROVIDED)
+                
+                self.get_logger().warning(msg)
+                resp.success, resp.message = False, msg
+                return resp
+            
+            else: mappings_path = self.js_mappings_path
+
+            mappings = load_from_json(mappings_path)
+            delete_mapping = None
+            for mapping in mappings:
+                if req.action_name == mappings[mapping]["action"]:
+                    delete_mapping = mapping
+
+            del mappings[mapping]
+
+            try:
+                save_to_json(mappings, mappings_path)
+                self.get_logger().info(f"<deleted mapping from saved mappings dict>")
+                
+            except Exception as exception:
+                msg = (JoystickMapperLogMessages.DELETE_MAPPING + 
+                        BaseLogMessages.SERVICE_CALL_FAILED + 
+                        BaseLogMessages.SERVER_ERROR +
+                        str(exception))
+
+            self.get_logger().error(msg)
+            resp.success, resp.message = False, msg
+            return resp
+        
+        msg = (JoystickMapperLogMessages.DELETE_MAPPING +
+               BaseLogMessages.SERVICE_CALL_SUCCEEDED)
+        self.get_logger().info(msg)
+        resp.success, resp.message = True, msg
+        
+        return resp
+    
     def save_mapped_actions_callback(self, req, resp):
         if req.data != "": mappings_path = req.data
+
         # if user hasn't sent new path and path parameter is empty
         elif self.js_mappings_path == "":
             msg = (JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS +
@@ -178,7 +237,7 @@ class JoystickMapper(Node):
             return resp
 
         self.js_mappings = list()  # return to pre-save state
-        self.save_state = True  # All mappings saved
+        self.mappings_saved = True  # All mappings saved
 
         msg = (JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS +
                BaseLogMessages.SERVICE_CALL_SUCCEEDED +
@@ -189,16 +248,30 @@ class JoystickMapper(Node):
         return resp
 
     def fetch_status_callback(self, req, resp):
-        # TODO
+        msg = (BaseLogMessages.SERVICE_CALL_SUCCEEDED)
+
+        resp.success = True
+        resp.message = msg
+
+        resp.mapper_active = self.mapper_active
+        resp.subscribed_js_topics = [subscription.topic_name for subscription in self.js_subscriptions]
+
+        resp.mapping_active = self.mapping_active
+        resp.current_action_name = self.current_action_mapping.action_name
+        resp.current_action_type = self.current_action_mapping.type
+
+        resp.mappings_saved = self.mappings_saved
+        resp.unsaved_mappings = self.js_mappings
+
         return resp
 
     def set_mapper_active(self, req: object, resp: object) -> object:
         # validate input
         try:
-            if req.data != "": topics = req.data.split(",")
+            if len(req.js_topics_override) < 1: topics = req.js_topics_override
 
             # if no topics were provided in parameters or request
-            elif self.js_topics == []:
+            elif len(self.js_topics) < 1:
                 msg = (JoystickMapperLogMessages.MAPPER_SET_ACTIVE +
                         BaseLogMessages.SERVICE_CALL_FAILED +
                         BaseLogMessages.NO_TOPICS)
@@ -331,7 +404,7 @@ class JoystickMapper(Node):
         self.current_action_mapping.index = candidate.index
 
         self.js_mappings.append(self.current_action_mapping)
-        self.save_state = False  # Now there are unsaved changes
+        self.mappings_saved = False  # Now there are unsaved changes
 
         msg = (JoystickMapperLogMessages.MAPPER_SET_INACTIVE +
                 BaseLogMessages.SERVICE_CALL_SUCCEEDED +

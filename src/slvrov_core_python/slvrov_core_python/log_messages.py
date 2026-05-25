@@ -60,3 +60,7 @@ class JoystickMapperLogMessages(BaseLogMessagesFunctions, Enum):
     MAPPING_FAILED = "mapping failed"
     MAPPING_SUCCEEDED = "mapping succeeded"
     SAVE_MAPPED_ACTIONS = "save mapped actions"
+    DELETE_MAPPING = "delete mapping"
+    EDIT_MAPPING = "edit mapping"
+    ADD_MAPPING = "add mapping"
+    VIEW_MAPPING = "view mapping"

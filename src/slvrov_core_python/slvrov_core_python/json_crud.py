@@ -43,7 +43,10 @@ def save_to_json(data: dict | object, filename: str | Path, indent: int = 2, enf
 
 
 def load_from_json(filename: str | Path) -> dict:
-    ... # TODO
+    with open(filename, "r") as file:
+        data = json.load(file)
+    
+    return data
 
 
 def update_json_key(filename: str | Path, data: dict | object, indent: int = 2, enforce_unique_key: bool = False) -> None:

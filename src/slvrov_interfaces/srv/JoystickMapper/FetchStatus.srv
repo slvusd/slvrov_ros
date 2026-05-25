@@ -1,0 +1,10 @@
+---
+bool success
+string message
+bool mapper_active
+string[] subscribed_js_topics
+bool mapping_active
+string current_action_name
+string current_action_type
+bool mappings_saved
+string[] unsaved_mappings

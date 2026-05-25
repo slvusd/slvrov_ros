@@ -1,0 +1,7 @@
+string action_name
+bool check_unsaved_mappings
+bool check_mappings_file
+string mappings_path
+---
+bool success
+string message
