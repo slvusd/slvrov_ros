@@ -188,7 +188,7 @@ class ROVActionMapping:
             self.key(): {
                 "action": self.action_name,
                 "topic": self.topic,
-                "type": str(self.action_type),
+                "action_type": str(self.action_type),
                 "index": self.index,
             }
         }
@@ -216,7 +216,9 @@ class ROVActionMapping:
         return cls(
             action_name=str(mapping_data["action"]),
             topic=mapping_data.get("topic"),
-            action_type=ROVActionType(str(mapping_data["type"])),
+            action_type=ROVActionType(
+                str(mapping_data.get("action_type", mapping_data.get("type")))
+            ),
             index=mapping_data.get("index"),
         )
 

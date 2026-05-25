@@ -429,7 +429,7 @@ class JoystickMapper(Node):
         resp.success = True
         resp.message = str(BaseLogMessages.SERVICE_CALL_SUCCEEDED)
         resp.mapper_active = self.mapper_active
-        resp.subscribed_js_topics = [
+        resp.subscribed_joystick_topics = [
             subscription.topic_name for subscription in self.js_subscriptions
         ]
         resp.mapping_active = self.mapping_active
@@ -456,7 +456,20 @@ class JoystickMapper(Node):
             SendResp: Populated service response.
         """
 
-        mapping = self.mapping_from_request(req)
+        try:
+            mapping = self.mapping_from_request(req)
+        except ValueError:
+            msg = (
+                JoystickMapperLogMessages.ADD_MAPPING
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.ACTION_INVALID
+                + req.action_type
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
         self.js_mappings.append(mapping)
         self.mappings_saved = False
 
@@ -481,7 +494,19 @@ class JoystickMapper(Node):
             SendResp: Populated service response.
         """
 
-        mapping = self.mapping_from_request(req)
+        try:
+            mapping = self.mapping_from_request(req)
+        except ValueError:
+            msg = (
+                JoystickMapperLogMessages.EDIT_MAPPING
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.ACTION_INVALID
+                + req.action_type
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
 
         for index, existing_mapping in enumerate(self.js_mappings):
             if existing_mapping.action_name == mapping.action_name:
@@ -539,7 +564,7 @@ class JoystickMapper(Node):
             MapperResp: Populated service response.
         """
 
-        topics = self.resolve_joystick_topics(req.js_topics_override)
+        topics = self.resolve_joystick_topics(req.joystick_topics_override)
         if not topics:
             msg = (
                 JoystickMapperLogMessages.MAPPER_SET_ACTIVE
@@ -947,18 +972,15 @@ class JoystickMapper(Node):
 
         Returns:
             ROVActionMapping: Parsed action mapping.
-        """
 
-        is_axis = getattr(req, "type")
-        if is_axis:
-            action_type = ROVActionType.JS_AXIS
-        else:
-            action_type = ROVActionType.JS_BUTTON
+        Raises:
+            ValueError: If `req.action_type` is not a valid ROVActionType.
+        """
 
         return ROVActionMapping(
             action_name=req.action_name,
             topic=req.topic,
-            action_type=action_type,
+            action_type=ROVActionType(req.action_type),
             index=req.index,
         )
 

@@ -10,9 +10,14 @@ find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
-	"msg/PCA9685Command.msg"
+  "msg/PCA9685Command.msg"
   "srv/AddPCA9685PinConfigs.srv"
   "srv/GetPCA9685PinConfigs.srv"
+  "srv/JoystickMapper/DeleteMapping.srv"
+  "srv/JoystickMapper/FetchStatus.srv"
+  "srv/JoystickMapper/SendMapping.srv"
+  "srv/JoystickMapper/SetAction.srv"
+  "srv/JoystickMapper/SetMapperState.srv"
   "srv/String.srv"
 )
 

@@ -127,7 +127,7 @@ def to_json(self) -> dict[str, object]:
         f"{self.topic}/{self.action_type}/{self.index}": {
             "action": self.action_name,
             "topic": self.topic,
-            "type": str(self.action_type),
+            "action_type": str(self.action_type),
             "index": self.index,
         }
     }
@@ -175,6 +175,16 @@ self.set_action_service = self.create_service(
 )
 self.get_logger().info(BaseLogMessages.SERVICE_CREATED + "joystick_mapper/set_action")
 ```
+
+## ROS Interfaces
+
+Use the same naming rules for `.msg` and `.srv` fields:
+
+- Field names should be `snake_case`.
+- Prefer full words in public interfaces, such as `joystick_topics_override` instead of `js_topics_override`.
+- Do not name fields `type`; use a domain-specific name such as `action_type` or `input_type`.
+- Fields representing `ROVActionType` values should be strings containing enum values such as `js_axis` or `js_button`.
+- Use explicit ROS integer widths, such as `int32`, instead of generic `int`.
 
 ## Service Callbacks
 
