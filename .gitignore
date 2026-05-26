@@ -3,5 +3,6 @@ log/
 install/
 .vscode/
 __pycache__/
+.DS_Store
 test.py
 /src/slvrov_core_python/slvrov_core_python/ui_static/exmaple_ui

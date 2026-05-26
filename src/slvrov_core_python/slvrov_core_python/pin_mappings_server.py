@@ -42,7 +42,7 @@ class PinConfigsServer(Node):
             # that into a normal service failure instead of a server fault.
             except NameError as name_error:
                 resp.success = False
-                resp.msg = "Id/Name already exists"
+                resp.message = "Id/Name already exists"
 
                 self.get_logger().warning(f"{name_error}")
                 return resp
@@ -50,13 +50,13 @@ class PinConfigsServer(Node):
             append_pca9685_pin_configs([config], self.configs_path)
 
             resp.success = True
-            resp.msg = ""
+            resp.message = ""
             
             self.get_logger().info(f"Adding Id: {req.id}, Pins: {list(req.pins)}, Min, Def, Max: {req.minimum, req.pwm_default, req.maximum}")
 
         except Exception as exception:
             resp.success = False
-            resp.msg = "An unknown server side error occurred."
+            resp.message = "An unknown server side error occurred."
 
             self.get_logger().error(f"Id: {req.id}, Pins: {list(req.pins)}, Min, Def, Max: {req.minimum, req.pwm_default, req.maximum}\nERROR: {exception}")
 

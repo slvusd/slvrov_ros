@@ -79,10 +79,10 @@ class PCA9685Node(Node):
 
                 if self.pin_configs is not None:
                     resp.success = True
-                    resp.msg = "Pin configs refreshed successfully."
+                    resp.message = "Pin configs refreshed successfully."
                 else:
                     resp.success = False
-                    resp.msg = "Failed to refresh pin configs. Check logs for details."
+                    resp.message = "Failed to refresh pin configs. Check logs for details."
 
             elif command == "connect_to_pca9685":
                 self.get_logger().info("Received signal to connect to PCA9685.")
@@ -90,20 +90,20 @@ class PCA9685Node(Node):
 
                 if self.pca9685 is not None:
                     resp.success = True
-                    resp.msg = "Connected to PCA9685 successfully."
+                    resp.message = "Connected to PCA9685 successfully."
                 else:
                     resp.success = False
-                    resp.msg = "Failed to connect to PCA9685. Check logs for details."
+                    resp.message = "Failed to connect to PCA9685. Check logs for details."
 
             else:
                 self.get_logger().warning(f"Received unknown command: {req.data}")
 
                 resp.success = False
-                resp.msg = f"Unknown command: {req.data}"
+                resp.message = f"Unknown command: {req.data}"
 
         except Exception as exception:
             resp.success = False
-            resp.msg = f"An error occurred while processing the command: {exception}"
+            resp.message = f"An error occurred while processing the command: {exception}"
             
             self.get_logger().error(f"Command: {req.data}\nERROR: {exception}")
 

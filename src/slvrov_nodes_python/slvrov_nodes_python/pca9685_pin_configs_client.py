@@ -15,7 +15,7 @@ from slvrov_interfaces.srv import AddPCA9685PinConfigs, GetPCA9685PinConfigs
 # uint32 maximum
 # ---
 # bool success
-# string msg
+# string message
 
 # GetPCA9685PinConfigs.srv
 # ---
@@ -81,7 +81,7 @@ class PinConfigsClient(Node):
             resp = future.result()
 
             if resp.success:self.get_logger().info("Successfully added pin config")
-            else: self.get_logger().info(resp.msg)
+            else: self.get_logger().info(resp.message)
 
         except Exception as e:
             self.get_logger().error(f"Service call failed: {e}")
