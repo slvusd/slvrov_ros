@@ -1,0 +1,704 @@
+# ROV Web UI MVP Specification
+
+## 0. Project Summary
+
+The project is a ROS2-based driveable ROV with a simple but full browser-based UI. The UI should be usable by amateur scientists and roboticists, while the codebase should remain readable, structured, and maintainable by amateur programmers.
+
+The project repository/package workspace is named:
+
+- `slvrov_ros`
+
+The codebase is separated into dedicated ROS2 packages:
+
+- `slvrov_core_python` — core driving and vehicle-control features
+- `slvrov_science_python` — science/camera/data-collection features
+- `slvrov_interfaces` — custom messages, services, and actions
+- `slvrov_web_ui` — Flask backend and browser UI
+
+## 1. Target Users
+
+### Amateur operators/scientists
+
+These users need a clear, low-friction UI for driving, camera viewing, photo/video capture, and science data collection.
+
+### Amateur programmers/maintainers
+
+These users need a codebase that is simple, readable, well-commented, and split into understandable packages, nodes, services, topics, and frontend files.
+
+## 2. Base Technical Decisions
+
+### Confirmed
+
+- ROS2 distribution: **Jazzy Jalisco**
+- Main target operating system: **Ubuntu**
+- Future testing possibility: Docker image on macOS
+- Network model: nodes/server communicate over Ethernet
+- Authentication: **not required for MVP**
+- Access model: local network / LAN only
+- Backend: Flask
+- Config file format: JSON
+- Cameras: USB cameras
+- Camera count: support up to 6 cameras
+- Camera streaming stack: MediaMTX with WebRTC
+- Scientist media formats:
+  - Video: MP4
+  - Photos: JPEG
+- Physical joystick input: Linux `js#` joystick devices through ROS2 joystick nodes
+- Emergency stop: visible globally in all modes
+- UI theme: dark theme by default, based on the existing project theme
+- Primary display target: large displays such as monitors or laptops, especially 4:3 and 16:10 layouts
+- Touch-specific UI: not required for MVP
+- Main page should not remember the last selected mode
+- Main page does not need detailed live connection status for MVP unless it is simple to implement
+
+### Confirmed MVP Implementation Choices
+
+- Frontend stack: plain HTML, CSS, and JavaScript.
+- Frontend organization: split code by mode and by reusable UI utilities/components where useful.
+- Camera layout customization: fixed/preset camera layouts only for MVP.
+- Web joystick/controller controls: not part of MVP; add in a future version.
+- Vehicle state model: use a simple software `control enabled / disabled` state rather than a full arming/disarming model for MVP.
+- Backend live-update strategy: REST polling first; upgrade to WebSockets or Server-Sent Events only if polling becomes insufficient.
+- File history: include a simple recent photos gallery.
+- Visual style: hybrid by mode. Pilot should feel like a simple vehicle control panel; Scientist should feel more data/capture focused; Developer can be more technical. Create visual mockups before final implementation choices are locked.
+- Agent workflow: strict one-sub-feature-at-a-time prompts/checkpoints.
+
+## 3. MVP Navigation
+
+The main page acts as a mode selector. The minimum version includes four top-level modes:
+
+1. Pilot Mode
+2. Scientist Mode
+3. Setup Mode
+4. Developer Mode
+
+Each mode should be visually distinct and focused on its user goal.
+
+## 4. Global UI Requirements
+
+These requirements apply across all modes.
+
+### Emergency Stop
+
+- Emergency stop must be visible in all modes.
+- Emergency stop should be treated as a global safety control.
+- If triggered, it should command the system to stop/disable motion as safely and quickly as possible.
+
+### Critical Alerts
+
+Critical alerts should appear globally across all modes.
+
+Examples:
+
+- Camera failure
+- Backend disconnection
+- ROS2 communication failure
+- Motor/thruster safety fault
+- Low disk space while recording
+- Loss of expected ROS2 messages
+- Emergency stop active
+
+### Browser Disconnect / ROS2 Failure Behavior
+
+- If the browser disconnects while motors are active, motors should turn off.
+- If ROS2 stops publishing expected safety-critical messages, motors should turn off.
+- The system should fail safe by stopping thrusters in relevant fault conditions.
+
+## 5. Main Page
+
+### Purpose
+
+Give the user a clear entry point into the major workflows of the ROV web UI.
+
+### MVP Features
+
+- Four large navigation cards or buttons:
+  - Pilot
+  - Scientist
+  - Setup
+  - Developer
+- Short description under each mode
+- Keep the page simple; detailed live status is not required for MVP unless it is trivial to implement.
+- Do not require login/authentication.
+- Do not remember the last selected mode.
+
+### Design Goal
+
+The main page should be clean, readable, and approachable.
+
+## 6. Pilot Mode
+
+### Purpose
+
+Provide the simplest and clearest driving interface possible.
+
+### MVP Features
+
+- Dynamic camera view using MediaMTX/WebRTC
+  - Single-camera view
+  - Multi-camera view
+  - Fixed/preset layout choices
+  - Up to 6 USB cameras
+- Minimal extra information
+  - No regular telemetry required for MVP
+  - No control input visualization required for MVP
+- Global emergency stop visible
+- Physical joystick/controller input only for MVP
+- Web UI controls that mimic a joystick/controller are a future-version feature
+  - Future web controls should send data that can be published by a dummy joystick node or similar abstraction
+
+### Layout Guidance
+
+Pilot Mode should prioritize camera visibility above all else.
+
+Potential camera layouts:
+
+- One large selected camera
+- Grid view for multiple cameras
+- Fixed/preset layouts only for MVP
+- Drag/resize layout customization is deferred
+
+### Design Goal
+
+Pilot Mode should be the simplest of all modes. It should prioritize low distraction, clear visual feedback, and safe operation.
+
+## 7. Scientist Mode
+
+### Purpose
+
+Provide a camera-centered science interface for photo/video capture and future data collection.
+
+### MVP Scope
+
+For the current MVP, Scientist Mode only needs to handle cameras and media capture. Sensor data display/logging can be designed into the architecture but does not need to be implemented until sensors are ready.
+
+### MVP Features
+
+- Dedicated camera view with the same camera features as Pilot Mode:
+  - Single-camera view
+  - Multi-camera view
+  - Fixed/preset layout choices
+  - Up to 6 USB cameras
+- Take photos from each camera
+- Record video from each camera
+- Save media filenames using timestamps by default
+- Allow the scientist to override filenames when desired
+- Use JPEG for photos
+- Use MP4 for videos
+- Choose the lowest-CPU recording strategy that works reliably with MediaMTX/WebRTC
+  - If individual per-camera recording is more efficient and robust, prefer that.
+  - If combined-layout recording is simpler or more useful later, document it as a future option.
+
+### Future Sensor/Data Features
+
+These are planned but not necessarily MVP implementation items until sensor details are available:
+
+- Live sensor readings
+- CSV data logging
+- Save data at specified intervals
+- Manual save button for current values
+- Timestamped data rows
+- Optional notes/annotations
+- Media/data timestamp synchronization
+
+### Design Goal
+
+Scientist Mode should be data/capture oriented, but for MVP it should focus on reliable camera capture and file organization.
+
+## 8. Setup Mode
+
+### Purpose
+
+Configure and test the ROV before normal operation.
+
+### MVP Features
+
+- Physical joystick setup
+  - Joysticks exposed on Linux as `js#`
+  - Existing ROS2 joystick nodes remain supported
+- Web joystick/gamepad-style control option is deferred to a future version
+  - When added, it should publish through a dummy joystick node or equivalent so downstream code can treat it like joystick input
+- Control mapping
+  - Map joystick axes
+  - Map joystick buttons
+  - Show live interpreted input values
+  - Save multiple control profiles
+- Thruster tuning
+  - Store thruster configuration in JSON
+  - Store pin mappings in JSON
+  - Generate or update relevant ROS2 launch/config files where appropriate
+- System Test / Preflight section
+  - Automated tests started by the user pressing explicit test buttons
+  - Do not use a single "Run All Tests" button for MVP
+  - Save preflight/test results to a log file
+  - Failed preflight tests should warn the user, but should not block Pilot Mode for MVP
+
+### MVP Thruster Tuning Parameters
+
+The MVP should include the following tuning/configuration values:
+
+- Direction inversion per thruster
+- Deadzone
+- Minimum command / startup power
+- Maximum command / power limit
+- Neutral PWM value
+- Minimum PWM value
+- Maximum PWM value
+- Trim offset
+- Scale/gain multiplier
+- Ramp rate / slew limit
+- Test pulse duration
+- Test pulse power
+- Thruster physical location/name
+- Motor controller channel/pin mapping
+
+### MVP Motor Test Safety Defaults
+
+- Use preset test sequences rather than arbitrary manual sliders.
+- Require explicit confirmation before starting any motor/thruster test.
+- Keep test power low by default.
+- Use short timed pulses.
+- Show which thruster is being tested.
+- Provide a cancel/stop button during tests.
+- Use the simple `control enabled / disabled` state rather than a complicated armed/disarmed model for MVP.
+
+### MVP Camera Setup
+
+Setup Mode should include basic camera configuration:
+
+- Enable/disable camera
+- Camera display name
+- Camera index/device path
+- Stream URL or MediaMTX path
+- Test preview
+- Resolution/FPS display if available
+
+Camera configuration should be saved in JSON.
+
+### Sensor Calibration
+
+Sensor calibration is deferred for MVP because current MVP science functionality only uses cameras.
+
+Potential future calibration tools:
+
+- IMU zeroing
+- Pressure/depth offset
+- Temperature sensor check
+- Leak sensor check
+- Battery/voltage calibration
+
+### Design Goal
+
+Setup Mode should help users prepare the ROV without requiring developer knowledge.
+
+## 9. System Test / Preflight
+
+### Purpose
+
+Let users verify basic functions such as cameras, motors, controls, and ROS2 communication before operation.
+
+### Placement
+
+For MVP, System Test / Preflight should live inside Setup Mode rather than becoming a fifth top-level mode.
+
+### Test Model
+
+- Tests are automated after the user starts each individual test.
+- The tester must press explicit buttons to start tests.
+- No single "Run All Tests" button for MVP.
+- Test results should be saved to a log file.
+- Failed checks should issue warnings but not block Pilot Mode.
+
+### Camera Test
+
+Verify:
+
+- Stream exists
+- Frame rate
+- Resolution
+- Latency, if practical
+
+### Motor/Thruster Test
+
+Verify:
+
+- Each motor can receive PWM/test command
+- Each thruster movement sequence runs as expected
+- Test should send PWM to each motor using a preset sequence
+- Tests should be safe, low-power, and cancelable
+
+### Controller Test
+
+Provide separate tests for:
+
+- Physical joystick input
+- Web joystick/gamepad input
+
+Each test should verify that input is received and interpreted correctly.
+
+### Sensor/ROS2 Test
+
+Verify:
+
+- Topic exists
+- Recent message is received
+- Value is within sane range where applicable
+- Required nodes/services are reachable
+
+### Safe Test Mode Clarification
+
+A "safe test mode" does not need to be a complex new vehicle state for MVP. It can simply mean:
+
+- Normal driving commands are disabled during a test.
+- Only the active test command is allowed.
+- Test commands are limited in power and duration.
+- Emergency stop always overrides the test.
+- The UI clearly shows that a test is active.
+
+## 10. Developer Mode
+
+### Purpose
+
+Give maintainers and advanced users access to system, ROS2, and backend debugging tools without overwhelming normal users.
+
+### MVP Features
+
+- Customizable computer stats display
+  - Developer can choose which stats are shown.
+  - Each selected stat appears in its own box.
+- General system stats should use the lowest-CPU approach available.
+  - Prefer Python libraries like `psutil` over repeatedly spawning subprocess commands when practical.
+- ROS2 node monitoring
+  - Prefer a dedicated monitor node that observes required nodes and reports status to the frontend.
+- ROS2 developer tools
+  - View allowlisted topics/services/parameters first.
+  - Avoid arbitrary publish/service-call tools in MVP unless clearly marked as dangerous developer tools.
+  - Parameter changes in Developer Mode are temporary debugging changes only.
+  - Persistent changes should be made through Setup Mode and saved into JSON config / launch configuration.
+- Logs
+  - Show only important frontend-facing logs such as errors and warnings.
+  - Full logs remain on the computer for developers to inspect directly.
+- Node/service control
+  - Include restart and shutdown buttons for selected developer nodes/services.
+
+### Recommended System Stats
+
+Potential stat boxes:
+
+- CPU usage
+- Memory usage
+- Disk usage
+- Disk remaining
+- CPU temperature, if available
+- Network throughput/status
+- Camera recording/storage usage
+- Process status for key services
+- ROS2 monitor status
+
+### Recommended Node Health Model
+
+Use a simple health model for MVP:
+
+- Required node is visible
+- Required topic is publishing recently
+- Required service is available
+- Optional heartbeat/diagnostic message is fresh, if available
+- Node is marked healthy/warning/error based on these checks
+
+### Recommended Topic/Service Policy
+
+For MVP, use allowlists:
+
+- Allowlist safe topics to view.
+- Allowlist safe services to call.
+- Allowlist parameters that can be edited.
+- Mark dangerous actions with confirmation prompts.
+- Do not include arbitrary message publishing unless specifically needed for debugging.
+
+### Design Goal
+
+Developer Mode can be technical, but it should be organized, readable, and safe by default.
+
+## 11. Safety and Permissions
+
+### Confirmed
+
+Dangerous actions should require confirmation, including:
+
+- Emergency stop
+- Developer node shutdown
+- Potentially dangerous parameter edits
+
+Motor tests do not necessarily need a special developer permission level for MVP, but they should require clear confirmation.
+
+### Permission Recommendation
+
+Avoid a complex user/role permission system for MVP unless it becomes necessary. Since the UI is LAN-only with no authentication, use simple confirmations and mode separation instead.
+
+Potential future permission layers:
+
+- Normal operator
+- Developer unlock
+- Admin/setup mode
+
+### Fail-Safe Scenarios
+
+Thrusters should stop automatically when:
+
+- Browser control connection is lost during active web control
+- Backend loses contact with the active control source
+- ROS2 safety-critical messages stop unexpectedly
+- Emergency stop is pressed
+- Motor test is canceled or times out
+- Preflight/test command exceeds its allowed duration
+- A safety monitor reports a critical fault
+- Disk space margin is crossed while recording and recording shutdown requires preventing further unsafe operation
+
+## 12. Backend/API Architecture
+### Requests and Responses
+
+Many web requests and responses should mirror their ROS2 counterparts in naming and structure, if possible.
+
+### MVP Architecture
+
+Use a split architecture:
+
+- Flask serves the web UI and exposes simple HTTP/WebSocket endpoints.
+- A ROS2 bridge node or service layer handles ROS2-specific communication.
+- Shared objects or clearly defined interfaces can connect Flask to ROS2 logic where appropriate, but keep the boundary understandable.
+- Avoid putting too much ROS2 complexity directly inside route handlers.
+
+### REST / Live Update Strategy
+
+Use REST polling first for MVP because it is simpler to understand and maintain.
+
+REST endpoints should cover:
+
+- Start/stop recording
+- Take photo
+- Save settings
+- Start a test
+- Call an allowlisted service
+- Update config
+- Fetch camera/control status
+- Fetch test progress
+- Fetch developer stats
+- Fetch ROS2 node health
+- Fetch alerts/warnings
+
+WebSockets or Server-Sent Events can be added later only if REST polling becomes insufficient for responsiveness or efficiency.
+
+### Error Response Recommendation
+
+Use structured JSON error responses:
+
+```json
+{
+  "ok": false,
+  "error_code": "CAMERA_STREAM_UNAVAILABLE",
+  "message": "Camera 1 stream is not available.",
+  "details": {
+    "camera_id": "camera_1"
+  },
+  "suggested_action": "Check that the camera is plugged in and MediaMTX is running."
+}
+```
+
+Successful responses should use a similarly predictable shape:
+
+```json
+{
+  "ok": true,
+  "data": {}
+}
+```
+
+### MVP Config Files
+
+Use JSON files for:
+
+- Control mapping settings
+- Thruster configuration
+- Pin mappings
+- Camera configuration
+- UI preferences/layout presets
+- Required ROS2 nodes/topics/services
+- Safety thresholds
+- Recording/storage settings
+
+Setup Mode should be the place where persistent config changes are made.
+
+## 13. Data and File Storage
+
+### Directory Layout
+
+Store collected data outside the source code repository.
+
+Recommended high-level layout:
+
+```text
+slvrov_workspace/
+├── slvrov_ros/
+└── data/
+    ├── photos/
+    ├── videos/
+    ├── csv/
+    ├── preflight_logs/
+    ├── test_logs/
+    └── metadata/
+```
+
+### File Access
+
+- Photos should be viewable in the web UI.
+- Video and CSV downloads are not required for MVP.
+- Include a simple recent photos gallery.
+- Full file browser and downloads are not required for MVP.
+
+### File Size and Storage Limits
+
+- Each data type should have a maximum size/usage policy based roughly on around 60 minutes of data.
+- Remaining storage should be monitored.
+- When remaining storage crosses a warning threshold, show warnings such as:
+  - "Only about 2 minutes of video recording remaining on camera 1."
+  - "Only about 30 more data points can be stored for sensor 5."
+- When storage reaches the stop threshold:
+  - Automatically stop recording.
+  - Save the current file cleanly.
+  - Warn the user.
+
+## 14. UI/UX
+
+### Theme
+
+- Dark theme by default.
+- Use the existing project theme as the starting point.
+- A light theme can be considered later if it does not add significant complexity.
+
+### Display Target
+
+- Optimize for large displays such as monitors or laptops.
+- Target 4:3 and 16:10 layouts.
+- No touch-specific UI for MVP.
+
+### Style Direction
+
+Use a hybrid style by mode, and create visual mockups before committing to final implementation details.
+
+- Pilot Mode should lean toward a simple vehicle control panel: clear camera view, minimal distraction, obvious safety controls.
+- Scientist Mode should lean toward a scientific/data-capture dashboard: camera capture controls, recent photos, recording state, storage warnings.
+- Setup Mode should be structured and step-by-step.
+- Developer Mode can be more technical, with box-based stats and allowlisted tools.
+
+Before implementation, create at least two static mockups:
+
+1. Simple vehicle-control style
+2. Scientific/data dashboard style
+
+Then combine the useful parts into the mode-specific hybrid design.
+
+### Status Bar
+
+- A global top status bar is not required in every mode.
+- Setup Mode may benefit from a status bar to help users keep track of setup state.
+- Critical alerts should still be global across all modes.
+
+### Layout Customization
+
+- Use fixed/preset layouts for MVP.
+- Avoid draggable/resizable layout customization for MVP.
+- Avoid adding backend complexity just to support custom layouts.
+
+## 15. Agentic AI Implementation Plan
+
+An agent should not be given uncontrolled authority to build the whole system at once. Instead, the project should be split into clear, reviewable implementation units.
+
+### Agent Workflow Requirements
+
+The agent should:
+
+1. Create the initial structure:
+   - Directories
+   - Files
+   - Package layout
+   - Starter configs
+2. Build each mode independently while keeping the whole system architecture in mind.
+3. Split each mode into sub-features.
+4. Write tests for each sub-feature.
+5. Test from service/topic-level functionality upward to UI-level behavior.
+6. Avoid complex dependencies where practical.
+7. Include clear comments explaining ROS2/Flask/frontend flow for amateur maintainers.
+8. Provide setup instructions.
+9. Use strict one-sub-feature-at-a-time prompts or review checkpoints so the project owner decides when each sub-feature is created.
+
+### Suggested Agent Build Order
+
+1. Workspace/package skeleton
+2. Shared config structure
+3. Flask app shell and static frontend shell
+4. Main mode-selection page
+5. Global alert/emergency stop UI shell
+6. Camera configuration and WebRTC display prototype
+7. Pilot Mode camera layouts
+8. Scientist Mode photo/video capture
+9. Setup Mode control mapping
+10. Setup Mode thruster configuration
+11. System Test / Preflight services and UI
+12. Developer Mode system stats
+13. Developer Mode ROS2 node/topic/service monitor
+14. Storage limit handling
+15. End-to-end tests and documentation
+
+## 16. Resolved MVP Decisions
+
+The following decisions have been resolved for the MVP.
+
+| Area | MVP Decision | Future Notes |
+|---|---|---|
+| Frontend stack | Plain HTML, CSS, and JavaScript | Reconsider a framework only if frontend complexity becomes hard to manage. |
+| Web UI joystick controls | Physical joystick only for MVP | Add web joystick/controller controls in a future version. |
+| Camera layouts | Fixed/preset layouts only | Draggable/resizable layouts can be explored later. |
+| Vehicle state | Simple `control enabled / disabled` state | Full arming/disarming can be added later if needed by the motor-control architecture. |
+| Thruster tuning | Use the recommended MVP parameter set | Refine exact values after hardware testing. |
+| Motor test safety | Use recommended low-power, timed, preset pulse policy | Exact pulse duration and power should be chosen during hardware testing. |
+| Camera setup | Include basic camera setup in Setup Mode | Keep saved configuration in JSON. |
+| Sensor calibration | Defer all sensor calibration | Add when non-camera science sensors are introduced. |
+| Developer ROS2 access | Allowlisted topics, services, and parameters only | Avoid arbitrary ROS2 access from the browser for MVP. |
+| Backend live updates | REST polling first | Upgrade to WebSockets/SSE later only if needed. |
+| File history | Simple recent photos gallery | Full file browser and downloads are future features. |
+| Visual style | Hybrid by mode, with mockups first | Pilot simple/control-focused; Scientist capture/data-focused; Developer technical. |
+| Agent workflow | Strict one-sub-feature-at-a-time prompts/checkpoints | Each sub-feature should include tests before moving on. |
+
+## 17. Remaining Details To Decide During Implementation
+
+These are not blocking architectural decisions, but they should be finalized when the relevant sub-feature is implemented.
+
+### Camera Details
+
+- Exact USB camera device naming strategy.
+- Exact MediaMTX path naming convention for up to 6 cameras.
+- Whether camera previews should auto-detect available cameras or only use JSON-defined cameras.
+
+### Motor/Thruster Details
+
+- Exact thruster count, physical layout, and naming convention.
+- Exact PWM range, neutral value, and low-power test pulse values.
+- Exact motor controller hardware and pin/channel mapping.
+
+### Control Mapping Details
+
+- Exact joystick axes/buttons to support in the first control profile.
+- Whether profiles are selected manually or auto-selected by joystick device name.
+- Exact JSON schema for saved control profiles.
+
+### Developer Mode Details
+
+- Exact required-node list.
+- Exact allowlisted topics, services, and parameters.
+- Exact restart/shutdown actions that should be exposed.
+
+### Storage Details
+
+- Exact storage directory path on the target machine.
+- Exact warning and stop thresholds for remaining disk space.
+- Approximate video/photo storage usage for 60 minutes of data per type.
