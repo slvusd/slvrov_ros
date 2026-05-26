@@ -24,11 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'joystick_mapper=slvrov_nodes_python.joystick_mapper:main',
-            'joystick_logic=slvrov_nodes_python.joystick_logic:main',
-            'pca9685_node=slvrov_nodes_python.pca9685_node:main',
-            'pin_mappings_server=slvrov_nodes_python.pin_mappings_server:main',
-            'pin_mappings_client=slvrov_nodes_python.pin_mappings_client:main',
+            'joystick_mapper=slvrov_core_python.joystick_mapper:main',
         ],
     },
 )

@@ -1,0 +1,5 @@
+string action_name
+string action_type
+---
+bool success
+string message

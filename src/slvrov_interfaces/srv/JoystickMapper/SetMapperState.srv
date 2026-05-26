@@ -1,0 +1,4 @@
+string[] joystick_topics_override
+---
+bool success
+string message

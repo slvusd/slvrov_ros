@@ -17,6 +17,9 @@ source install/setup.bash
 
 ## Environment Setup?
 
+## Documentation
+- [ROS 2 Python Style Guide](system_documents/ros2_python_style_guide.md) - style guidance for `slvrov_core_python` Python code.
+
 ## Launch
 ```bash
 ros2 launch slvrov_launch launch.py

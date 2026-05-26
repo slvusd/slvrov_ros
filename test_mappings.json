@@ -1,0 +1,8 @@
+{
+  "/joy/js_axis/5": {
+    "action": "myAction",
+    "action_type": "js_axis",
+    "topic": "/joy",
+    "index": 5
+  }
+}

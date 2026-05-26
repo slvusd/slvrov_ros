@@ -1,598 +1,1089 @@
-#!/usr/bin/env python3
+"""ROS2 node for interactively mapping joystick inputs to ROV actions."""
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from enum import Enum
-from pathlib import Path
-from queue import Empty, SimpleQueue
-from typing import Dict, List, Optional, Tuple
 import json
-import sys
-import threading
-import yaml
+from pathlib import Path
+from typing import Any
 
-import rclpy
-from rclpy.executors import ExternalShutdownException
-from rclpy.executors import MultiThreadedExecutor
-from rclpy.node import Node
-from sensor_msgs.msg import Joy
+import rclpy  # type: ignore
+from rclpy.executors import ExternalShutdownException  # type: ignore
+from rclpy.node import Node  # type: ignore
+from sensor_msgs.msg import Joy  # type: ignore
+from slvrov_interfaces.srv import String
+from slvrov_interfaces.srv.JoystickMapper import (
+    DeleteMapping,
+    FetchStatus,
+    SendMapping,
+    SetAction,
+    SetMapperState,
+)
+from std_srvs.srv import Trigger  # type: ignore
 
+from .control_objects import MappingCandidate, ROVActionMapping, ROVActionType
+from .json_crud import delete_from_json, load_from_json, save_to_json
+from .log_messages import BaseLogMessages, JoystickMapperLogMessages
 
-JOY_TOPIC_TYPE = "sensor_msgs/msg/Joy"
-
-
-class Action(str, Enum):
-    """Enumerate the logical actions that can be calibrated."""
-
-    FORWARD = "forward"
-    STRAFE = "strafe"
-    YAW = "yaw"
-    HEAVE = "heave"
-    ROLL = "roll"
-    CLAW_OPEN = "claw_open"
-    CLAW_ROTATE = "claw_rotate"
-    CLAW_TILT = "claw_tilt"
-    CAMERA = "camera"
-
-    @property
-    def prompt(self) -> str:
-        """Return the operator prompt for this logical action."""
-        prompts = {
-            Action.FORWARD:
-                "Move the control you want to use for FORWARD in the "
-                "forward direction.",
-            Action.STRAFE:
-                "Move the control you want to use for STRAFE to the right.",
-            Action.YAW:
-                "Move or twist the control you want to use for YAW.",
-            Action.HEAVE:
-                "Move the control you want to use for HEAVE upward.",
-            Action.ROLL:
-                "Move the control you want to use for ROLL.",
-            Action.CLAW_OPEN:
-                "Press or move the control you want to use for CLAW_OPEN.",
-            Action.CLAW_ROTATE:
-                "Move the control you want to use for CLAW_ROTATE.",
-            Action.CLAW_TILT:
-                "Move the control you want to use for CLAW_TILT.",
-            Action.CAMERA:
-                "move control for camera movement",
-        }
-        return prompts[self]
+ActionReq = SetAction.Request
+ActionResp = SetAction.Response
+DeleteReq = DeleteMapping.Request
+DeleteResp = DeleteMapping.Response
+FetchReq = FetchStatus.Request
+FetchResp = FetchStatus.Response
+MapperReq = SetMapperState.Request
+MapperResp = SetMapperState.Response
+SendReq = SendMapping.Request
+SendResp = SendMapping.Response
+StringReq = String.Request
+StringResp = String.Response
+TriggerReq = Trigger.Request
+TriggerResp = Trigger.Response
 
 
-@dataclass(frozen=True)
-class JoystickMapping:
-    """Record the binding from one physical control to one logical action."""
+class JoystickMapper(Node):
+    """Manages joystick mapping state and mapping services.
 
-    action: str
-    topic: str
-    source: str
-    index: int
-    invert: bool = False
-    deadzone: float = 0.1
-    scale: float = 1.0
+    This node subscribes to joystick topics, records candidate input movement,
+    and exposes services for mapping ROV actions to joystick inputs.
 
-
-@dataclass(frozen=True)
-class JoySnapshot:
-    """Capture joystick state at the start of one calibration step."""
-
-    axes: Tuple[float, ...]
-    buttons: Tuple[int, ...]
-
-    @classmethod
-    def from_msg(cls, msg: Joy) -> "JoySnapshot":
-        """Build a snapshot from a ROS Joy message."""
-        return cls(
-            axes=tuple(float(value) for value in msg.axes),
-            buttons=tuple(int(value) for value in msg.buttons),
-        )
-
-
-@dataclass
-class Candidate:
-    """Track the strongest movement seen for one physical control."""
-
-    topic: str
-    source: str
-    index: int
-    score: float
-    value: float
-    last_update_sec: float
-
-    @property
-    def control_key(self) -> Tuple[str, str, int]:
-        """Return a stable identifier for this physical control."""
-        return (self.topic, self.source, self.index)
-
-
-class JoystickCalibrator(Node):
-    """Interactively discover joystick bindings and save them to disk."""
+    Attributes:
+        js_topics (list[str]): Configured joystick topics from ROS parameters.
+        js_mappings_path (str): Default JSON path for saved joystick mappings.
+        update_time (float): Timer interval used to update mapping candidates.
+        js_subscriptions (list[Any]): Active joystick subscriptions.
+        js_mappings (list[ROVActionMapping]): Unsaved action mappings.
+        latest_js_states (dict[str, Joy]): Most recent joystick message by topic.
+        candidates (dict[str, MappingCandidate] | None): Active mapping candidates.
+        update_timer (Any | None): Timer used during an active mapping run.
+        mapper_active (bool): True when joystick subscriptions are active.
+        mapping_active (bool): True when a mapping run is active.
+        mappings_saved (bool): True when no unsaved mappings remain.
+        current_action_mapping (ROVActionMapping | None): Action being mapped.
+    """
 
     def __init__(self) -> None:
-        """Initialize parameters, subscriptions, and calibration state."""
-        super().__init__("joystick_calibrator")
+        super().__init__("joystick_mapper")
 
-        self.declare_parameter("joy_topics", [])
-        self.declare_parameter("joystick_configs_path", "joy_mappings.yaml")
-        self.declare_parameter("axis_threshold", 0.6)
-        self.declare_parameter("button_score", 1.25)
-        self.declare_parameter("quiet_seconds", 0.75)
-        self.declare_parameter("settle_seconds", 1.0)
-        self.declare_parameter("discovery_period_sec", 1.0)
-        self.declare_parameter(
-            "bind_order",
-            [
-                "forward",
-                "strafe",
-                "yaw",
-                "heave",
-                "roll",
-                "claw_open",
-                "claw_rotate",
-                "claw_tilt",
-                "camera",
-            ],
-        )
-        self.declare_parameter("skip_actions", [])
-        self.declare_parameter("default_deadzone", 0.10)
-        self.declare_parameter("default_scale", 1.0)
-        self.declare_parameter("allow_reuse_controls", False)
+        self.declare_parameter("joystick_topics", [])
+        self.declare_parameter("joystick_mappings_path", "")
+        self.declare_parameter("update_hz", 20.0)
 
-        self.configured_joy_topics = [
-            str(topic) for topic in self.get_parameter("joy_topics").value
+        self.js_topics = [
+            str(topic) for topic in self.get_parameter("joystick_topics").value
         ]
-        self.output_path = str(self.get_parameter("joystick_configs_path").value)
-        self.axis_threshold = float(self.get_parameter("axis_threshold").value)
-        self.button_score = float(self.get_parameter("button_score").value)
-        self.quiet_seconds = float(self.get_parameter("quiet_seconds").value)
-        self.settle_seconds = float(self.get_parameter("settle_seconds").value)
-        self.discovery_period_sec = float(
-            self.get_parameter("discovery_period_sec").value
+        self.js_mappings_path = str(
+            self.get_parameter("joystick_mappings_path").value
         )
-        self.default_deadzone = float(
-            self.get_parameter("default_deadzone").value
+        self.update_time = 1.0 / float(self.get_parameter("update_hz").value)
+
+        self.js_subscriptions: list[Any] = []
+        self.js_mappings: list[ROVActionMapping] = []
+        self.latest_js_states: dict[str, Joy] = {}
+        self.candidates: dict[str, MappingCandidate] | None = None
+        self.update_timer: Any | None = None
+
+        self.mapper_active = False
+        self.mapping_active = False
+        self.mappings_saved = True
+        self.current_action_mapping: ROVActionMapping | None = None
+
+        self.set_mapper_state_service = self.create_service(
+            SetMapperState,
+            "joystick_mapper/set_mapper_state",
+            self.set_mapper_state_callback,
         )
-        self.default_scale = float(self.get_parameter("default_scale").value)
-        self.allow_reuse_controls = bool(
-            self.get_parameter("allow_reuse_controls").value
-        )
-
-        bind_order_raw = list(self.get_parameter("bind_order").value)
-        skip_actions_raw = {
-            Action(action_name)
-            for action_name in self.get_parameter("skip_actions").value}
-        self.actions_to_bind = [
-            Action(action_name)
-            for action_name in bind_order_raw
-            if Action(action_name) not in skip_actions_raw
-        ]
-
-        self.joy_topics: List[str] = []
-        self.joy_subscriptions: Dict[str, object] = {}
-        self.latest: Dict[str, Optional[Joy]] = {}
-        self.previous: Dict[str, Optional[Joy]] = {}
-        self.mappings: List[JoystickMapping] = []
-        self.bound_controls: set[Tuple[str, str, int]] = set()
-
-        self.current_action_index = 0
-        self.prompt_active = False
-        self.finished = False
-        self.next_prompt_not_before_sec = 0.0
-        self.prompt_started_sec = 0.0
-        self.last_activity_sec = 0.0
-        self.baselines: Dict[str, JoySnapshot] = {}
-        self.candidates: Dict[Tuple[str, str, int], Candidate] = {}
-        self.waiting_for_topics_logged = False
-        self.waiting_for_messages_logged = False
-
-        self.command_queue: SimpleQueue[str] = SimpleQueue()
-        self.shutdown_command_prompt = False
-        self.spin_command_prompt_thread = threading.Thread(
-            target=self.spin_command_prompt,
-            daemon=True,
-        )
-        self.spin_command_prompt_thread.start()
-
-        self.discovery_timer = self.create_timer(
-            self.discovery_period_sec,
-            self._refresh_joy_subscriptions,
-        )
-        self.calibration_timer = self.create_timer(0.05, self._tick)
-
         self.get_logger().info(
-            "Joystick calibrator started. Type 'skip' to skip the current "
-            "action, 'undo' to remove the last binding, or 'quit' to save "
-            "progress and exit."
+            BaseLogMessages.SERVICE_CREATED
+            + "joystick_mapper/set_mapper_state"
         )
 
-        if not self.actions_to_bind:
-            self.get_logger().info(
-                "All actions were skipped by configuration. Saving an empty "
-                "mapping file."
+        self.set_action_service = self.create_service(
+            SetAction,
+            "joystick_mapper/set_action",
+            self.set_action_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED + "joystick_mapper/set_action"
+        )
+
+        self.set_mapping_state_service = self.create_service(
+            Trigger,
+            "joystick_mapper/set_mapping_state",
+            self.set_mapping_state_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED
+            + "joystick_mapper/set_mapping_state"
+        )
+
+        self.save_mapped_actions_service = self.create_service(
+            String,
+            "joystick_mapper/save_mapped_actions",
+            self.save_mapped_actions_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED
+            + "joystick_mapper/save_mapped_actions"
+        )
+
+        self.fetch_status_service = self.create_service(
+            FetchStatus,
+            "joystick_mapper/fetch_status",
+            self.fetch_status_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED + "joystick_mapper/fetch_status"
+        )
+
+        self.delete_mapping_service = self.create_service(
+            DeleteMapping,
+            "joystick_mapper/delete_mapping",
+            self.delete_mapping_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED + "joystick_mapper/delete_mapping"
+        )
+
+        self.edit_mapping_service = self.create_service(
+            SendMapping,
+            "joystick_mapper/edit_mapping",
+            self.edit_mapping_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED + "joystick_mapper/edit_mapping"
+        )
+
+        self.add_mapping_service = self.create_service(
+            SendMapping,
+            "joystick_mapper/add_mapping",
+            self.add_mapping_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED + "joystick_mapper/add_mapping"
+        )
+
+        self.view_mappings_service = self.create_service(
+            Trigger,
+            "joystick_mapper/view_mappings",
+            self.view_mappings_callback,
+        )
+        self.get_logger().info(
+            BaseLogMessages.SERVICE_CREATED + "joystick_mapper/view_mappings"
+        )
+
+        self.get_logger().info(BaseLogMessages.NODE_READY + "joystick_mapper")
+
+    def js_callback(self, topic: str, msg: Joy) -> None:
+        """Stores joystick state and initializes candidates when needed.
+
+        Args:
+            topic (str): Joystick topic that produced the message.
+            msg (Joy): Latest joystick message.
+        """
+
+        if self.current_action_mapping is None:
+            return
+
+        self.latest_js_states[topic] = msg
+        if self.candidates is None:
+            self.create_candidates()
+
+    def set_mapping_state_callback(self, req: TriggerReq, resp: TriggerResp) -> TriggerResp:
+        """Toggles the current mapping run state.
+
+        Args:
+            req (TriggerReq): Trigger request.
+            resp (TriggerResp): Trigger response to populate.
+
+        Returns:
+            TriggerResp: Populated service response.
+        """
+
+        if self.mapping_active:
+            return self.set_mapping_inactive(req, resp)
+
+        return self.set_mapping_active(req, resp)
+
+    def set_action_callback(self, req: ActionReq, resp: ActionResp) -> ActionResp:
+        """Sets the current action to be mapped.
+
+        Args:
+            req (ActionReq): Request containing action name and type.
+            resp (ActionResp): Response to populate.
+
+        Returns:
+            ActionResp: Populated service response.
+        """
+
+        if self.current_action_mapping is not None:
+            msg = (
+                JoystickMapperLogMessages.ACTION_SET
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.ACTION_ALREADY_SET
             )
-            self._finish(save_progress=True)
-            return
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
 
-        self._refresh_joy_subscriptions()
+        try:
+            action_type = ROVActionType(req.action_type)
+        except ValueError:
+            msg = (
+                JoystickMapperLogMessages.ACTION_SET
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.ACTION_INVALID
+                + req.action_type
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
 
-    def spin_command_prompt(self) -> None:
-        """Run the terminal command loop on a background thread."""
-        if not sys.stdin or not sys.stdin.isatty():
-            return
-
-        while not self.shutdown_command_prompt:
-            try:
-                line = input()
-                self.command_queue.put(line.strip().lower())
-            except EOFError:
-                self.get_logger().info("End of input reached. Exiting...")
-                self.shutdown_command_prompt = True
-            except Exception as exception:
-                self.get_logger().error(
-                    f"An unexpected command prompt error occurred: {exception}"
-                )
-
-    def _refresh_joy_subscriptions(self) -> None:
-        """Subscribe to the configured or discovered Joy topics."""
-        if self.finished:
-            return
-
-        if self.configured_joy_topics:
-            target_topics = list(dict.fromkeys(self.configured_joy_topics))
-        else:
-            # looks at available topics and add if are joystick
-            target_topics = sorted(
-                topic_name
-                for topic_name, topic_types in self.get_topic_names_and_types()
-                if JOY_TOPIC_TYPE in topic_types
+        self.current_action_mapping = ROVActionMapping(
+            action_name=req.action_name,
+            topic=None,
+            action_type=action_type,
+            index=None,
         )
-        if not target_topics:
-            if not self.waiting_for_topics_logged:
-                self.get_logger().info(
-                    "Waiting for one or more Joy topics to appear..."
+
+        msg = (
+            JoystickMapperLogMessages.ACTION_SET
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+            + JoystickMapperLogMessages.ACTION_IS_SET
+            + str(self.current_action_mapping)
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def set_mapper_state_callback(self, req: MapperReq, resp: MapperResp) -> MapperResp:
+        """Toggles the joystick mapper activation state.
+
+        Args:
+            req (MapperReq): Request containing optional topic overrides.
+            resp (MapperResp): Response to populate.
+
+        Returns:
+            MapperResp: Populated service response.
+        """
+
+        if self.mapper_active:
+            return self.set_mapper_inactive(req, resp)
+
+        return self.set_mapper_active(req, resp)
+
+    def delete_mapping_callback(self, req: DeleteReq, resp: DeleteResp) -> DeleteResp:
+        """Deletes a saved or unsaved mapping.
+
+        Args:
+            req (DeleteReq): Request describing where to delete from.
+            resp (DeleteResp): Response to populate.
+
+        Returns:
+            DeleteResp: Populated service response.
+        """
+
+        deleted = False
+        mappings_path = None
+
+        if not req.check_unsaved_mappings and not req.check_mappings_file:
+            msg = (
+                JoystickMapperLogMessages.DELETE_MAPPING
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + "no mapping source selected"
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        if req.check_mappings_file:
+            mappings_path = self.resolve_mappings_path(req.mappings_path)
+            if mappings_path is None:
+                msg = (
+                    JoystickMapperLogMessages.DELETE_MAPPING
+                    + BaseLogMessages.SERVICE_CALL_FAILED
+                    + BaseLogMessages.NO_PATH_PROVIDED
                 )
-                self.waiting_for_topics_logged = True
+                self.get_logger().warning(msg)
+                resp.success = False
+                resp.message = msg
+                return resp
+
+        if req.check_mappings_file and mappings_path is not None:
+            try:
+                deleted = (
+                    self.delete_saved_mapping(
+                        req.action_name,
+                        mappings_path,
+                    )
+                    or deleted
+                )
+            except (
+                FileNotFoundError,
+                KeyError,
+                ValueError,
+                OSError,
+            ) as exception:
+                msg = (
+                    JoystickMapperLogMessages.DELETE_MAPPING
+                    + BaseLogMessages.SERVICE_CALL_FAILED
+                    + BaseLogMessages.SERVER_ERROR
+                    + str(exception)
+                )
+                self.get_logger().error(msg)
+                resp.success = False
+                resp.message = msg
+                return resp
+
+        if req.check_unsaved_mappings:
+            deleted = self.delete_unsaved_mapping(req.action_name) or deleted
+
+        if not deleted:
+            msg = (
+                JoystickMapperLogMessages.DELETE_MAPPING
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + f"mapping not found: {req.action_name}"
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        msg = (
+            JoystickMapperLogMessages.DELETE_MAPPING
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def save_mapped_actions_callback(self, req: StringReq, resp: StringResp) -> StringResp:
+        """Saves unsaved mappings to JSON.
+
+        Args:
+            req (StringReq): Request with an optional path override.
+            resp (StringResp): Response to populate.
+
+        Returns:
+            StringResp: Populated service response.
+        """
+
+        mappings_path = self.resolve_mappings_path(req.data)
+        if mappings_path is None:
+            msg = (
+                JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + BaseLogMessages.NO_PATH_PROVIDED
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        mappings_dict: dict[str, dict[str, Any]] = {}
+        for mapping in self.js_mappings:
+            mappings_dict.update(mapping.to_json())
+
+        try:
+            save_to_json(mappings_dict, mappings_path)
+        except (ValueError, OSError) as exception:
+            msg = (
+                JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + BaseLogMessages.SERVER_ERROR
+                + str(exception)
+            )
+            self.get_logger().error(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        self.js_mappings = []
+        self.mappings_saved = True
+
+        msg = (
+            JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+            + BaseLogMessages.SAVE_SUCCESSFUL
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def fetch_status_callback(self, req: FetchReq, resp: FetchResp) -> FetchResp:
+        """Fetches mapper status for clients.
+
+        Args:
+            req (FetchReq): Status request.
+            resp (FetchResp): Response to populate.
+
+        Returns:
+            FetchResp: Populated service response.
+        """
+
+        resp.success = True
+        resp.message = str(BaseLogMessages.SERVICE_CALL_SUCCEEDED)
+        resp.mapper_active = self.mapper_active
+        resp.subscribed_joystick_topics = [
+            subscription.topic_name for subscription in self.js_subscriptions
+        ]
+        resp.mapping_active = self.mapping_active
+        resp.mappings_saved = self.mappings_saved
+        resp.unsaved_mappings = [str(mapping) for mapping in self.js_mappings]
+
+        if self.current_action_mapping is None:
+            resp.current_action_name = ""
+            resp.current_action_type = ""
+            return resp
+
+        resp.current_action_name = self.current_action_mapping.action_name
+        resp.current_action_type = str(self.current_action_mapping.action_type)
+        return resp
+
+    def add_mapping_callback(self, req: SendReq, resp: SendResp) -> SendResp:
+        """Adds a request-provided mapping to unsaved mappings.
+
+        Args:
+            req (SendReq): Request containing mapping data.
+            resp (SendResp): Response to populate.
+
+        Returns:
+            SendResp: Populated service response.
+        """
+
+        try:
+            mapping = self.mapping_from_request(req)
+        except ValueError:
+            msg = (
+                JoystickMapperLogMessages.ADD_MAPPING
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.ACTION_INVALID
+                + req.action_type
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        self.js_mappings.append(mapping)
+        self.mappings_saved = False
+
+        msg = (
+            JoystickMapperLogMessages.ADD_MAPPING
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+            + str(mapping)
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def edit_mapping_callback(self, req: SendReq, resp: SendResp) -> SendResp:
+        """Replaces an unsaved mapping with the same action name.
+
+        Args:
+            req (SendReq): Request containing replacement mapping data.
+            resp (SendResp): Response to populate.
+
+        Returns:
+            SendResp: Populated service response.
+        """
+
+        try:
+            mapping = self.mapping_from_request(req)
+        except ValueError:
+            msg = (
+                JoystickMapperLogMessages.EDIT_MAPPING
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.ACTION_INVALID
+                + req.action_type
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        for index, existing_mapping in enumerate(self.js_mappings):
+            if existing_mapping.action_name == mapping.action_name:
+                self.js_mappings[index] = mapping
+                self.mappings_saved = False
+                msg = (
+                    JoystickMapperLogMessages.EDIT_MAPPING
+                    + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+                    + str(mapping)
+                )
+                self.get_logger().info(msg)
+                resp.success = True
+                resp.message = msg
+                return resp
+
+        msg = (
+            JoystickMapperLogMessages.EDIT_MAPPING
+            + BaseLogMessages.SERVICE_CALL_FAILED
+            + f"mapping not found: {mapping.action_name}"
+        )
+        self.get_logger().warning(msg)
+        resp.success = False
+        resp.message = msg
+        return resp
+
+    def view_mappings_callback(self, req: TriggerReq, resp: TriggerResp) -> TriggerResp:
+        """Returns unsaved mappings encoded as response-message JSON.
+
+        Args:
+            req (TriggerReq): Trigger request.
+            resp (TriggerResp): Response to populate.
+
+        Returns:
+            TriggerResp: Populated service response.
+        """
+
+        mappings = [mapping.to_json() for mapping in self.js_mappings]
+        msg = json.dumps(mappings)
+        self.get_logger().info(
+            JoystickMapperLogMessages.VIEW_MAPPING
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+        )
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def set_mapper_active(self, req: MapperReq, resp: MapperResp) -> MapperResp:
+        """Activates the mapper and subscribes to joystick topics.
+
+        Args:
+            req (MapperReq): Request containing optional topic overrides.
+            resp (MapperResp): Response to populate.
+
+        Returns:
+            MapperResp: Populated service response.
+        """
+
+        topics = self.resolve_joystick_topics(req.joystick_topics_override)
+        if not topics:
+            msg = (
+                JoystickMapperLogMessages.MAPPER_SET_ACTIVE
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + BaseLogMessages.NO_TOPICS
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        self.subscribe_to_joysticks(topics)
+        self.mapper_active = True
+
+        msg = (
+            JoystickMapperLogMessages.MAPPER_SET_ACTIVE
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+            + JoystickMapperLogMessages.MAPPER_IS_ACTIVE
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def set_mapper_inactive(self, req: MapperReq, resp: MapperResp) -> MapperResp:
+        """Deactivates the mapper after checking mapping state.
+
+        Args:
+            req (MapperReq): Mapper state request.
+            resp (MapperResp): Response to populate.
+
+        Returns:
+            MapperResp: Populated service response.
+        """
+
+        if self.mapping_active:
+            msg = (
+                JoystickMapperLogMessages.MAPPER_SET_INACTIVE
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.MAPPING_IS_ACTIVE
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        self.unsubscribe_from_joysticks()
+        self.clear_activation_states()
+        self.mapper_active = False
+
+        msg = (
+            JoystickMapperLogMessages.MAPPER_SET_INACTIVE
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+            + JoystickMapperLogMessages.MAPPER_IS_INACTIVE
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def set_mapping_active(self, req: TriggerReq, resp: TriggerResp) -> TriggerResp:
+        """Starts a mapping run for the current action.
+
+        Args:
+            req (TriggerReq): Trigger request.
+            resp (TriggerResp): Response to populate.
+
+        Returns:
+            TriggerResp: Populated service response.
+        """
+
+        if not self.mapper_active:
+            msg = (
+                JoystickMapperLogMessages.MAPPING_SET_ACTIVE
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.MAPPER_IS_INACTIVE
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        if self.current_action_mapping is None:
+            msg = (
+                JoystickMapperLogMessages.MAPPING_SET_ACTIVE
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.NO_ACTION_SET
+            )
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        self.start_candidate_updates()
+        self.mapping_active = True
+
+        msg = (
+            JoystickMapperLogMessages.MAPPING_SET_ACTIVE
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+            + JoystickMapperLogMessages.MAPPING_IS_ACTIVE
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+        return resp
+
+    def set_mapping_inactive(self, req: TriggerReq, resp: TriggerResp) -> TriggerResp:
+        """Stops a mapping run and saves the best candidate.
+
+        Args:
+            req (TriggerReq): Trigger request.
+            resp (TriggerResp): Response to populate.
+
+        Returns:
+            TriggerResp: Populated service response.
+        """
+
+        self.mapping_active = False
+        self.stop_candidate_updates()
+
+        candidate = self.get_best_candidate()
+        if candidate == JoystickMapperLogMessages.MAPPING_NO_CANDIDATE:
+            msg = (
+                JoystickMapperLogMessages.MAPPING_SET_INACTIVE
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.MAPPING_NO_CANDIDATE
+            )
+            self.clear_current_mapping()
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        if candidate == JoystickMapperLogMessages.MAPPING_CANDIDATE_TIE:
+            msg = (
+                JoystickMapperLogMessages.MAPPING_SET_INACTIVE
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.MAPPING_CANDIDATE_TIE
+            )
+            self.clear_current_mapping()
+            self.get_logger().warning(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        if self.current_action_mapping is None:
+            msg = (
+                JoystickMapperLogMessages.MAPPING_SET_INACTIVE
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + JoystickMapperLogMessages.NO_ACTION_SET
+            )
+            self.clear_current_mapping()
+            self.get_logger().error(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        self.current_action_mapping.topic = candidate.topic
+        self.current_action_mapping.index = candidate.index
+        self.js_mappings.append(self.current_action_mapping)
+        self.mappings_saved = False
+
+        msg = (
+            JoystickMapperLogMessages.MAPPING_SET_INACTIVE
+            + BaseLogMessages.SERVICE_CALL_SUCCEEDED
+            + JoystickMapperLogMessages.MAPPING_SUCCEEDED
+            + JoystickMapperLogMessages.MAPPING_FOUND_CANDIDATE
+            + f"{self.current_action_mapping.action_name}->"
+            + f"{candidate.topic}/"
+            + f"{candidate.action_type}/"
+            + f"{candidate.index}@{candidate.score_delta}"
+        )
+        self.get_logger().info(msg)
+        resp.success = True
+        resp.message = msg
+
+        self.clear_current_mapping()
+        return resp
+
+    def clear_current_mapping(self) -> None:
+        """Clears current action and candidate state."""
+
+        self.current_action_mapping = None
+        self.clear_candidates()
+
+    def clear_candidates(self) -> None:
+        """Clears all mapping candidates."""
+
+        self.candidates = None
+        self.get_logger().debug("Cleared mapping candidates.")
+
+    def create_candidates(self) -> None:
+        """Creates mapping candidates from the latest joystick states."""
+
+        self.candidates = {}
+
+        for topic, js_state in self.latest_js_states.items():
+            for index, initial_score in enumerate(js_state.buttons):
+                candidate = MappingCandidate(
+                    topic=topic,
+                    action_type=ROVActionType.JS_BUTTON,
+                    index=index,
+                    initial_score=float(initial_score),
+                )
+                self.candidates[candidate.key()] = candidate
+
+            for index, initial_score in enumerate(js_state.axes):
+                candidate = MappingCandidate(
+                    topic=topic,
+                    action_type=ROVActionType.JS_AXIS,
+                    index=index,
+                    initial_score=float(initial_score),
+                )
+                self.candidates[candidate.key()] = candidate
+
+        self.get_logger().debug("Created mapping candidates.")
+
+    def update_candidates(self) -> None:
+        """Updates candidate scores from the latest joystick states."""
+
+        if self.candidates is None:
+            self.get_logger().warning("No candidates available for update.")
             return
 
-        self.waiting_for_topics_logged = False
+        if self.current_action_mapping is None:
+            self.get_logger().warning(
+                str(JoystickMapperLogMessages.NO_ACTION_SET)
+            )
+            return
 
-        for topic in target_topics:
-            if topic in self.joy_subscriptions:
+        for candidate in self.candidates.values():
+            if (
+                candidate.action_type
+                != self.current_action_mapping.action_type
+            ):
                 continue
 
-            self.latest[topic] = None
-            self.previous[topic] = None
-            self.joy_subscriptions[topic] = self.create_subscription(
+            js_state = self.latest_js_states.get(candidate.topic)
+            if js_state is None:
+                self.get_logger().warning(BaseLogMessages.TOPIC_STALE)
+                continue
+
+            if candidate.action_type == ROVActionType.JS_AXIS:
+                scores = js_state.axes
+            else:
+                scores = js_state.buttons
+
+            if candidate.index >= len(scores):
+                self.get_logger().warning(BaseLogMessages.TOPIC_STALE)
+                continue
+
+            candidate.update_score(float(scores[candidate.index]))
+
+    def get_best_candidate(self) -> MappingCandidate | JoystickMapperLogMessages:
+        """Returns the candidate with the largest score delta.
+
+        Returns:
+            MappingCandidate | JoystickMapperLogMessages: Best candidate or
+            failure reason.
+        """
+
+        best_candidates: list[MappingCandidate] = []
+        best_score: float | None = None
+
+        if self.candidates is None or self.current_action_mapping is None:
+            return JoystickMapperLogMessages.MAPPING_NO_CANDIDATE
+
+        for candidate in self.candidates.values():
+            if (
+                candidate.action_type
+                != self.current_action_mapping.action_type
+            ):
+                continue
+
+            if candidate.score_delta is None:
+                self.get_logger().warning(
+                    f"Found candidate with no score delta: {candidate} "
+                    + BaseLogMessages.TOPIC_STALE
+                )
+                continue
+
+            if best_score is None or candidate.score_delta > best_score:
+                best_candidates = [candidate]
+                best_score = candidate.score_delta
+                continue
+
+            if candidate.score_delta == best_score:
+                best_candidates.append(candidate)
+
+        if len(best_candidates) == 1:
+            return best_candidates[0]
+
+        if not best_candidates:
+            return JoystickMapperLogMessages.MAPPING_NO_CANDIDATE
+
+        self.get_logger().info(f"Best candidates tied: {best_candidates}")
+        return JoystickMapperLogMessages.MAPPING_CANDIDATE_TIE
+
+    def clear_activation_states(self) -> None:
+        """Resets mapper activation state after subscriptions are destroyed."""
+
+        self.js_subscriptions = []
+        self.latest_js_states = {}
+        self.candidates = None
+        self.update_timer = None
+        self.get_logger().debug("Cleared activation states.")
+
+    def subscribe_to_joysticks(self, topics: list[str]) -> None:
+        """Subscribes to joystick topics.
+
+        Args:
+            topics (list[str]): Joystick topics to subscribe to.
+        """
+
+        for topic in topics:
+            subscription = self.create_subscription(
                 Joy,
                 topic,
-                lambda msg, bound_topic=topic: self._joy_callback(
-                   bound_topic, msg
+                lambda msg, bound_topic=topic: self.js_callback(
+                    bound_topic,
+                    msg,
                 ),
                 10,
             )
-            self.joy_topics.append(topic)
-            self.get_logger().info(f"Subscribed to Joy topic: {topic}")
-
-    def _joy_callback(self, topic: str, msg: Joy) -> None:
-        """Track incoming joystick messages and update the active prompt."""
-        previous_msg = self.latest[topic]
-        self.previous[topic] = previous_msg
-        self.latest[topic] = msg
-
-        if self.prompt_active:
-            self._update_candidates(topic, previous_msg, msg)
-
-    def _tick(self) -> None:
-        """Drive the calibration state machine."""
-        if self.finished:
-            return
-
-        self._handle_user_commands()
-        if self.finished:
-            return
-
-        if not self.joy_topics:
-            return
-
-        if not self._has_any_messages():
-            if not self.waiting_for_messages_logged:
-                self.get_logger().info(
-                    "Waiting for Joy messages. Make sure joy_node is running "
-                    "and your controller is publishing."
-                )
-                self.waiting_for_messages_logged = True
-            return
-
-        self.waiting_for_messages_logged = False
-
-        if self.current_action_index >= len(self.actions_to_bind):
-            self._finish(save_progress=True)
-            return
-
-        now_sec = self._now_sec()
-        if not self.prompt_active:
-            if now_sec < self.next_prompt_not_before_sec:
-                return
-            self._start_current_prompt()
-            return
-
-        best = self._best_candidate()
-        if best is None:
-            return
-
-        if not self._candidate_is_ready(best, now_sec):
-            return
-
-        self._bind_candidate(best)
-
-    def _handle_user_commands(self) -> None:
-        """Apply terminal commands entered while the node is running."""
-        while True:
-            try:
-                command = self.command_queue.get_nowait()
-            except Empty:
-                return
-
-            if command in {"", "help", "h", "?"}:
-                self.get_logger().info(
-                    "Commands: 'skip', 'undo', 'quit'."
-                )
-                continue
-
-            if command in {"skip", "s"}:
-                if self.current_action_index >= len(self.actions_to_bind):
-                    continue
-                action = self.actions_to_bind[self.current_action_index]
-                self.get_logger().info(f"Skipped action: {action.value}")
-                self._advance_to_next_prompt()
-                continue
-
-            if command in {"undo", "u"}:
-                if not self.mappings:
-                    self.get_logger().info("Nothing to undo yet.")
-                    continue
-                removed = self.mappings.pop()
-                self.bound_controls.discard(
-                    (removed.topic, removed.source, removed.index)
-                )
-                if self.current_action_index > 0:
-                    self.current_action_index -= 1
-                self.prompt_active = False
-                self.next_prompt_not_before_sec = self._now_sec()
-                self.get_logger().info(
-                    "Removed last binding: "
-                    f"{removed.action} from {removed.topic} "
-                    f"{removed.source}[{removed.index}]"
-                )
-                continue
-
-            if command in {"quit", "q", "exit"}:
-                self.get_logger().info(
-                    "Saving current progress and shutting down calibration."
-                )
-                self._finish(save_progress=True)
-                return
-
+            self.js_subscriptions.append(subscription)
             self.get_logger().info(
-                f"Unknown command '{command}'. Commands: skip, undo, quit."
+                BaseLogMessages.SUBSCRIPTION_CREATED + topic
             )
 
-    def _has_any_messages(self) -> bool:
-        """Return whether at least one subscribed topic has published."""
-        return any(message is not None for message in self.latest.values())
+    def unsubscribe_from_joysticks(self) -> None:
+        """Destroys all active joystick subscriptions."""
 
-    def _start_current_prompt(self) -> None:
-        """Create a fresh baseline and prompt the operator for one action."""
-        self.baselines = {}
-        for topic, message in self.latest.items():
-            if message is None:
-                continue
-            self.baselines[topic] = JoySnapshot.from_msg(message)
+        for subscription in self.js_subscriptions:
+            self.destroy_subscription(subscription)
+            self.get_logger().info(
+                BaseLogMessages.SUBSCRIPTION_DESTROYED
+                + subscription.topic_name
+            )
 
-        if not self.baselines:
+    def start_candidate_updates(self) -> None:
+        """Starts a timer that updates candidate scores."""
+
+        if self.update_timer is not None:
             return
 
-        self.candidates = {}
-        self.prompt_active = True
-        now_sec = self._now_sec()
-        self.prompt_started_sec = now_sec
-        self.last_activity_sec = now_sec
-
-        action = self.actions_to_bind[self.current_action_index]
+        self.update_timer = self.create_timer(
+            self.update_time,
+            self.update_candidates,
+        )
         self.get_logger().info(
-            f"[{self.current_action_index + 1}/{len(self.actions_to_bind)}] "
-            f"{action.prompt}"
+            BaseLogMessages.START_TIMER + "update_candidates"
         )
 
-    def _update_candidates(
-        self,
-        topic: str,
-        previous_msg: Optional[Joy],
-        current_msg: Joy,
-    ) -> None:
-        """Update detected axis and button movement for one Joy topic."""
-        baseline = self.baselines.get(topic)
-        if baseline is None:
-            self.baselines[topic] = JoySnapshot.from_msg(current_msg)
+    def stop_candidate_updates(self) -> None:
+        """Stops the candidate update timer if it exists."""
+
+        if self.update_timer is None:
             return
 
-        now_sec = self._now_sec()
-
-        axis_count = len(current_msg.axes)
-        for index in range(axis_count):
-            current_value = float(current_msg.axes[index])
-            baseline_value = baseline.axes[index] if index < len(baseline.axes) else 0.0
-
-            previous_value = baseline_value
-            if previous_msg is not None and index < len(previous_msg.axes):
-                previous_value = float(previous_msg.axes[index])
-
-            if abs(current_value - previous_value) > 0.05:
-                self.last_activity_sec = now_sec
-
-            signed_delta = current_value - baseline_value
-            score = abs(signed_delta)
-            if score <= 0.0:
-                continue
-
-            key = (topic, "axis", index)
-            candidate = self.candidates.get(key)
-            if candidate is None or score > candidate.score:
-                self.candidates[key] = Candidate(
-                    topic=topic,
-                    source="axis",
-                    index=index,
-                    score=score,
-                    value=signed_delta,
-                    last_update_sec=now_sec,
-                )
-
-        button_count = len(current_msg.buttons)
-        for index in range(button_count):
-            baseline_value = (
-                baseline.buttons[index] if index < len(baseline.buttons) else 0
-            )
-
-            previous_value = baseline_value
-            if previous_msg is not None and index < len(previous_msg.buttons):
-                previous_value = int(previous_msg.buttons[index])
-
-            current_value = int(current_msg.buttons[index])
-            if current_value != previous_value:
-                self.last_activity_sec = now_sec
-
-            if baseline_value == 0 and previous_value == 0 and current_value == 1:
-                key = (topic, "button", index)
-                self.candidates[key] = Candidate(
-                    topic=topic,
-                    source="button",
-                    index=index,
-                    score=self.button_score,
-                    value=1.0,
-                    last_update_sec=now_sec,
-                )
-
-    def _best_candidate(self) -> Optional[Candidate]:
-        """Return the strongest valid candidate seen for this prompt."""
-        best: Optional[Candidate] = None
-        for candidate in self.candidates.values():
-            if (
-                not self.allow_reuse_controls
-                and candidate.control_key in self.bound_controls
-            ):
-                continue
-            if best is None or candidate.score > best.score:
-                best = candidate
-        return best
-
-    def _candidate_is_ready(self, candidate: Candidate, now_sec: float) -> bool:
-        """Return whether enough motion has happened to finalize a binding."""
-        min_score = (
-            self.axis_threshold
-            if candidate.source == "axis"
-            else self.button_score
+        self.update_timer.cancel()
+        self.update_timer = None
+        self.get_logger().info(
+            BaseLogMessages.STOP_TIMER + "update_candidates"
         )
-        if candidate.score < min_score:
+
+    def resolve_joystick_topics(self, topics_override: list[str]) -> list[str]:
+        """Prefers request topics over configured parameter topics.
+
+        Args:
+            topics_override (list[str]): Request-provided topics.
+
+        Returns:
+            list[str]: Topics to subscribe to.
+        """
+
+        topics = [topic for topic in topics_override if topic]
+        if topics:
+            return topics
+
+        return [topic for topic in self.js_topics if topic]
+
+    def resolve_mappings_path(self, path_override: str) -> Path | None:
+        """Prefers request path over configured parameter path.
+
+        Args:
+            path_override (str): Request-provided mappings path.
+
+        Returns:
+            Path | None: Resolved mappings path, if one is available.
+        """
+
+        if path_override:
+            return Path(path_override)
+
+        if self.js_mappings_path:
+            return Path(self.js_mappings_path)
+
+        return None
+
+    def mapping_from_request(self, req: SendReq) -> ROVActionMapping:
+        """Converts a SendMapping request into an action mapping.
+
+        Args:
+            req (SendReq): Mapping request.
+
+        Returns:
+            ROVActionMapping: Parsed action mapping.
+
+        Raises:
+            ValueError: If `req.action_type` is not a valid ROVActionType.
+        """
+
+        return ROVActionMapping(
+            action_name=req.action_name,
+            topic=req.topic,
+            action_type=ROVActionType(req.action_type),
+            index=req.index,
+        )
+
+    def load_mappings(self, mappings_path: str | Path | None = None) -> dict[str, Any]:
+        """Loads saved mappings from an explicit or configured path.
+
+        Args:
+            mappings_path (str | Path | None, optional): Path override.
+                Defaults to None.
+
+        Returns:
+            dict[str, Any]: Saved mappings.
+
+        Raises:
+            ValueError: If no path is available.
+            FileNotFoundError: If the mappings file does not exist.
+        """
+
+        resolved_path = (
+            Path(mappings_path)
+            if mappings_path is not None
+            else self.resolve_mappings_path("")
+        )
+        if resolved_path is None:
+            raise ValueError(str(BaseLogMessages.NO_PATH_PROVIDED))
+
+        return load_from_json(resolved_path)
+
+    def delete_unsaved_mapping(self, action_name: str) -> bool:
+        """Deletes one unsaved mapping by action name.
+
+        Args:
+            action_name (str): Action name to delete.
+
+        Returns:
+            bool: True when a mapping was deleted.
+        """
+
+        for index, mapping in enumerate(self.js_mappings):
+            if mapping.action_name == action_name:
+                del self.js_mappings[index]
+                self.mappings_saved = not self.js_mappings
+                self.get_logger().info(
+                    "Deleted mapping from unsaved mappings."
+                )
+                return True
+
+        return False
+
+    def delete_saved_mapping(self, action_name: str, mappings_path: Path) -> bool:
+        """Deletes saved mapping entries matching an action name.
+
+        Args:
+            action_name (str): Action name to delete.
+            mappings_path (Path): Saved mappings path.
+
+        Returns:
+            bool: True when at least one mapping was deleted.
+
+        Raises:
+            FileNotFoundError: If the mappings file does not exist.
+            ValueError: If the mappings file contains invalid JSON.
+            OSError: If the mappings file cannot be written.
+        """
+
+        mappings = self.load_mappings(mappings_path)
+        keys_to_delete = [
+            key
+            for key, mapping in mappings.items()
+            if (
+                isinstance(mapping, dict)
+                and mapping.get("action") == action_name
+            )
+        ]
+
+        if not keys_to_delete:
             return False
 
-        if (now_sec - self.prompt_started_sec) < 0.2:
-            return False
-
-        if (now_sec - self.last_activity_sec) < self.quiet_seconds:
-            return False
-
+        delete_from_json(mappings_path, keys_to_delete)
+        self.get_logger().info("Deleted mapping from saved mappings.")
         return True
 
-    def _bind_candidate(self, candidate: Candidate) -> None:
-        """Persist one candidate as the binding for the current action."""
-        action = self.actions_to_bind[self.current_action_index]
-        mapping = JoystickMapping(
-            action=action.value,
-            topic=candidate.topic,
-            source=candidate.source,
-            index=candidate.index,
-            invert=(candidate.source == "axis" and candidate.value < 0.0),
-            deadzone=self.default_deadzone,
-            scale=self.default_scale,
-        )
-        self.mappings.append(mapping)
-        self.bound_controls.add(candidate.control_key)
 
-        self.get_logger().info(
-            "Bound "
-            f"{mapping.action} -> {mapping.topic} "
-            f"{mapping.source}[{mapping.index}] "
-            f"(invert={mapping.invert})"
-        )
+def main(args: list[str] | None = None) -> None:
+    """Runs the joystick mapper node.
 
-        self._advance_to_next_prompt()
+    Args:
+        args (list[str] | None, optional): ROS command-line arguments.
+            Defaults to None.
+    """
 
-    def _advance_to_next_prompt(self) -> None:
-        """Clear prompt-local state and move to the next action."""
-        self.current_action_index += 1
-        self.prompt_active = False
-        self.baselines = {}
-        self.candidates = {}
-        self.next_prompt_not_before_sec = self._now_sec() + self.settle_seconds
+    node: JoystickMapper | None = None
 
-    def _save_output(self) -> None:
-        """Write the calibration result to JSON or YAML."""
-        path = Path(self.output_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        payload = {
-            "joy_topics": list(self.joy_topics),
-            "mappings": [asdict(mapping) for mapping in self.mappings],
-        }
-
-        with path.open("w", encoding="utf-8") as handle:
-            if path.suffix.lower() == ".json":
-                json.dump(payload, handle, indent=2)
-                handle.write("\n")
-            else:
-                yaml.safe_dump(payload, handle, sort_keys=False)
-
-    def _finish(self, save_progress: bool) -> None:
-        """Optionally save the current progress and stop the node."""
-        if save_progress:
-            self._save_output()
-            self.get_logger().info(
-                f"Saved {len(self.mappings)} mapping(s) to {self.output_path}"
-            )
-
-        self.shutdown_command_prompt = True
-        self.finished = True
-        if rclpy.ok():
-            rclpy.shutdown()
-
-    def _now_sec(self) -> float:
-        """Return the ROS clock time in seconds."""
-        return self.get_clock().now().nanoseconds / 1e9
-
-
-def main(args=None):
-    node = None
     try:
         rclpy.init(args=args)
-        node = JoystickCalibrator()
-
-        if not node.finished and rclpy.ok():
-            executor = MultiThreadedExecutor()
-            executor.add_node(node)
-            executor.spin()
+        node = JoystickMapper()
+        rclpy.spin(node)
 
     except (KeyboardInterrupt, ExternalShutdownException):
         print("Shutdown signal received, exiting...")
+
     finally:
         if node is not None:
-            node.shutdown_command_prompt = True
-            if not node.finished:
-                node.get_logger().info(
-                    "Saving current progress before exit."
-                )
-                node._save_output()
             node.destroy_node()
 
         if rclpy.ok():

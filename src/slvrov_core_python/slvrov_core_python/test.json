@@ -1,0 +1,12 @@
+{
+  "forward/js_axis/None/None": {
+    "action": "forward/js_axis",
+    "topic": null,
+    "index": null
+  },
+  "strafe/js_axis/None/None": {
+    "action": "strafe/js_axis",
+    "topic": null,
+    "index": null
+  }
+}

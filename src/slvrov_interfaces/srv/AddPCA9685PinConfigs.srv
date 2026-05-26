@@ -5,4 +5,4 @@ uint32 pwm_default
 uint32 maximum
 ---
 bool success
-string msg
+string message
