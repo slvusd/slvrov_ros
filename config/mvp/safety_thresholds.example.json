@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "description": "Starter safety threshold config. Real limits must be owner-reviewed.",
+  "thresholds": {}
+}
+
