@@ -12,4 +12,3 @@ Task 1 only creates structure. Later tasks can add:
 Collected photos, videos, CSV files, and metadata should be written to the
 external data directory documented in `docs/data_directory.md`, not inside
 this package.
-

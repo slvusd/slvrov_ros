@@ -20,4 +20,3 @@ slvrov_workspace/
 Future MVP work should keep source-code defaults and examples in this
 repository, but write real collected files to the sibling `data/`
 directory or another configured runtime path.
-

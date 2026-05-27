@@ -14,4 +14,3 @@ Likely future nodes include:
   test orchestration, progress, cancel, and result reporting.
 - `web_developer_monitor_node` or `ros_health_monitor_node`: node/topic/
   service freshness and allowlisted diagnostics for Developer Mode.
-

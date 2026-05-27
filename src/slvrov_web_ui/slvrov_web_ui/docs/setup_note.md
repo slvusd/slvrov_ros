@@ -18,4 +18,3 @@ Future MVP tasks should add behavior in small layers:
 
 Keep route handlers small. When a route needs ROS2 information, prefer a
 clear adapter or fake object that can be tested without running ROS2.
-

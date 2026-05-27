@@ -2,4 +2,3 @@
 
 
 PACKAGE_NAME = 'slvrov_web_ui'
-

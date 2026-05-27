@@ -10,4 +10,3 @@ adds an explicit save flow through Setup Mode.
 
 The files in `mvp/` are examples only. Task 2 will define the detailed
 fields, validation rules, and load/save helpers.
-

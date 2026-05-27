@@ -11,4 +11,3 @@ def test_slvrov_science_python_placeholder_packages_import():
     importlib.import_module('slvrov_science_python.capture')
     importlib.import_module('slvrov_science_python.data_logging')
     importlib.import_module('slvrov_science_python.media')
-
