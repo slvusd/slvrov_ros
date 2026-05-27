@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "description": "Starter recording and collected-data storage config.",
+  "storage": {
+    "data_root": "../data"
+  }
+}
+

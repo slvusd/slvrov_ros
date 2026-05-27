@@ -1,0 +1,10 @@
+/*
+ * Starter stylesheet for the MVP web UI.
+ * Later tasks should expand this into the shared dark theme and mode
+ * layouts without moving ROS2 or Flask behavior into frontend files.
+ */
+
+:root {
+  color-scheme: dark;
+}
+

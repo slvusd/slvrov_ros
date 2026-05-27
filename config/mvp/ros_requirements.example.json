@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "description": "Starter allowlist for web-facing ROS2 nodes, topics, and services.",
+  "required_nodes": [],
+  "required_topics": [],
+  "required_services": []
+}
+
