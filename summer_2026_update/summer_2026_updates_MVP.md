@@ -63,6 +63,7 @@ These users need a codebase that is simple, readable, well-commented, and split 
 - Visual style: hybrid by mode. Pilot should feel like a simple vehicle control panel; Scientist should feel more data/capture focused; Developer can be more technical. Create visual mockups before final implementation choices are locked.
 - Agent workflow: strict one-sub-feature-at-a-time prompts/checkpoints.
 - ROS2 node implementation: the project owner wants to write ROS2 nodes, or at least the important parts of them, personally. Coding agents should therefore prefer scaffolding, interfaces, adapters, fake implementations, tests, and clear TODO notes over fully implementing new ROS2 node internals unless the project owner explicitly asks for that node logic.
+- Owner control: use small decision packets before implementation when architecture, route design, UI layout, safety behavior, or ROS2 boundaries are still open. The agent should show options, tradeoffs, and recommended defaults, then stop for owner review before building the selected option.
 
 ## 3. MVP Navigation
 
@@ -505,6 +506,23 @@ REST endpoints should cover:
 
 WebSockets or Server-Sent Events can be added later only if REST polling becomes insufficient for responsiveness or efficiency.
 
+### Flask Route Planning
+
+Before implementing feature routes, the agent should create a route map for owner review. The route map should list each planned endpoint, HTTP method, request body, response shape, backing adapter/service, expected fake implementation, and whether it may eventually call an owner-authored ROS2 node.
+
+Route planning should happen before major backend work for:
+
+- Global safety and alerts
+- Camera configuration and status
+- Media capture and recent file history
+- Setup configuration screens
+- Control mapping
+- Thruster configuration
+- Preflight/test actions
+- Developer system stats
+- ROS2 health monitoring
+- Storage warnings and stop thresholds
+
 ### Error Response Recommendation
 
 Use structured JSON error responses:
@@ -614,6 +632,21 @@ Before implementation, create at least two static mockups:
 
 Then combine the useful parts into the mode-specific hybrid design.
 
+### UI Demo Selection Workflow
+
+Before implementing final UI screens, the agent should create small static demos for owner review. These demos should be quick to inspect, disposable, and focused on decisions rather than production polish.
+
+Recommended demos:
+
+- Main page: at least 2 mode-selection approaches.
+- Global safety: at least 2 emergency-stop/alert placements.
+- Pilot Mode: at least 3 camera layout/control-density approaches.
+- Scientist Mode: at least 2 capture-focused layouts.
+- Setup Mode: at least 2 step-by-step configuration flows.
+- Developer Mode: at least 2 dense technical dashboard layouts.
+
+After the owner selects a direction, the agent should implement only the selected direction and remove or clearly archive unselected demos.
+
 ### Status Bar
 
 - A global top status bar is not required in every mode.
@@ -649,24 +682,29 @@ The agent should:
 9. Use strict one-sub-feature-at-a-time prompts or review checkpoints so the project owner decides when each sub-feature is created.
 10. Keep new ROS2 node internals as project-owner-authored work unless explicitly instructed otherwise.
 11. When a feature needs ROS2 node behavior, define the interface, config, fake adapter, test expectations, and maintainer comments first, then leave a clear owner-facing TODO or minimal stub for the node logic.
+12. Create decision packets before implementation for UI demos, Flask routes, config schema choices, safety behavior, ROS2 node boundaries, storage policy, and hardware-dependent behavior.
+13. Stop after each decision packet with a short recommendation, clear tradeoffs, and the exact owner decision needed before implementation.
 
 ### Suggested Agent Build Order
 
-1. Workspace/package skeleton
-2. Shared config structure
-3. Flask app shell and static frontend shell
-4. Main mode-selection page
-5. Global alert/emergency stop UI shell
-6. Camera configuration and WebRTC display prototype
-7. Pilot Mode camera layouts
-8. Scientist Mode photo/video capture
-9. Setup Mode control mapping
-10. Setup Mode thruster configuration
-11. System Test / Preflight services and UI, with ROS2 test node behavior left as owner-authored unless requested
-12. Developer Mode system stats
-13. Developer Mode ROS2 node/topic/service monitor scaffolding, fake monitor data, and owner-authored monitor node internals
-14. Storage limit handling
-15. End-to-end tests and documentation
+1. Inventory existing packages and create the decision log.
+2. Decide the shared API response shape.
+3. Plan ROS2/web boundaries and owner-authored node TODOs.
+4. Plan JSON config files and ownership rules.
+5. Plan Flask routes after response, ROS2 boundary, and config decisions are known.
+6. Create workspace/package skeletons and placeholder docs.
+7. Implement shared API response and config helpers.
+8. Create UI demo shell, main page demos, global safety demos, Setup flow options, and mode demos.
+9. Implement the selected theme, frontend utilities, Flask shell, and main page.
+10. Implement global safety API/UI shell with fake ROS2 adapter.
+11. Implement camera config/status API, one-stream WebRTC prototype, and selected Pilot layouts.
+12. Decide storage policy before media capture behavior depends on it.
+13. Plan and implement Scientist media capture in backend and UI sub-steps.
+14. Plan and implement Setup camera, control mapping, and thruster configuration in separate sub-steps.
+15. Plan and implement Preflight/test API/UI with fake ROS2 adapters.
+16. Plan and implement Developer stats and ROS2 monitor in separate sub-steps.
+17. Implement storage limit handling and global alert integration.
+18. Audit routes, add end-to-end tests, and write docs/manual hardware checklists.
 
 ## 16. Resolved MVP Decisions
 
@@ -688,6 +726,7 @@ The following decisions have been resolved for the MVP.
 | Visual style | Hybrid by mode, with mockups first | Pilot simple/control-focused; Scientist capture/data-focused; Developer technical. |
 | Agent workflow | Strict one-sub-feature-at-a-time prompts/checkpoints | Each sub-feature should include tests before moving on. |
 | ROS2 node authorship | Project owner writes new ROS2 node internals by default | Coding agents should provide scaffolds, contracts, fakes, tests, and TODOs unless asked to implement node behavior. |
+| Owner control | Decision packets before implementation | Use demos, route maps, schemas, and tradeoff notes so the owner chooses before agents build. |
 
 ## 17. Remaining Details To Decide During Implementation
 

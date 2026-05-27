@@ -1,18 +1,20 @@
 # ROV Web UI MVP Agent Tasks
 
-This task list splits the MVP from `summer_2026_updates_MVP.md` into reviewable coding-agent prompts. Each task is intended to be completed independently, reviewed, and tested before the next task begins.
+This task list splits the MVP from `summer_2026_updates_MVP.md` into small, reviewable coding-agent prompts. The order is dependency-driven: decisions that shape later work come before implementation tasks that depend on them.
+
+Each task should be completed independently, reviewed, and tested before the next task begins. Some tasks are decision packets rather than implementation work. A decision packet should produce options, tradeoffs, a recommendation, and the exact owner decision needed before implementation continues.
 
 Every coding agent prompt below includes the following standing requirements:
 
 - Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code.
 - Add comments where amateur maintainers or maintainers-to-be would need help understanding ROS2, Flask, frontend, safety, or data-flow decisions.
 - Keep implementation simple and readable.
-- Add focused tests for the sub-feature.
-- Test from service/topic-level behavior upward to API/UI behavior.
+- Add focused tests for implementation tasks.
+- Test from service/topic-level behavior upward to API/UI behavior when the task includes backend or ROS2-facing behavior.
 - Treat new ROS2 node internals as project-owner-authored work unless the owner explicitly asks the coding agent to implement them.
 - For ROS2 node-related features, provide interfaces, adapters, fake implementations, tests, and clear TODO notes so the owner can write or finish the node logic.
 - Do not add broad unrelated refactors.
-- Stop at the end of the task and report what changed, what was tested, and what remains.
+- Stop at the end of the task and report what changed, what was tested, what remains, and what owner decision is needed next.
 
 Likely `slvrov_web_ui` ROS2 node boundaries to keep in mind:
 
@@ -25,25 +27,181 @@ Likely `slvrov_web_ui` ROS2 node boundaries to keep in mind:
 
 These are planning names, not final API requirements. When a task touches one of these areas, the coding agent should make the boundary easy for the project owner to complete.
 
-## Task 1: Workspace And Package Skeleton
+## Task 1: Existing System Inventory
 
 ### Scope
 
-Create the MVP package and directory structure needed for:
-
-- `slvrov_web_ui`
-- `slvrov_science_python`
-- shared JSON config files
-- data directory documentation
-- starter Flask/frontend layout
+Inventory the current repo before adding MVP code.
 
 ### Coding Agent Prompt
 
-Implement the initial MVP workspace structure described in `summer_2026_update/summer_2026_updates_MVP.md`. Create package skeletons for `slvrov_web_ui` and `slvrov_science_python` if they do not already exist, and add starter directories for Flask routes, static frontend files, templates if needed, config schemas/examples, tests, and docs.
+Review the existing packages, launch files, interfaces, joystick mapper code, JSON helpers, tests, and any existing web UI or science package files. Produce a short inventory document that explains what already exists, what can be reused, what should not be touched, and which files/packages are likely owners of future MVP work.
 
-Follow `system_documents/ros2_python_style_guide.md` for any ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding package layout, ROS2 package conventions, Flask/frontend boundaries, or config-file purpose.
+Do not implement code in this task.
 
-Do not implement full features yet. This task is only for structure, starter files, and a short setup note that explains where future MVP pieces belong. If `slvrov_web_ui` needs ROS2 nodes later, add clearly named placeholder locations and docs for owner-authored bridge/monitor nodes rather than real node behavior.
+### Decision Checkpoint
+
+Owner reviews the inventory and confirms which existing packages may be changed by future tasks.
+
+### Tests And Checks
+
+- No tests required unless import/build checks are already trivial to run.
+- Verify the inventory names real files and packages.
+
+### Acceptance Criteria
+
+- The owner can see what the agent found before implementation begins.
+- Existing reusable code and risky areas are clearly called out.
+
+## Task 2: MVP Decision Log And Open Questions
+
+### Scope
+
+Create a lightweight decision log for owner-controlled MVP choices.
+
+### Coding Agent Prompt
+
+Create or update an MVP decision log in `summer_2026_update/`. Include sections for UI direction, Flask route design, config schema choices, ROS2 node boundaries, safety behavior, camera strategy, storage policy, and hardware-dependent decisions. Seed it with the unresolved details from `summer_2026_updates_MVP.md`.
+
+Do not decide on behalf of the owner unless a default is already confirmed in the MVP spec. Mark recommended defaults separately from owner decisions.
+
+### Decision Checkpoint
+
+Owner reviews the decision log format and confirms it is useful before later tasks add to it.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify links and file paths in the decision log are accurate.
+
+### Acceptance Criteria
+
+- Open questions have owners and next-step tasks.
+- Recommended defaults are visibly separate from confirmed decisions.
+
+## Task 3: API Response Shape Decision Packet
+
+### Scope
+
+Choose the shared success/error response model before planning routes.
+
+### Coding Agent Prompt
+
+Propose the API response shape for all Flask routes. Start from the MVP spec's `{ "ok": true, "data": ... }` and structured error response examples. Include field names, error-code naming, `details` conventions, `suggested_action` usage, and how validation errors should be represented.
+
+Do not implement response helper code in this task.
+
+### Decision Checkpoint
+
+Owner approves the response shape before the Flask route map uses it.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify examples are valid JSON.
+
+### Acceptance Criteria
+
+- Later route planning can use one approved response convention.
+- Errors are readable for amateur maintainers and operators.
+
+## Task 4: ROS2 Web Boundary Decision Packet
+
+### Scope
+
+Plan web-to-ROS boundaries before route and config details harden.
+
+### Coding Agent Prompt
+
+Create a boundary document that explains which MVP features are Flask-only, which use fake adapters, which may call existing ROS2 services/topics, and which likely need owner-authored ROS2 nodes. Include expected inputs/outputs for `web_ros_bridge_node`, `web_safety_bridge_node` or `safety_monitor_node`, `web_preflight_bridge_node` or `preflight_test_node`, `web_developer_monitor_node` or `ros_health_monitor_node`, optional `media_capture_node`, and optional `storage_monitor_node`.
+
+Do not implement ROS2 nodes in this task.
+
+### Decision Checkpoint
+
+Owner chooses which node boundaries they want to write personally first and which can stay fake for early UI work.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify the document references real interfaces where they already exist.
+
+### Acceptance Criteria
+
+- Future tasks know where to put fake adapters.
+- Owner-authored node TODOs are clear and scoped.
+
+## Task 5: Shared Config Schema Decision Packet
+
+### Scope
+
+Plan JSON config files before writing helpers or routes.
+
+### Coding Agent Prompt
+
+Propose JSON config structures for cameras, control profiles, thruster configuration, pin mappings, UI preferences/layout presets, required ROS2 nodes/topics/services, safety thresholds, and recording/storage settings. Include examples, validation rules, ownership notes, and which Setup Mode screens can persist each config.
+
+Use the ROS2/web boundary decisions from Task 4 so required-node, topic, service, and fake-adapter config fields match the planned architecture.
+
+Do not implement config helper code in this task.
+
+### Decision Checkpoint
+
+Owner approves config file names, top-level fields, and persistence ownership.
+
+### Tests And Checks
+
+- Validate example JSON manually or with a JSON parser if examples are written as files.
+
+### Acceptance Criteria
+
+- Every MVP config area has a proposed file/schema.
+- Persistent versus temporary config ownership is clear.
+
+## Task 6: Flask Route Map Decision Packet
+
+### Scope
+
+Plan Flask routes after response shape, ROS2 boundaries, and config ownership are known.
+
+### Coding Agent Prompt
+
+Create a Flask route map for owner review. Include planned routes for health, mode pages, global alerts, emergency stop, control enabled/disabled state, camera config/status, media capture, recent photos, setup config save/load, control mapping, thruster config, preflight tests, developer stats, ROS2 monitor status, and storage status.
+
+For each route, list method, path, request body, response shape, backing service/adapter, fake adapter behavior, possible ROS2 owner-authored node dependency, config files touched, and whether it is MVP or future.
+
+Do not implement routes in this task.
+
+### Decision Checkpoint
+
+Owner chooses route naming conventions and approves the first API surface.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify route names are consistent and use the approved structured success/error response shapes.
+
+### Acceptance Criteria
+
+- The route map is specific enough for implementation tasks.
+- Routes that may call owner-authored ROS2 nodes are clearly marked.
+- Config dependencies are visible before route implementation begins.
+
+## Task 7: Workspace And Package Skeleton
+
+### Scope
+
+Create the MVP package and directory structure after core architecture decisions are known.
+
+### Coding Agent Prompt
+
+Implement the initial MVP workspace structure described in `summer_2026_update/summer_2026_updates_MVP.md`. Create package skeletons for `slvrov_web_ui` and `slvrov_science_python` if they do not already exist, and add starter directories for Flask routes, static frontend files, templates if needed, config schemas/examples, tests, docs, and fake adapters.
+
+Use the approved route map, config plan, and ROS2 boundary document to name directories and placeholder files. If `slvrov_web_ui` needs ROS2 nodes later, add clearly named placeholder locations and docs for owner-authored bridge/monitor nodes rather than real node behavior.
+
+### Decision Checkpoint
+
+Owner reviews package layout before feature code is added.
 
 ### Tests And Checks
 
@@ -58,28 +216,48 @@ Do not implement full features yet. This task is only for structure, starter fil
 - Docs explain the structure for future maintainers.
 - No feature-specific behavior is implemented beyond placeholders.
 
-## Task 2: Shared Config Structure
+## Task 8: API Response Helpers
 
 ### Scope
 
-Define JSON config structure for:
-
-- cameras
-- control profiles
-- thruster configuration
-- pin mappings
-- UI preferences/layout presets
-- required ROS2 nodes/topics/services
-- safety thresholds
-- recording/storage settings
+Implement the approved API response helpers.
 
 ### Coding Agent Prompt
 
-Create shared JSON config examples and Python helpers for loading, validating, and saving MVP web UI config files. Use simple JSON schemas or documented validation functions, whichever best fits the current repo style. Keep config ownership understandable: Setup Mode should own persistent changes, while Developer Mode changes should be temporary unless explicitly saved through Setup Mode later.
+Implement shared Flask response helpers for predictable success and error responses, based on the approved response shape from Task 3. Include error code, message, details, and suggested action fields for failures. Add tests for response shape and common error cases.
 
-Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding config ownership, validation rules, or why a field exists.
+Do not implement feature-specific routes beyond a simple health/example route if needed for tests.
 
-Do not build UI screens yet. This task should only establish config files, helper functions, and tests. Include config fields for required web-facing ROS2 nodes/topics/services, but leave node-specific behavior to owner-authored implementations.
+### Decision Checkpoint
+
+Owner reviews helper names and example output before feature endpoints use them everywhere.
+
+### Tests And Checks
+
+- Unit test success response shape.
+- Unit test error response shape.
+- Test JSON serialization of details.
+
+### Acceptance Criteria
+
+- Feature tasks can reuse one response convention.
+- Errors are readable for amateur maintainers and users.
+
+## Task 9: Shared Config Helpers
+
+### Scope
+
+Implement approved config helpers.
+
+### Coding Agent Prompt
+
+Create Python helpers for loading, validating, saving, and reporting errors for the approved MVP web UI config files. Use simple validation functions or JSON schemas, whichever best fits the current repo style. Keep malformed files from silently falling back to defaults.
+
+Do not build UI screens yet.
+
+### Decision Checkpoint
+
+Owner reviews helper names and config error behavior.
 
 ### Tests And Checks
 
@@ -90,30 +268,182 @@ Do not build UI screens yet. This task should only establish config files, helpe
 
 ### Acceptance Criteria
 
-- Config files cover all MVP areas listed in scope.
-- Config helpers use clear errors and avoid silent fallback for malformed files.
+- Config files cover approved MVP areas.
+- Config helpers produce clear errors.
 - Tests document expected config behavior.
 
-## Task 3: Flask App Shell And Static Frontend Shell
+## Task 10: UI Demo Shell
 
 ### Scope
 
-Create the basic web app shell:
-
-- Flask app factory or simple app entrypoint
-- route organization
-- static HTML/CSS/JS structure
-- shared frontend utilities
-- health endpoint
-- development run instructions
+Create a disposable demo area for UI prototypes.
 
 ### Coding Agent Prompt
 
-Build the minimal `slvrov_web_ui` Flask application shell and static frontend shell. The app should serve the main page and mode pages as simple static experiences for now. Add a lightweight `/api/health` endpoint that returns structured JSON in the MVP response shape.
+Create a simple static UI demo shell where multiple HTML/CSS/JS prototypes can be viewed without committing to production structure. Include a demo index page and instructions for starting/viewing demos.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding the Flask app boundary, static file layout, or API response convention.
+Do not implement final UI screens in this task.
 
-Do not connect to ROS2 yet. Keep this task focused on the web shell. Create a small bridge-client interface or fake adapter if useful so future Flask routes can call owner-written ROS2 bridge nodes without putting ROS2 complexity into route handlers.
+### Decision Checkpoint
+
+Owner confirms the demo review workflow.
+
+### Tests And Checks
+
+- Verify demo index loads locally.
+- Check that demo files are clearly separated from production UI.
+
+### Acceptance Criteria
+
+- UI demos are easy to open and compare.
+- Unselected demos can be removed or archived later.
+
+## Task 11: Main Page UI Demos
+
+### Scope
+
+Generate alternate main mode-selection UI demos.
+
+### Coding Agent Prompt
+
+Create at least two static main-page demos for Pilot, Scientist, Setup, and Developer mode selection. Use the dark theme direction and large-display target. Make the demos meaningfully different in layout, information density, and visual emphasis.
+
+Do not implement the production main page yet.
+
+### Decision Checkpoint
+
+Owner selects a main page direction or requests another demo.
+
+### Tests And Checks
+
+- Browser/manual check at 4:3 and 16:10-ish viewport sizes.
+- Verify no demo uses login or remembered-mode behavior.
+
+### Acceptance Criteria
+
+- The owner can compare real visual options.
+- Each option has a short tradeoff note.
+
+## Task 12: Global Safety UI Demos
+
+### Scope
+
+Generate alternate emergency stop and alert placement demos.
+
+### Coding Agent Prompt
+
+Create at least two static demos showing how global emergency stop, critical alerts, and disabled-control state could appear across mode pages. Include one low-distraction option for Pilot Mode and one more status-rich option for Setup/Developer contexts.
+
+Do not wire real API calls or ROS2 commands.
+
+### Decision Checkpoint
+
+Owner selects the global safety layout and alert behavior direction.
+
+### Tests And Checks
+
+- Browser/manual check that emergency stop remains visible at target viewports.
+- Verify alerts do not hide critical controls.
+
+### Acceptance Criteria
+
+- Safety controls are visible and understandable in every demo.
+- Tradeoffs between visibility and distraction are documented.
+
+## Task 13: Setup Mode Information Architecture Decision Packet
+
+### Scope
+
+Plan Setup Mode workflow before Setup demos and implementation.
+
+### Coding Agent Prompt
+
+Propose the Setup Mode information architecture. Include camera setup, control mapping, thruster configuration, and System Test/Preflight. Provide at least two flow options, such as tabs versus guided steps, and explain tradeoffs for amateur maintainers/operators.
+
+Do not implement Setup Mode in this task.
+
+### Decision Checkpoint
+
+Owner selects the Setup Mode workflow structure.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify the proposed flow covers all MVP Setup requirements.
+
+### Acceptance Criteria
+
+- Setup Mode has an owner-approved structure before screens are designed or built.
+- Future setup tasks know where each sub-feature belongs.
+
+## Task 14: Mode UI Demos
+
+### Scope
+
+Generate alternate UI demos for each major mode.
+
+### Coding Agent Prompt
+
+Create static demos for Pilot, Scientist, Setup, and Developer Mode. Provide at least three Pilot camera layout/control-density options, at least two Scientist capture layouts, at least two Setup flow demos based on the approved Setup information architecture, and at least two Developer dashboard layouts. Use fake data and placeholder camera panels.
+
+Do not implement production mode pages yet.
+
+### Decision Checkpoint
+
+Owner selects a UI direction for each mode and notes any pieces to combine.
+
+### Tests And Checks
+
+- Browser/manual check at 4:3 and 16:10-ish viewport sizes.
+- Verify text and controls do not overlap.
+- Verify demos are clearly labeled as non-production.
+
+### Acceptance Criteria
+
+- The owner can choose visual and workflow directions mode by mode.
+- Selected and rejected ideas are documented.
+
+## Task 15: Selected Theme And Frontend Utilities
+
+### Scope
+
+Implement shared frontend structure after UI direction is selected.
+
+### Coding Agent Prompt
+
+Based on the owner-selected demos, implement shared CSS variables, layout utilities, reusable frontend helpers, and production static file organization. Keep the production UI plain HTML/CSS/JavaScript.
+
+Remove or archive unselected demo files if the owner approves.
+
+### Decision Checkpoint
+
+Owner reviews the shared theme before feature pages depend on it.
+
+### Tests And Checks
+
+- Frontend smoke check that shared styles load.
+- Browser/manual check at target viewports.
+
+### Acceptance Criteria
+
+- Production UI has a clear shared style foundation.
+- Demo artifacts do not confuse production files.
+
+## Task 16: Flask App Shell And Static Frontend Shell
+
+### Scope
+
+Create the basic web app shell after route and frontend structure decisions are approved.
+
+### Coding Agent Prompt
+
+Build the minimal `slvrov_web_ui` Flask application shell and static frontend shell. The app should serve the main page and mode pages as simple static experiences for now. Add a lightweight `/api/health` endpoint that returns the approved structured JSON response shape.
+
+Do not connect to ROS2 yet. Use a bridge-client interface or fake adapter only if it helps preserve the approved future boundary.
+
+### Decision Checkpoint
+
+Owner reviews the basic app structure and run instructions.
 
 ### Tests And Checks
 
@@ -125,27 +455,24 @@ Do not connect to ROS2 yet. Keep this task focused on the web shell. Create a sm
 ### Acceptance Criteria
 
 - Main page and placeholder mode pages load.
-- `/api/health` returns `{ "ok": true, "data": ... }`.
+- `/api/health` returns the approved success shape.
 - Frontend structure is split clearly enough for future mode-specific code.
 
-## Task 4: Main Mode-Selection Page
+## Task 17: Selected Main Mode-Selection Page
 
 ### Scope
 
-Implement the main page with four mode entry points:
-
-- Pilot
-- Scientist
-- Setup
-- Developer
+Implement the selected main page.
 
 ### Coding Agent Prompt
 
-Implement the main mode-selection page for the MVP web UI. It should show four large navigation cards or buttons with short descriptions. It should not require login and should not remember the last selected mode.
-
-Follow the visual direction in `summer_2026_update/summer_2026_updates_MVP.md`: clean, readable, approachable, dark theme by default, optimized for large displays. Add comments where amateur maintainers or maintainers-to-be would need help understanding shared frontend utilities or navigation behavior.
+Implement the owner-selected main mode-selection page. It should show four large navigation cards or buttons with short descriptions. It should not require login and should not remember the last selected mode.
 
 Do not implement mode internals in this task.
+
+### Decision Checkpoint
+
+Owner reviews the production main page before mode internals are added.
 
 ### Tests And Checks
 
@@ -157,93 +484,135 @@ Do not implement mode internals in this task.
 
 - Four mode entry points are visible and easy to select.
 - Descriptions are concise and understandable.
-- Page uses the shared dark theme.
+- Page uses the selected shared theme.
 
-## Task 5: Global Alerts And Emergency Stop Shell
+## Task 18: Global Alerts And Emergency Stop API Contract
 
 ### Scope
 
-Add global safety UI and API shell for:
-
-- visible emergency stop in all modes
-- global critical alerts
-- simple control enabled/disabled state
-- backend endpoints for alert state and emergency stop state
+Implement backend state and fake adapter for global safety.
 
 ### Coding Agent Prompt
 
-Implement the global emergency stop and critical-alert UI shell. The emergency stop must be visible across all mode pages. Add backend API endpoints for reading alert state, triggering emergency stop, clearing emergency stop if safe, and reading/updating the simple `control enabled / disabled` state.
+Implement backend API endpoints for reading alert state, triggering emergency stop, clearing emergency stop if safe, and reading/updating the simple `control enabled / disabled` state. Use fake ROS2/safety adapters and mark the future owner-authored safety node boundary clearly.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding safety flow, why emergency stop is global, and where future ROS2 stop commands should connect.
+Do not wire real motor shutdown unless an existing safe service already exists and the owner explicitly approves.
 
-Do not wire real motor shutdown yet unless an existing safe service already exists. Stub the ROS2 side clearly and safely. Note that a future owner-authored `web_safety_bridge_node` or `safety_monitor_node` may own emergency stop commands, control enabled/disabled state, browser disconnect handling, and critical fault reporting.
+### Decision Checkpoint
+
+Owner reviews safety route behavior and the fake-to-real adapter boundary.
 
 ### Tests And Checks
 
 - Unit test API response shapes.
+- Test emergency stop state transitions.
+- Test disabled control state.
+- Test fake safety adapter calls.
+
+### Acceptance Criteria
+
+- API uses structured success/error responses.
+- Real motor-control integration points are clearly marked.
+- Safety behavior fails closed where practical.
+
+## Task 19: Global Alerts And Emergency Stop UI
+
+### Scope
+
+Implement selected global safety UI.
+
+### Coding Agent Prompt
+
+Implement the owner-selected global emergency stop and critical-alert UI. Emergency stop must be visible across all mode pages and must call the safety API shell from Task 18. Show critical alerts and disabled-control state clearly.
+
+Do not wire real motor shutdown in frontend code.
+
+### Decision Checkpoint
+
+Owner reviews safety UI placement before camera and mode pages add more complexity.
+
+### Tests And Checks
+
 - UI test that emergency stop appears on all mode pages.
 - Test that emergency stop state can be triggered and reflected in the UI.
-- Test disabled control state is shown clearly.
+- Browser/manual check that alerts do not block navigation or camera viewing.
 
 ### Acceptance Criteria
 
 - Emergency stop is globally visible.
 - Critical alerts can be displayed globally.
-- API uses structured success/error responses.
-- Real motor-control integration points are clearly marked.
+- Disabled control state is obvious.
 
-## Task 6: Camera Configuration And WebRTC Display Prototype
+## Task 20: Camera Config And Status API
 
 ### Scope
 
-Prototype camera config and display:
-
-- JSON camera config
-- up to 6 USB cameras
-- MediaMTX/WebRTC stream URL/path handling
-- single test preview
-- camera status endpoint
+Implement camera config/status backend.
 
 ### Coding Agent Prompt
 
-Implement the first camera configuration and WebRTC display prototype. Use JSON camera configuration to define enabled cameras, display names, device paths or indexes, and MediaMTX/WebRTC paths. Add backend endpoints to fetch camera config/status and a frontend preview component that can display one configured stream.
+Implement camera configuration loading and backend endpoints to fetch camera config/status. Use JSON camera configuration for enabled cameras, display names, device paths or indexes, and MediaMTX/WebRTC paths. Keep status Flask/MediaMTX based for now unless an existing ROS2 camera status source exists.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding MediaMTX path naming, WebRTC embedding, and how camera config flows from JSON to UI.
+If a ROS2 camera-status bridge seems needed, document the boundary and leave node internals for the owner.
 
-Do not implement recording or multi-camera layouts yet. Keep camera status mostly Flask/MediaMTX based for this prototype unless a ROS2 status node already exists; if a ROS2 camera-status bridge seems needed, document the boundary and leave the node internals for the owner.
+### Decision Checkpoint
+
+Owner reviews camera naming, MediaMTX path convention, and status fields.
 
 ### Tests And Checks
 
 - Unit test camera config loading and validation.
 - API test for camera config/status.
-- Frontend smoke test that a configured camera appears in the preview UI.
 - Document how to point a camera entry at a MediaMTX stream.
 
 ### Acceptance Criteria
 
 - Up to 6 camera entries can be represented.
-- Disabled cameras are not shown as active previews.
+- Disabled cameras are not reported as active previews.
 - Missing stream/config errors produce clear frontend-facing messages.
 
-## Task 7: Pilot Mode Camera Layouts
+## Task 21: WebRTC Single-Camera Prototype
 
 ### Scope
 
-Build Pilot Mode camera viewing:
-
-- single-camera view
-- multi-camera grid view
-- fixed/preset layout choices
-- minimal distraction
-- emergency stop remains visible
+Prototype one configured camera preview.
 
 ### Coding Agent Prompt
 
-Implement Pilot Mode camera layouts using the camera configuration and WebRTC prototype. Support a selected single-camera view and fixed/preset multi-camera layouts for up to 6 cameras. Pilot Mode should prioritize camera visibility and keep extra information minimal.
+Implement a frontend preview component that can display one configured MediaMTX/WebRTC stream using the camera API from Task 20. Use clear placeholder/error states when a stream is unavailable.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding camera layout presets, frontend state, or the boundary between camera config and display.
+Do not implement recording or multi-camera layouts yet.
+
+### Decision Checkpoint
+
+Owner reviews the camera embed approach before Pilot and Scientist pages depend on it.
+
+### Tests And Checks
+
+- Frontend smoke test that a configured camera appears in preview UI.
+- Browser/manual check with fake or documented MediaMTX stream URL.
+- Verify stream errors are visible and understandable.
+
+### Acceptance Criteria
+
+- One camera preview can be selected and displayed.
+- The component can be reused by Pilot, Scientist, and Setup pages.
+
+## Task 22: Pilot Mode Selected Camera Layouts
+
+### Scope
+
+Implement selected Pilot Mode camera layouts.
+
+### Coding Agent Prompt
+
+Implement the owner-selected Pilot Mode camera layouts using the camera configuration and WebRTC preview component. Support selected single-camera view and fixed/preset multi-camera layouts for up to 6 cameras. Keep extra information minimal.
 
 Do not add joystick visualization, telemetry, or web joystick controls.
+
+### Decision Checkpoint
+
+Owner reviews Pilot Mode before Scientist camera/capture UI is built.
 
 ### Tests And Checks
 
@@ -258,62 +627,185 @@ Do not add joystick visualization, telemetry, or web joystick controls.
 - Layouts are fixed/preset only.
 - No non-MVP controls are introduced.
 
-## Task 8: Scientist Mode Media Capture
+## Task 23: Storage Policy Decision Packet
 
 ### Scope
 
-Build camera-centered capture features:
-
-- photo capture from each camera
-- video recording from each camera
-- timestamped default filenames
-- optional filename override
-- JPEG photos
-- MP4 videos
-- recent photos gallery
+Plan media/data storage policy before capture behavior is implemented.
 
 ### Coding Agent Prompt
 
-Implement Scientist Mode media capture for configured cameras. Add backend endpoints for taking photos, starting/stopping per-camera recording, reporting recording state, and listing recent photos. Use timestamped filenames by default and allow optional filename overrides with safe filename validation.
+Propose the storage policy for media/data directories. Include warning threshold, stop threshold, estimated remaining photo/video capacity, automatic recording stop behavior, global alert behavior, and whether a future owner-authored `storage_monitor_node` is useful.
 
-Choose the lowest-CPU recording strategy that works reliably with MediaMTX/WebRTC or document the chosen placeholder if hardware/MediaMTX integration cannot be fully tested locally. Use JPEG for photos and MP4 for videos.
+Do not implement storage code in this task.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding capture flow, file naming, storage paths, or why a recording strategy was chosen.
+### Decision Checkpoint
 
-Do not implement sensor data logging yet. If capture commands need ROS2 ownership, define an adapter and fake implementation for a future owner-authored `media_capture_node` or `science_capture_node` instead of implementing the node internals.
+Owner approves thresholds, messages, and stop behavior before media capture depends on them.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify proposed policy supports roughly 60 minutes of data per type where practical.
+
+### Acceptance Criteria
+
+- Storage limits are understandable before implementation.
+- Shutdown behavior is clear and testable.
+
+## Task 24: Scientist Capture Route Decision Packet
+
+### Scope
+
+Plan media capture routes and strategy.
+
+### Coding Agent Prompt
+
+Propose the backend route design and adapter strategy for Scientist Mode media capture. Cover taking photos, starting/stopping per-camera video recording, reporting recording state, safe filename overrides, recent photos, storage checks, and hardware/MediaMTX assumptions.
+
+Compare Flask/MediaMTX-only capture with a future owner-authored `media_capture_node` or `science_capture_node`. Use the approved storage policy from Task 23 when planning recording stop behavior.
+
+Do not implement capture routes in this task.
+
+### Decision Checkpoint
+
+Owner chooses capture route names and whether capture should stay Flask-side for MVP or use a ROS2 node boundary.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify planned response shapes match the shared API convention.
+
+### Acceptance Criteria
+
+- Capture behavior is planned before code exists.
+- Hardware-dependent gaps are called out.
+
+## Task 25: Scientist Capture Backend
+
+### Scope
+
+Implement selected capture backend behavior.
+
+### Coding Agent Prompt
+
+Implement backend endpoints for taking photos, starting/stopping per-camera recording, reporting recording state, and listing recent photos. Use timestamped filenames by default and allow optional filename overrides with safe filename validation. Use fake camera/media adapters where hardware is unavailable.
+
+If capture commands need ROS2 ownership, define an adapter and fake implementation for the future owner-authored node instead of implementing node internals.
+
+### Decision Checkpoint
+
+Owner reviews backend capture behavior before final Scientist UI wiring.
 
 ### Tests And Checks
 
 - Unit test filename generation and override validation.
 - API tests for photo and recording endpoints.
 - Test recent photo listing.
-- Use fake camera/media adapters where hardware is unavailable.
+- Test fake camera/media adapters.
 
 ### Acceptance Criteria
 
 - Capture endpoints have predictable structured responses.
 - Media filenames are safe and timestamped by default.
-- Recent photos gallery can render saved photo metadata.
 - Hardware-dependent gaps are documented.
 
-## Task 9: Setup Mode Control Mapping
+## Task 26: Scientist Mode UI
 
 ### Scope
 
-Build Setup Mode control mapping:
-
-- physical joystick setup using Linux `js#`
-- joystick axes/buttons mapping
-- live interpreted input values
-- save multiple control profiles
+Implement selected Scientist Mode UI.
 
 ### Coding Agent Prompt
 
-Implement Setup Mode control mapping for physical joystick input. Use existing joystick mapper/service concepts where practical, but keep the web-facing flow understandable. The UI should let users see live interpreted input values, map axes and buttons, and save multiple control profiles to JSON.
+Implement the owner-selected Scientist Mode camera/capture UI. Include camera viewing, photo capture, video recording controls, recording state, optional filename override, and a simple recent photos gallery.
 
-Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding joystick topics, `js#` devices, mapping services, profile JSON, or the flow from joystick input to saved mapping.
+Do not implement sensor data logging yet.
 
-Do not implement web joystick/gamepad controls. Do not rewrite existing joystick mapper node behavior unless explicitly asked; build web-facing adapters/fakes and document any owner-authored ROS2 node or service changes needed for live input and profile saving.
+### Decision Checkpoint
+
+Owner reviews Scientist Mode before storage limits are integrated deeply.
+
+### Tests And Checks
+
+- UI smoke tests for capture buttons and recent gallery rendering.
+- API integration tests with fake capture backend.
+- Browser/manual check at target viewports.
+
+### Acceptance Criteria
+
+- Scientist Mode is camera/capture focused.
+- Recent photos gallery can render saved photo metadata.
+- Recording state is clear.
+
+## Task 27: Setup Camera Configuration UI
+
+### Scope
+
+Implement camera setup controls.
+
+### Coding Agent Prompt
+
+Implement the Setup Mode camera configuration UI using the selected Setup structure. Allow enable/disable camera, display name, camera index/device path, stream URL or MediaMTX path, and test preview. Save changes through approved config helpers.
+
+Do not implement camera auto-detection unless the owner explicitly approves it.
+
+### Decision Checkpoint
+
+Owner reviews camera setup behavior and config persistence.
+
+### Tests And Checks
+
+- Unit/API tests for camera config save/load.
+- UI smoke test for editing and saving a camera.
+- Verify disabled cameras stop appearing as active previews.
+
+### Acceptance Criteria
+
+- Camera configuration can be edited and saved.
+- Test preview helps validate a stream path.
+
+## Task 28: Control Mapping Route And Service Decision Packet
+
+### Scope
+
+Plan control mapping backend and ROS2 service usage before UI/API implementation.
+
+### Coding Agent Prompt
+
+Propose the route/service flow for physical joystick control mapping. Cover Linux `js#` device display, live interpreted input values, axes/buttons mapping, profile save/load, existing joystick mapper/service concepts, and fake joystick data for UI testing.
+
+Do not rewrite existing joystick mapper node behavior and do not implement routes in this task.
+
+### Decision Checkpoint
+
+Owner chooses how much of the control mapping flow should call existing services versus fake adapters until owner-written ROS2 code is ready.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify proposed action types use `ROVActionType` string values.
+
+### Acceptance Criteria
+
+- Control mapping has a clear owner-approved backend plan.
+- Existing joystick mapper ownership is respected.
+
+## Task 29: Setup Control Mapping UI And API
+
+### Scope
+
+Implement control mapping UI/API with approved adapters.
+
+### Coding Agent Prompt
+
+Implement Setup Mode control mapping for physical joystick input. The UI should let users see live interpreted input values, map axes and buttons, and save multiple control profiles to JSON. Use existing joystick mapper/service concepts where practical and fake adapters where hardware or owner-written ROS2 logic is unavailable.
+
+Do not implement web joystick/gamepad controls.
+
+### Decision Checkpoint
+
+Owner reviews the mapping workflow before thruster configuration is added.
 
 ### Tests And Checks
 
@@ -328,26 +820,47 @@ Do not implement web joystick/gamepad controls. Do not rewrite existing joystick
 - Axis/button action types use the `ROVActionType` string values.
 - Live interpreted input display is clear enough for setup.
 
-## Task 10: Setup Mode Thruster Configuration
+## Task 30: Thruster Config Schema And Safety Decision Packet
 
 ### Scope
 
-Build thruster tuning/config:
-
-- thruster JSON config
-- pin/channel mapping JSON
-- MVP tuning parameters
-- generated or updated ROS2 launch/config files where appropriate
+Plan thruster config fields and safety constraints.
 
 ### Coding Agent Prompt
 
-Implement Setup Mode thruster configuration. Store thruster configuration and motor controller channel/pin mappings in JSON. Include all MVP tuning parameters from the specification: inversion, deadzone, startup power, max power, neutral/min/max PWM, trim, scale/gain, ramp rate, test pulse duration, test pulse power, physical location/name, and channel/pin mapping.
+Propose the thruster configuration schema and validation rules. Include inversion, deadzone, startup power, max power, neutral/min/max PWM, trim, scale/gain, ramp rate, test pulse duration, test pulse power, physical location/name, and channel/pin mapping. Include safety constraints and any generated launch/config file strategy.
 
-If launch/config generation is appropriate, implement it in a small, explicit helper with tests. Avoid hidden magic.
+Do not implement config UI or motor-control node internals.
 
-Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding tuning parameters, PWM safety, pin mappings, or generated file behavior.
+### Decision Checkpoint
 
-Do not implement motor test execution in this task. Do not implement motor-control ROS2 node internals; document the expected owner-authored node/service boundary for applying generated thruster config safely.
+Owner approves thruster fields, ranges, generated file behavior, and safety defaults.
+
+### Tests And Checks
+
+- Validate example JSON if written.
+- Verify all MVP thruster parameters are represented.
+
+### Acceptance Criteria
+
+- Thruster config decisions are explicit before implementation.
+- Motor-control ownership boundary is clear.
+
+## Task 31: Setup Thruster Configuration UI And Helpers
+
+### Scope
+
+Implement approved thruster config behavior.
+
+### Coding Agent Prompt
+
+Implement Setup Mode thruster configuration. Store thruster configuration and motor controller channel/pin mappings in JSON. Implement approved validation and generated launch/config helpers if selected. Avoid hidden magic.
+
+Do not implement motor test execution or motor-control ROS2 node internals.
+
+### Decision Checkpoint
+
+Owner reviews thruster config UI and generated output before preflight motor tests are planned.
 
 ### Tests And Checks
 
@@ -358,33 +871,53 @@ Do not implement motor test execution in this task. Do not implement motor-contr
 
 ### Acceptance Criteria
 
-- Every MVP tuning parameter is represented.
+- Every approved MVP tuning parameter is represented.
 - Invalid PWM/range values fail with clear errors.
 - Config is saved as readable JSON.
 
-## Task 11: System Test / Preflight Services And UI
+## Task 32: Preflight Test Plan And Route Decision Packet
 
 ### Scope
 
-Build Setup Mode preflight:
-
-- explicit individual test buttons
-- camera test
-- motor/thruster test shell
-- controller test
-- ROS2 node/topic/service test
-- logs saved to file
-- no single Run All Tests button
+Plan System Test/Preflight after safety, camera, control mapping, and thruster config behavior are known.
 
 ### Coding Agent Prompt
 
-Implement the System Test / Preflight section inside Setup Mode. Add individual test controls for camera checks, motor/thruster test sequences, controller input checks, and ROS2 node/topic/service checks. Save test results to a log file. Failed tests should warn users but should not block Pilot Mode for MVP.
+Propose the preflight route design, UI actions, result log format, safety behavior, fake ROS2 adapters, and owner-authored node boundaries. Cover camera test, motor/thruster test shell, controller test, ROS2 node/topic/service test, cancel/stop behavior, and why there is no single "Run All Tests" button.
+
+Do not implement preflight code in this task.
+
+### Decision Checkpoint
+
+Owner approves test names, route names, safety limits, and log format.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify each MVP preflight test has a proposed start/cancel/status/result flow.
+
+### Acceptance Criteria
+
+- Preflight behavior is owner-approved before safety-sensitive code is written.
+- Owner-authored `preflight_test_node` or `thruster_test_node` TODOs are clear.
+
+## Task 33: Preflight UI And API With Fakes
+
+### Scope
+
+Implement preflight UI/API using fake adapters.
+
+### Coding Agent Prompt
+
+Implement the System Test/Preflight section inside Setup Mode. Add individual test controls for camera checks, motor/thruster test sequences, controller input checks, and ROS2 node/topic/service checks. Save test results to a log file. Use fake ROS2 test adapters where owner-authored node logic is not ready.
 
 Use safe test mode behavior: disable normal driving commands during an active test, allow only the active test command, keep motor tests low-power and timed, provide cancel/stop, and ensure emergency stop overrides tests.
 
-Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding preflight flow, safety limits, log format, or ROS2 test checks.
+Do not add a single "Run All Tests" button.
 
-Do not add a single "Run All Tests" button. Treat any `web_preflight_bridge_node`, `preflight_test_node`, or `thruster_test_node` internals as owner-authored unless explicitly requested. The coding agent should provide the API shape, fake ROS2 test adapter, safety-state tests, log format, and TODO notes for the owner-written node behavior.
+### Decision Checkpoint
+
+Owner reviews preflight flow before any real hardware test integration.
 
 ### Tests And Checks
 
@@ -400,26 +933,47 @@ Do not add a single "Run All Tests" button. Treat any `web_preflight_bridge_node
 - Results are saved to logs.
 - Failures show warnings but do not block Pilot Mode.
 
-## Task 12: Developer Mode System Stats
+## Task 34: Developer Stats Route Decision Packet
 
 ### Scope
 
-Build customizable stats:
+Plan Developer Mode system stats.
 
-- CPU usage
-- memory usage
-- disk usage/free space
-- CPU temperature if available
-- network throughput/status if practical
-- process status for key services
+### Coding Agent Prompt
+
+Propose the Developer Mode system stats API and UI data model. Cover CPU usage, memory, disk, disk remaining, CPU temperature if available, network throughput/status if practical, camera recording/storage usage, and process status for key services. Include polling frequency and platform fallback recommendations.
+
+Do not implement stats collection in this task.
+
+### Decision Checkpoint
+
+Owner selects which stat boxes are MVP and which are future.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify proposed stats use low-CPU collection approaches.
+
+### Acceptance Criteria
+
+- Stats are scoped before implementation.
+- Platform-specific gaps are clear.
+
+## Task 35: Developer System Stats Backend And UI
+
+### Scope
+
+Implement selected Developer Mode stats.
 
 ### Coding Agent Prompt
 
 Implement Developer Mode system stats with a customizable set of stat boxes. Prefer `psutil` or similarly low-CPU Python APIs over repeatedly spawning subprocesses. Let selected stats appear in their own boxes and keep the UI technical but readable.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding stat collection, platform-specific fallbacks, polling frequency, or performance tradeoffs.
+Do not implement ROS2 node health monitoring in this task.
 
-Do not implement ROS2 node health monitoring in this task. Leave hooks for a later owner-authored monitor node only if doing so keeps the stats code simple.
+### Decision Checkpoint
+
+Owner reviews stat boxes before ROS2 monitor UI is added.
 
 ### Tests And Checks
 
@@ -434,25 +988,47 @@ Do not implement ROS2 node health monitoring in this task. Leave hooks for a lat
 - UI allows choosing displayed stats.
 - Missing platform-specific stats degrade gracefully.
 
-## Task 13: Developer Mode ROS2 Monitor
+## Task 36: ROS2 Monitor Contract Decision Packet
 
 ### Scope
 
-Build allowlisted ROS2 monitoring:
-
-- required node visibility
-- recent topic publishing
-- required service availability
-- optional heartbeat freshness
-- allowlisted topics/services/parameters
+Plan Developer Mode ROS2 monitoring after the ROS2 boundary and route map are known.
 
 ### Coding Agent Prompt
 
-Implement Developer Mode ROS2 monitoring using a dedicated monitor node or clear ROS2 service layer. Report required node visibility, recent topic publishing, required service availability, and optional heartbeat/diagnostic freshness. Use allowlists for topics, services, and parameters.
+Propose the ROS2 monitor contract for Developer Mode. Cover required node visibility, recent topic publishing, required service availability, optional heartbeat/diagnostic freshness, allowlisted topics/services/parameters, dangerous action confirmations, and fake ROS2 graph data.
 
-Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding allowlists, ROS2 graph checks, freshness thresholds, or why arbitrary publishing/service calls are avoided.
+Leave meaningful internals of any `web_developer_monitor_node` or `ros_health_monitor_node` for the project owner unless explicitly asked to write them.
 
-Do not add arbitrary ROS2 publish tools in MVP. Prefer scaffolding the monitor contract, allowlists, fake ROS2 graph data, API/UI display, and tests. Leave the meaningful internals of any `web_developer_monitor_node` or `ros_health_monitor_node` for the project owner unless the owner explicitly asks the coding agent to write them.
+### Decision Checkpoint
+
+Owner approves required-node list, allowlists, health thresholds, and owner-authored monitor node TODOs.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify arbitrary publishing is excluded from MVP.
+
+### Acceptance Criteria
+
+- ROS2 monitor behavior is scoped before implementation.
+- Health state rules are clear: healthy/warning/error.
+
+## Task 37: Developer ROS2 Monitor UI/API With Fakes
+
+### Scope
+
+Implement ROS2 monitor display and fake backend.
+
+### Coding Agent Prompt
+
+Implement Developer Mode ROS2 monitoring using the approved contract, fake ROS2 graph/service/topic data, and clear owner-authored node TODOs. Report required node visibility, recent topic publishing, required service availability, and optional heartbeat/diagnostic freshness. Use allowlists for topics, services, and parameters.
+
+Do not add arbitrary ROS2 publish tools in MVP.
+
+### Decision Checkpoint
+
+Owner reviews monitor display before any real ROS2 graph integration.
 
 ### Tests And Checks
 
@@ -463,29 +1039,25 @@ Do not add arbitrary ROS2 publish tools in MVP. Prefer scaffolding the monitor c
 
 ### Acceptance Criteria
 
-- Health state is clear and simple: healthy/warning/error.
+- Health state is clear and simple.
 - Only allowlisted items are exposed.
 - Dangerous actions are not available by default.
 
-## Task 14: Storage Limit Handling
+## Task 38: Storage Limit Handling And Alert Integration
 
 ### Scope
 
-Implement storage policy:
-
-- storage warning threshold
-- storage stop threshold
-- remaining media estimate
-- automatic recording stop at stop threshold
-- warnings in global alerts
+Implement approved storage handling after capture behavior exists.
 
 ### Coding Agent Prompt
 
-Implement MVP storage limit handling for media/data directories. Track disk remaining and estimate remaining photo/video capacity using a simple documented policy. Show warnings when warning thresholds are crossed and automatically stop recording cleanly when stop thresholds are reached.
+Implement MVP storage limit handling for media/data directories. Track disk remaining and estimate remaining photo/video capacity using the approved policy. Show warnings when warning thresholds are crossed and automatically stop recording cleanly when stop thresholds are reached.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding storage thresholds, estimates, or recording shutdown flow.
+Storage checks can be Flask-side for MVP. If storage warnings need to feed ROS2/global alerts, define the contract for a future owner-authored `storage_monitor_node` and test it with a fake adapter.
 
-Do not implement a full file browser or downloads. Storage checks can be Flask-side for MVP; if storage warnings need to feed ROS2/global alerts, define the contract for a future owner-authored `storage_monitor_node` and test it with a fake adapter.
+### Decision Checkpoint
+
+Owner reviews storage alerts and recording stop behavior.
 
 ### Tests And Checks
 
@@ -500,36 +1072,81 @@ Do not implement a full file browser or downloads. Storage checks can be Flask-s
 - Stop threshold cleanly stops active recordings.
 - Storage config is saved/read from JSON.
 
-## Task 15: End-To-End Tests And Documentation
+## Task 39: Final Integration Route Audit
 
 ### Scope
 
-Add final MVP verification:
-
-- setup instructions
-- run instructions
-- API summary
-- config summary
-- end-to-end smoke tests
-- mode-by-mode manual checklist
+Audit implemented routes against the route map.
 
 ### Coding Agent Prompt
 
-Create the MVP end-to-end test and documentation package. Add setup/run instructions for the web UI and ROS2 pieces, document config files and important API endpoints, and add a mode-by-mode manual checklist for Pilot, Scientist, Setup, and Developer Mode.
+Compare all implemented Flask routes against the approved route map. Update the route map with final paths, methods, request/response shapes, fake adapters, and owner-authored ROS2 node TODOs. Identify route drift, missing tests, inconsistent error shapes, and feature gaps.
 
-Add automated end-to-end smoke tests where practical. Tests should verify the app can start, the main page loads, each mode route loads, health/status endpoints respond, and safety UI is visible.
+Do not add large new features in this task.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding test setup, fake adapters, or how to run the MVP without hardware. Document every owner-authored ROS2 node TODO created by earlier tasks, including the expected interface, fake used in tests, and the manual/hardware checks needed when the owner fills in the node logic.
+### Decision Checkpoint
+
+Owner decides whether remaining route gaps are MVP blockers or follow-up work.
+
+### Tests And Checks
+
+- Run API tests if available.
+- Verify route docs match actual code.
+
+### Acceptance Criteria
+
+- Route documentation and implementation agree.
+- Remaining route gaps are visible.
+
+## Task 40: End-To-End Smoke Tests
+
+### Scope
+
+Add final MVP verification tests.
+
+### Coding Agent Prompt
+
+Add automated end-to-end smoke tests where practical. Tests should verify the app can start, the main page loads, each mode route loads, health/status endpoints respond, safety UI is visible, fake adapters work, and hardware-dependent behavior has clear fake/manual notes.
+
+Do not require real hardware for automated tests.
+
+### Decision Checkpoint
+
+Owner reviews what is covered by automation versus manual/hardware checks.
 
 ### Tests And Checks
 
 - Run all available unit and integration tests.
 - Run browser smoke tests if the frontend can be served locally.
+- Verify tests do not require physical cameras, joysticks, or thrusters.
+
+### Acceptance Criteria
+
+- Tests cover the major API/UI paths.
+- Hardware-dependent behavior is isolated behind fakes or manual checklist items.
+
+## Task 41: MVP Documentation And Manual Checklists
+
+### Scope
+
+Create final setup/run docs and manual checklists.
+
+### Coding Agent Prompt
+
+Create the MVP documentation package. Add setup/run instructions for the web UI and ROS2 pieces, document config files and important API endpoints, and add a mode-by-mode manual checklist for Pilot, Scientist, Setup, and Developer Mode. Document every owner-authored ROS2 node TODO created by earlier tasks, including expected interface, fake used in tests, and manual/hardware checks needed when the owner fills in the node logic.
+
+### Decision Checkpoint
+
+Owner reviews docs and chooses what is ready for implementation, merge, or follow-up.
+
+### Tests And Checks
+
 - Verify docs match actual commands and file paths.
 - Confirm hardware-dependent behavior has clear fake/manual test notes.
+- Link to the decision log and route map.
 
 ### Acceptance Criteria
 
 - A maintainer can follow docs to run the MVP shell.
-- Tests cover the major API/UI paths.
 - Manual checklist identifies what requires hardware.
+- Owner-authored ROS2 node work is easy to find and continue.
