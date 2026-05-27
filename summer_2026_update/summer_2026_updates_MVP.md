@@ -62,6 +62,7 @@ These users need a codebase that is simple, readable, well-commented, and split 
 - File history: include a simple recent photos gallery.
 - Visual style: hybrid by mode. Pilot should feel like a simple vehicle control panel; Scientist should feel more data/capture focused; Developer can be more technical. Create visual mockups before final implementation choices are locked.
 - Agent workflow: strict one-sub-feature-at-a-time prompts/checkpoints.
+- ROS2 node implementation: the project owner wants to write ROS2 nodes, or at least the important parts of them, personally. Coding agents should therefore prefer scaffolding, interfaces, adapters, fake implementations, tests, and clear TODO notes over fully implementing new ROS2 node internals unless the project owner explicitly asks for that node logic.
 
 ## 3. MVP Navigation
 
@@ -467,6 +468,22 @@ Use a split architecture:
 - A ROS2 bridge node or service layer handles ROS2-specific communication.
 - Shared objects or clearly defined interfaces can connect Flask to ROS2 logic where appropriate, but keep the boundary understandable.
 - Avoid putting too much ROS2 complexity directly inside route handlers.
+- Treat ROS2 nodes needed by the web UI as project-owner-authored code by default. A coding agent can create the package structure, interface definitions, adapter contracts, fake adapters, tests, and documentation, but should leave meaningful node behavior for the owner unless explicitly told otherwise.
+
+### Likely `slvrov_web_ui` ROS2 Nodes
+
+Some web UI features may need small ROS2 nodes or service layers. These should be planned as clear extension points so the project owner can write the ROS2 logic.
+
+Potential nodes or service layers include:
+
+- `web_ros_bridge_node`: allowlisted bridge for web-facing ROS2 service calls, topic reads, and status summaries.
+- `web_safety_bridge_node` or `safety_monitor_node`: emergency stop, control enabled/disabled state, browser disconnect handling, and critical safety fault reporting.
+- `web_preflight_bridge_node` or `preflight_test_node`: Setup Mode test orchestration, test progress, cancel/stop behavior, and test result reporting.
+- `web_developer_monitor_node` or `ros_health_monitor_node`: required-node visibility, topic freshness, service availability, and allowlisted developer diagnostics.
+- `media_capture_node` or `science_capture_node`: optional camera capture/recording command handling if Scientist Mode capture is better kept in ROS2 than in the Flask/MediaMTX layer.
+- `storage_monitor_node`: optional storage warning/stop-threshold reporting if storage state should be published into ROS2/global alerts.
+
+These names are suggestions, not final requirements. During implementation, coding agents should document which node boundary they expect and provide fakes or tests so the owner can fill in the ROS2 node internals.
 
 ### REST / Live Update Strategy
 
@@ -630,6 +647,8 @@ The agent should:
 7. Include clear comments explaining ROS2/Flask/frontend flow for amateur maintainers.
 8. Provide setup instructions.
 9. Use strict one-sub-feature-at-a-time prompts or review checkpoints so the project owner decides when each sub-feature is created.
+10. Keep new ROS2 node internals as project-owner-authored work unless explicitly instructed otherwise.
+11. When a feature needs ROS2 node behavior, define the interface, config, fake adapter, test expectations, and maintainer comments first, then leave a clear owner-facing TODO or minimal stub for the node logic.
 
 ### Suggested Agent Build Order
 
@@ -643,9 +662,9 @@ The agent should:
 8. Scientist Mode photo/video capture
 9. Setup Mode control mapping
 10. Setup Mode thruster configuration
-11. System Test / Preflight services and UI
+11. System Test / Preflight services and UI, with ROS2 test node behavior left as owner-authored unless requested
 12. Developer Mode system stats
-13. Developer Mode ROS2 node/topic/service monitor
+13. Developer Mode ROS2 node/topic/service monitor scaffolding, fake monitor data, and owner-authored monitor node internals
 14. Storage limit handling
 15. End-to-end tests and documentation
 
@@ -668,6 +687,7 @@ The following decisions have been resolved for the MVP.
 | File history | Simple recent photos gallery | Full file browser and downloads are future features. |
 | Visual style | Hybrid by mode, with mockups first | Pilot simple/control-focused; Scientist capture/data-focused; Developer technical. |
 | Agent workflow | Strict one-sub-feature-at-a-time prompts/checkpoints | Each sub-feature should include tests before moving on. |
+| ROS2 node authorship | Project owner writes new ROS2 node internals by default | Coding agents should provide scaffolds, contracts, fakes, tests, and TODOs unless asked to implement node behavior. |
 
 ## 17. Remaining Details To Decide During Implementation
 

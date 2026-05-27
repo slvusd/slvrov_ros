@@ -9,8 +9,21 @@ Every coding agent prompt below includes the following standing requirements:
 - Keep implementation simple and readable.
 - Add focused tests for the sub-feature.
 - Test from service/topic-level behavior upward to API/UI behavior.
+- Treat new ROS2 node internals as project-owner-authored work unless the owner explicitly asks the coding agent to implement them.
+- For ROS2 node-related features, provide interfaces, adapters, fake implementations, tests, and clear TODO notes so the owner can write or finish the node logic.
 - Do not add broad unrelated refactors.
 - Stop at the end of the task and report what changed, what was tested, and what remains.
+
+Likely `slvrov_web_ui` ROS2 node boundaries to keep in mind:
+
+- `web_ros_bridge_node`: allowlisted bridge for web-facing ROS2 service calls, topic reads, and status summaries.
+- `web_safety_bridge_node` or `safety_monitor_node`: emergency stop, control enabled/disabled state, browser disconnect handling, and critical safety fault reporting.
+- `web_preflight_bridge_node` or `preflight_test_node`: Setup Mode test orchestration, progress, cancel/stop behavior, and result reporting.
+- `web_developer_monitor_node` or `ros_health_monitor_node`: required-node visibility, topic freshness, service availability, and allowlisted diagnostics.
+- `media_capture_node` or `science_capture_node`: optional camera capture/recording command handling if Scientist Mode capture is better kept in ROS2.
+- `storage_monitor_node`: optional storage warning/stop-threshold reporting if storage state should feed ROS2/global alerts.
+
+These are planning names, not final API requirements. When a task touches one of these areas, the coding agent should make the boundary easy for the project owner to complete.
 
 ## Task 1: Workspace And Package Skeleton
 
@@ -30,7 +43,7 @@ Implement the initial MVP workspace structure described in `summer_2026_update/s
 
 Follow `system_documents/ros2_python_style_guide.md` for any ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding package layout, ROS2 package conventions, Flask/frontend boundaries, or config-file purpose.
 
-Do not implement full features yet. This task is only for structure, starter files, and a short setup note that explains where future MVP pieces belong.
+Do not implement full features yet. This task is only for structure, starter files, and a short setup note that explains where future MVP pieces belong. If `slvrov_web_ui` needs ROS2 nodes later, add clearly named placeholder locations and docs for owner-authored bridge/monitor nodes rather than real node behavior.
 
 ### Tests And Checks
 
@@ -66,7 +79,7 @@ Create shared JSON config examples and Python helpers for loading, validating, a
 
 Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding config ownership, validation rules, or why a field exists.
 
-Do not build UI screens yet. This task should only establish config files, helper functions, and tests.
+Do not build UI screens yet. This task should only establish config files, helper functions, and tests. Include config fields for required web-facing ROS2 nodes/topics/services, but leave node-specific behavior to owner-authored implementations.
 
 ### Tests And Checks
 
@@ -100,7 +113,7 @@ Build the minimal `slvrov_web_ui` Flask application shell and static frontend sh
 
 Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding the Flask app boundary, static file layout, or API response convention.
 
-Do not connect to ROS2 yet. Keep this task focused on the web shell.
+Do not connect to ROS2 yet. Keep this task focused on the web shell. Create a small bridge-client interface or fake adapter if useful so future Flask routes can call owner-written ROS2 bridge nodes without putting ROS2 complexity into route handlers.
 
 ### Tests And Checks
 
@@ -163,7 +176,7 @@ Implement the global emergency stop and critical-alert UI shell. The emergency s
 
 Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding safety flow, why emergency stop is global, and where future ROS2 stop commands should connect.
 
-Do not wire real motor shutdown yet unless an existing safe service already exists. Stub the ROS2 side clearly and safely.
+Do not wire real motor shutdown yet unless an existing safe service already exists. Stub the ROS2 side clearly and safely. Note that a future owner-authored `web_safety_bridge_node` or `safety_monitor_node` may own emergency stop commands, control enabled/disabled state, browser disconnect handling, and critical fault reporting.
 
 ### Tests And Checks
 
@@ -197,7 +210,7 @@ Implement the first camera configuration and WebRTC display prototype. Use JSON 
 
 Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding MediaMTX path naming, WebRTC embedding, and how camera config flows from JSON to UI.
 
-Do not implement recording or multi-camera layouts yet.
+Do not implement recording or multi-camera layouts yet. Keep camera status mostly Flask/MediaMTX based for this prototype unless a ROS2 status node already exists; if a ROS2 camera-status bridge seems needed, document the boundary and leave the node internals for the owner.
 
 ### Tests And Checks
 
@@ -267,7 +280,7 @@ Choose the lowest-CPU recording strategy that works reliably with MediaMTX/WebRT
 
 Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding capture flow, file naming, storage paths, or why a recording strategy was chosen.
 
-Do not implement sensor data logging yet.
+Do not implement sensor data logging yet. If capture commands need ROS2 ownership, define an adapter and fake implementation for a future owner-authored `media_capture_node` or `science_capture_node` instead of implementing the node internals.
 
 ### Tests And Checks
 
@@ -300,7 +313,7 @@ Implement Setup Mode control mapping for physical joystick input. Use existing j
 
 Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding joystick topics, `js#` devices, mapping services, profile JSON, or the flow from joystick input to saved mapping.
 
-Do not implement web joystick/gamepad controls.
+Do not implement web joystick/gamepad controls. Do not rewrite existing joystick mapper node behavior unless explicitly asked; build web-facing adapters/fakes and document any owner-authored ROS2 node or service changes needed for live input and profile saving.
 
 ### Tests And Checks
 
@@ -334,7 +347,7 @@ If launch/config generation is appropriate, implement it in a small, explicit he
 
 Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding tuning parameters, PWM safety, pin mappings, or generated file behavior.
 
-Do not implement motor test execution in this task.
+Do not implement motor test execution in this task. Do not implement motor-control ROS2 node internals; document the expected owner-authored node/service boundary for applying generated thruster config safely.
 
 ### Tests And Checks
 
@@ -371,7 +384,7 @@ Use safe test mode behavior: disable normal driving commands during an active te
 
 Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding preflight flow, safety limits, log format, or ROS2 test checks.
 
-Do not add a single "Run All Tests" button.
+Do not add a single "Run All Tests" button. Treat any `web_preflight_bridge_node`, `preflight_test_node`, or `thruster_test_node` internals as owner-authored unless explicitly requested. The coding agent should provide the API shape, fake ROS2 test adapter, safety-state tests, log format, and TODO notes for the owner-written node behavior.
 
 ### Tests And Checks
 
@@ -406,7 +419,7 @@ Implement Developer Mode system stats with a customizable set of stat boxes. Pre
 
 Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding stat collection, platform-specific fallbacks, polling frequency, or performance tradeoffs.
 
-Do not implement ROS2 node health monitoring in this task.
+Do not implement ROS2 node health monitoring in this task. Leave hooks for a later owner-authored monitor node only if doing so keeps the stats code simple.
 
 ### Tests And Checks
 
@@ -439,7 +452,7 @@ Implement Developer Mode ROS2 monitoring using a dedicated monitor node or clear
 
 Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding allowlists, ROS2 graph checks, freshness thresholds, or why arbitrary publishing/service calls are avoided.
 
-Do not add arbitrary ROS2 publish tools in MVP.
+Do not add arbitrary ROS2 publish tools in MVP. Prefer scaffolding the monitor contract, allowlists, fake ROS2 graph data, API/UI display, and tests. Leave the meaningful internals of any `web_developer_monitor_node` or `ros_health_monitor_node` for the project owner unless the owner explicitly asks the coding agent to write them.
 
 ### Tests And Checks
 
@@ -472,7 +485,7 @@ Implement MVP storage limit handling for media/data directories. Track disk rema
 
 Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding storage thresholds, estimates, or recording shutdown flow.
 
-Do not implement a full file browser or downloads.
+Do not implement a full file browser or downloads. Storage checks can be Flask-side for MVP; if storage warnings need to feed ROS2/global alerts, define the contract for a future owner-authored `storage_monitor_node` and test it with a fake adapter.
 
 ### Tests And Checks
 
@@ -506,7 +519,7 @@ Create the MVP end-to-end test and documentation package. Add setup/run instruct
 
 Add automated end-to-end smoke tests where practical. Tests should verify the app can start, the main page loads, each mode route loads, health/status endpoints respond, and safety UI is visible.
 
-Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding test setup, fake adapters, or how to run the MVP without hardware.
+Follow `system_documents/ros2_python_style_guide.md` for Python code. Add comments where amateur maintainers or maintainers-to-be would need help understanding test setup, fake adapters, or how to run the MVP without hardware. Document every owner-authored ROS2 node TODO created by earlier tasks, including the expected interface, fake used in tests, and the manual/hardware checks needed when the owner fills in the node logic.
 
 ### Tests And Checks
 
@@ -520,4 +533,3 @@ Follow `system_documents/ros2_python_style_guide.md` for Python code. Add commen
 - A maintainer can follow docs to run the MVP shell.
 - Tests cover the major API/UI paths.
 - Manual checklist identifies what requires hardware.
-
