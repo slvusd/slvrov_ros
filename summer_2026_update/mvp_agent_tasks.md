@@ -298,6 +298,69 @@ Owner confirms the demo review workflow.
 - UI demos are easy to open and compare.
 - Unselected demos can be removed or archived later.
 
+## Task 10A: Static UI Direction Demo
+
+### Scope
+
+Create a thorough static UI demo set that helps answer the open UI direction
+questions in `summer_2026_update/mvp_decision_log.md` before the more specific
+main page, safety, and mode demos are built.
+
+### Coding Agent Prompt
+
+Using the disposable demo shell from Task 10, create a static UI direction demo
+with multiple style families and enough representative screens to compare real
+choices. The demo should include lightweight, non-production mockups for:
+
+- Main mode selection.
+- Global emergency stop and critical alerts.
+- Pilot camera layout presets.
+- Scientist camera/capture workflow.
+- Setup Mode status/navigation structure.
+- Developer Mode stat/dashboard density.
+
+Include at least these style families:
+
+- Apple/macOS-inspired: restrained, polished, high-clarity, with subtle depth
+  and native-control feeling.
+- Existing project style: based on references in `ui_static/` and
+  `ui_examples/`, including the current dark control-station look.
+- Hybrid style: combine the best parts of the macOS-inspired and existing
+  project styles.
+- Agent-recommended style: a clearly labeled additional direction the coding
+  agent thinks fits the ROV audience and MVP goals.
+
+Each style family should show the same core decisions so the owner can compare
+layout, information density, safety-control placement, camera emphasis, and
+operator readability across styles. Use fake data and placeholder camera panels.
+
+Do not implement production UI screens, Flask routes, ROS2 behavior, or final
+frontend utilities in this task.
+
+### Decision Checkpoint
+
+Owner selects one base style direction, any pieces to combine, and which UI
+questions are answered well enough to update the decision log.
+
+### Tests And Checks
+
+- Verify the demo index loads locally.
+- Browser/manual check at 4:3 and 16:10-ish viewport sizes.
+- Verify text, controls, alert banners, and emergency stop controls do not
+  overlap.
+- Verify every demo is clearly labeled as non-production.
+- Verify each style option has a short tradeoff note.
+
+### Acceptance Criteria
+
+- The owner can compare at least four visual directions against the same MVP
+  screens.
+- The demo directly helps answer the UI questions listed in
+  `summer_2026_update/mvp_decision_log.md`.
+- Recommended defaults are visibly separate from owner-selected decisions.
+- Later UI demo tasks can narrow from the selected direction instead of
+  exploring unrelated styles again.
+
 ## Task 11: Main Page UI Demos
 
 ### Scope
