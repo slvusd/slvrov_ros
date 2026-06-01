@@ -1,0 +1,56 @@
+{
+    "actions": [
+        {
+            "action_name": "strafe",
+            "topic": "/js0",
+            "action_type": "axis",
+            "index": 1,
+            "invert": true
+        },
+        {
+            "action_name": "roll",
+            "topic": "/js1",
+            "action_type": "axis",
+            "index": 0,
+            "invert": false
+        }
+    ],
+    "motors": [
+        {
+            "motor_name": "forward_left",
+            "pin": 2,
+
+            "default_pwm": 1500,
+            "min_pwm": 1000,
+            "max_pwm": 2000,
+            "clamp_delta_pwm": 100,
+
+            "direction": "clockwise",
+            "position": [0.5, 0.5, 0.0],
+            "angle": 45.0,
+
+            "action_contributions": {
+                "strafe": 1.0,
+                "roll": 1.0
+            }
+        },
+        {
+            "motor_name": "forward_right",
+            "pin": 3,
+
+            "default_pwm": 1500,
+            "min_pwm": 1000,
+            "max_pwm": 2000,
+            "clamp_delta_pwm": 100,
+
+            "direction": "counter_clockwise",
+            "position": [0.5, -0.5, 0.0],
+            "angle": -45.0,
+
+            "action_contributions": {
+                "strafe": 1.0,
+                "roll": -1.0
+            }
+        }
+    ]
+}

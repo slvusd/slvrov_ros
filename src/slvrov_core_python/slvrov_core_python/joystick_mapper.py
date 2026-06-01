@@ -21,7 +21,7 @@ from slvrov_interfaces.srv.JoystickMapper import (
 from std_srvs.srv import Trigger  # type: ignore
 
 from .control_objects import MappingCandidate, ROVActionMapping, ROVActionType
-from .json_crud import delete_from_json, load_from_json, save_to_json
+from .json_crud import load_from_json, save_to_json
 from .log_messages import BaseLogMessages, JoystickMapperLogMessages
 
 ActionReq = SetAction.Request
@@ -312,7 +312,7 @@ class JoystickMapper(Node):
                 resp.message = msg
                 return resp
 
-        if req.check_mappings_file and mappings_path is not None:
+        if req.check_mappings_file and mappings_path is not None:  # TODO this seems redundant, so ask why?
             try:
                 deleted = (
                     self.delete_saved_mapping(
@@ -384,12 +384,40 @@ class JoystickMapper(Node):
             resp.message = msg
             return resp
 
-        mappings_dict: dict[str, dict[str, Any]] = {}
-        for mapping in self.js_mappings:
-            mappings_dict.update(mapping.to_json())
-
         try:
-            save_to_json(mappings_dict, mappings_path)
+            existing_json = (
+                load_from_json(mappings_path)
+                if mappings_path.exists()
+                else {}
+            )
+            existing_actions = self.get_actions_json(existing_json)
+        except (FileNotFoundError, ValueError, KeyError) as exception:
+            msg = (
+                JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS
+                + BaseLogMessages.SERVICE_CALL_FAILED
+                + BaseLogMessages.SERVER_ERROR
+                + str(exception)
+            )
+            self.get_logger().error(msg)
+            resp.success = False
+            resp.message = msg
+            return resp
+
+        mapped_actions = [mapping.to_json() for mapping in self.js_mappings]
+        mapped_action_names = {
+            str(action["action_name"]) for action in mapped_actions
+        }
+        actions = [
+            action
+            for action in existing_actions
+            if str(action["action_name"]) not in mapped_action_names
+        ]
+        actions.extend(mapped_actions)
+        try:
+            save_to_json(
+                {"actions": actions},
+                mappings_path,
+            )
         except (ValueError, OSError) as exception:
             msg = (
                 JoystickMapperLogMessages.SAVE_MAPPED_ACTIONS
@@ -765,7 +793,7 @@ class JoystickMapper(Node):
             for index, initial_score in enumerate(js_state.buttons):
                 candidate = MappingCandidate(
                     topic=topic,
-                    action_type=ROVActionType.JS_BUTTON,
+                    action_type=ROVActionType.BUTTON,
                     index=index,
                     initial_score=float(initial_score),
                 )
@@ -774,7 +802,7 @@ class JoystickMapper(Node):
             for index, initial_score in enumerate(js_state.axes):
                 candidate = MappingCandidate(
                     topic=topic,
-                    action_type=ROVActionType.JS_AXIS,
+                    action_type=ROVActionType.AXIS,
                     index=index,
                     initial_score=float(initial_score),
                 )
@@ -807,7 +835,7 @@ class JoystickMapper(Node):
                 self.get_logger().warning(BaseLogMessages.TOPIC_STALE)
                 continue
 
-            if candidate.action_type == ROVActionType.JS_AXIS:
+            if candidate.action_type == ROVActionType.AXIS:
                 scores = js_state.axes
             else:
                 scores = js_state.buttons
@@ -984,6 +1012,19 @@ class JoystickMapper(Node):
             index=req.index,
         )
 
+    def get_actions_json(self, mappings_json: dict[str, Any]) -> list[dict[str, Any]]:
+        """Returns saved action mappings normalized to the JSON shape."""
+
+        actions_json = mappings_json.get("actions", [])
+        if not isinstance(actions_json, list):
+            raise ValueError("actions must be a list")
+
+        return [
+            ROVActionMapping.from_json(action).to_json()  # TODO ask why is the AI doing this?
+            for action in actions_json
+            if isinstance(action, dict)
+        ]
+
     def load_mappings(self, mappings_path: str | Path | None = None) -> dict[str, Any]:
         """Loads saved mappings from an explicit or configured path.
 
@@ -1046,20 +1087,19 @@ class JoystickMapper(Node):
             OSError: If the mappings file cannot be written.
         """
 
-        mappings = self.load_mappings(mappings_path)
-        keys_to_delete = [
-            key
-            for key, mapping in mappings.items()
-            if (
-                isinstance(mapping, dict)
-                and mapping.get("action") == action_name
-            )
+        mappings_json = self.load_mappings(mappings_path)
+        actions = self.get_actions_json(mappings_json)
+        remaining_actions = [
+            action
+            for action in actions
+            if action.get("action_name") != action_name
         ]
 
-        if not keys_to_delete:
+        if len(remaining_actions) == len(actions):
             return False
 
-        delete_from_json(mappings_path, keys_to_delete)
+        mappings_json["actions"] = remaining_actions
+        save_to_json(mappings_json, mappings_path, overwrite=True)
         self.get_logger().info("Deleted mapping from saved mappings.")
         return True
 
