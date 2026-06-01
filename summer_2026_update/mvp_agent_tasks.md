@@ -11,10 +11,13 @@ Every coding agent prompt below includes the following standing requirements:
 - Keep implementation simple and readable.
 - Add focused tests for implementation tasks.
 - Test from service/topic-level behavior upward to API/UI behavior when the task includes backend or ROS2-facing behavior.
+- For implementation tasks, validate the finished branch on the Ubuntu VM using `system_documents/agent_vm_testing.md`: log in with `ssh codex-tester`, pull the branch being tested, build with `colcon`, run automated tests, and run relevant ROS2 smoke tests.
 - Treat new ROS2 node internals as project-owner-authored work unless the owner explicitly asks the coding agent to implement them.
 - For ROS2 node-related features, provide interfaces, adapters, fake implementations, tests, and clear TODO notes so the owner can write or finish the node logic.
 - Do not add broad unrelated refactors.
-- Stop at the end of the task and report what changed, what was tested, what remains, and what owner decision is needed next.
+- Stop at the end of the task and report what changed, what was tested, the VM branch/commit tested when VM testing applies, what remains, and what owner decision is needed next.
+
+Implementation-task testing should follow the VM workflow in [Agent VM Testing Guide](../system_documents/agent_vm_testing.md). Decision packets and documentation-only tasks do not need VM testing unless they include runnable examples or generated files that should be verified in the Ubuntu ROS2 environment.
 
 Likely `slvrov_web_ui` ROS2 node boundaries to keep in mind:
 
