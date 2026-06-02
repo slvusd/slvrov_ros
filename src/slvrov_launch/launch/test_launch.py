@@ -9,7 +9,6 @@ from launch_ros.substitutions import FindPackageShare
 
 def get_configuration() -> DeclareLaunchArgument:
     """Build the launch argument for selecting a ROV config file."""
-
     config_file_arg = DeclareLaunchArgument(
         'config_file',
         default_value='test_launch.yaml',
@@ -21,7 +20,6 @@ def get_configuration() -> DeclareLaunchArgument:
 
 def generate_launch_description():
     """Launch multiple demo nodes."""
-
     config_file_arg = get_configuration()
     config_file = LaunchConfiguration('config_file')
 

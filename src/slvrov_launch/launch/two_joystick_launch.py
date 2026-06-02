@@ -9,7 +9,6 @@ from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     """Launch joystick input nodes and the joystick logic node."""
-
     declared_arguments = [
         DeclareLaunchArgument(
             'config_file',
