@@ -64,7 +64,34 @@ source install/setup.bash
 
 Only remove `build`, `install`, and `log` inside the VM checkout.
 
-## 4. Run Automated Tests
+## 4. Check ROS 2 Health With ros2doctor
+
+Before running package tests, launch files, or nodes, run `ros2 doctor` from the sourced VM workspace:
+
+```bash
+ros2 doctor
+```
+
+If `ros2 doctor` reports warnings, read them before continuing. Some warnings may be harmless for an offline VM, but environment, middleware, daemon, or graph warnings can explain failed tests and missing topics.
+
+For a complete diagnostic snapshot, run:
+
+```bash
+ros2 doctor --report
+```
+
+Run `ros2 doctor` again while code is running if nodes cannot discover each other, expected topics or services are missing, or behavior changes between SSH sessions. In each new SSH terminal, repeat:
+
+```bash
+cd ~/slvrov_ros
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+ros2 doctor
+```
+
+Include important `ros2 doctor` warnings in the final test report.
+
+## 5. Run Automated Tests
 
 Run the package tests and print failures:
 
@@ -75,7 +102,7 @@ colcon test-result --verbose
 
 If the test run fails, capture the failing package, test name, and the important error lines before making changes.
 
-## 5. Run ROS 2 Smoke Tests
+## 6. Run ROS 2 Smoke Tests
 
 The existing examples in [testing.md](testing.md) are useful for checking whether the workspace is discoverable and whether basic ROS 2 interfaces work.
 
@@ -124,7 +151,7 @@ Watch ROS logs:
 ros2 topic echo /rosout
 ```
 
-## 6. Report Results
+## 7. Report Results
 
 When testing is complete, report:
 
@@ -136,6 +163,7 @@ When testing is complete, report:
   ```
 
 - Build result: pass or fail.
+- `ros2 doctor` result: pass, warnings, or fail.
 - Automated test result: pass or fail, with failing package/test names if any.
 - Manual ROS 2 smoke tests run and their observed result.
 

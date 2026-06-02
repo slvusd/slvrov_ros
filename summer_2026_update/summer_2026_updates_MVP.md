@@ -8,12 +8,14 @@ The project repository/package workspace is named:
 
 - `slvrov_ros`
 
-The codebase is separated into dedicated ROS2 packages:
+The target codebase structure is defined in `summer_2026_update/slvrov_ros_structure.md`. The MVP should move toward this structure:
 
-- `slvrov_core_python` — core driving and vehicle-control features
-- `slvrov_science_python` — science/camera/data-collection features
+- `slvrov_core_python` — ROS2 control nodes, Flask server code, MediaMTX support files, and production UI for Setup, Pilot, and Developer modes
 - `slvrov_interfaces` — custom messages, services, and actions
-- `slvrov_web_ui` — Flask backend and browser UI
+- `slvrov_launch` — launch files for each approved ROV configuration
+- `rov_config` — JSON/YAML configuration grouped by motors, actions, controls, and ROV definitions
+
+The current repository still contains older MVP scaffold packages such as `slvrov_web_ui` and `slvrov_science_python`. Future structural work should consolidate useful web/science scaffold pieces into `slvrov_core_python` or explicitly document why a separate package remains necessary.
 
 ## 1. Target Users
 
@@ -465,15 +467,17 @@ Many web requests and responses should mirror their ROS2 counterparts in naming 
 
 Use a split architecture:
 
-- Flask serves the web UI and exposes simple HTTP/WebSocket endpoints.
+- Flask code lives in `slvrov_core_python` and serves the web UI through a single understandable server entry point.
+- UI assets for Setup, Pilot, Developer, and any MVP Scientist/capture screens should be served by that Flask server from clearly separated static/template directories inside `slvrov_core_python`.
+- MediaMTX support files live under `slvrov_core_python` unless a later owner decision creates a dedicated runtime/config location.
 - A ROS2 bridge node or service layer handles ROS2-specific communication.
 - Shared objects or clearly defined interfaces can connect Flask to ROS2 logic where appropriate, but keep the boundary understandable.
 - Avoid putting too much ROS2 complexity directly inside route handlers.
 - Treat ROS2 nodes needed by the web UI as project-owner-authored code by default. A coding agent can create the package structure, interface definitions, adapter contracts, fake adapters, tests, and documentation, but should leave meaningful node behavior for the owner unless explicitly told otherwise.
 
-### Likely `slvrov_web_ui` ROS2 Nodes
+### Likely Web-Facing ROS2 Nodes
 
-Some web UI features may need small ROS2 nodes or service layers. These should be planned as clear extension points so the project owner can write the ROS2 logic.
+Some web UI features may need small ROS2 nodes or service layers inside `slvrov_core_python`. These should be planned as clear extension points so the project owner can write the ROS2 logic.
 
 Potential nodes or service layers include:
 
@@ -550,16 +554,14 @@ Successful responses should use a similarly predictable shape:
 
 ### MVP Config Files
 
-Use JSON files for:
+Use JSON files under `rov_config/` for:
 
-- Control mapping settings
-- Thruster configuration
-- Pin mappings
-- Camera configuration
-- UI preferences/layout presets
-- Required ROS2 nodes/topics/services
-- Safety thresholds
-- Recording/storage settings
+- `rov_config/motors/`: thruster configuration and motor controller channel/pin mappings
+- `rov_config/actions/`: action definitions and action-type mapping data
+- `rov_config/controls/`: joystick/control profiles and related mappings
+- `rov_config/rovs/`: complete ROV configuration files that select the motor/action/control/camera/safety/storage profiles used by launch files
+
+Camera configuration, UI preferences/layout presets, required ROS2 nodes/topics/services, safety thresholds, and recording/storage settings should either live in the relevant `rov_config/rovs/` definition or in owner-approved companion files referenced by the ROV definition.
 
 Setup Mode should be the place where persistent config changes are made.
 
@@ -692,19 +694,21 @@ The agent should:
 3. Plan ROS2/web boundaries and owner-authored node TODOs.
 4. Plan JSON config files and ownership rules.
 5. Plan Flask routes after response, ROS2 boundary, and config decisions are known.
-6. Create workspace/package skeletons and placeholder docs.
-7. Implement shared API response and config helpers.
-8. Create UI demo shell, main page demos, global safety demos, Setup flow options, and mode demos.
-9. Implement the selected theme, frontend utilities, Flask shell, and main page.
-10. Implement global safety API/UI shell with fake ROS2 adapter.
-11. Implement camera config/status API, one-stream WebRTC prototype, and selected Pilot layouts.
-12. Decide storage policy before media capture behavior depends on it.
-13. Plan and implement Scientist media capture in backend and UI sub-steps.
-14. Plan and implement Setup camera, control mapping, and thruster configuration in separate sub-steps.
-15. Plan and implement Preflight/test API/UI with fake ROS2 adapters.
-16. Plan and implement Developer stats and ROS2 monitor in separate sub-steps.
-17. Implement storage limit handling and global alert integration.
-18. Audit routes, add end-to-end tests, and write docs/manual hardware checklists.
+6. Plan the structural migration from the current repo layout to the target `slvrov_core_python` / `slvrov_interfaces` / `slvrov_launch` / `rov_config` layout.
+7. Create or update workspace/package skeletons and placeholder docs.
+8. Implement shared API response and config helpers.
+9. Create UI demo shell, main page demos, global safety demos, Setup flow options, and mode demos.
+10. Implement the selected theme, frontend utilities, Flask shell, and main page inside `slvrov_core_python`.
+11. Implement global safety API/UI shell with fake ROS2 adapter.
+12. Implement camera config/status API, one-stream WebRTC prototype, and selected Pilot layouts.
+13. Decide storage policy before media capture behavior depends on it.
+14. Plan and implement Scientist media capture in backend and UI sub-steps, with package placement decided before implementation.
+15. Plan and implement Setup camera, control mapping, and thruster configuration in separate sub-steps.
+16. Plan and implement Preflight/test API/UI with fake ROS2 adapters.
+17. Plan and implement Developer stats and ROS2 monitor in separate sub-steps.
+18. Implement storage limit handling and global alert integration.
+19. Audit old scaffold packages/config paths before removing anything.
+20. Audit routes, add end-to-end tests, and write docs/manual hardware checklists.
 
 ## 16. Resolved MVP Decisions
 
@@ -727,6 +731,7 @@ The following decisions have been resolved for the MVP.
 | Agent workflow | Strict one-sub-feature-at-a-time prompts/checkpoints | Each sub-feature should include tests before moving on. |
 | ROS2 node authorship | Project owner writes new ROS2 node internals by default | Coding agents should provide scaffolds, contracts, fakes, tests, and TODOs unless asked to implement node behavior. |
 | Owner control | Decision packets before implementation | Use demos, route maps, schemas, and tradeoff notes so the owner chooses before agents build. |
+| Target structure | Consolidate web/UI/MediaMTX support into `slvrov_core_python`; keep interfaces and launch separate; use `rov_config/` for ROV configuration | Existing `slvrov_web_ui`, `slvrov_science_python`, root `config/`, and root `docs/` scaffolds need a planned migration. |
 
 ## 17. Remaining Details To Decide During Implementation
 

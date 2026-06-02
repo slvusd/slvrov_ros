@@ -10,6 +10,7 @@ Sources:
 
 - [MVP spec](summer_2026_updates_MVP.md)
 - [Agent task list](mvp_agent_tasks.md)
+- [Target repo structure](slvrov_ros_structure.md)
 - [Task 1 inventory](existing_system_inventory.md)
 - [Shared config README](../config/README.md)
 - [Data directory note](../docs/data_directory.md)
@@ -39,6 +40,60 @@ Sources:
 | D-011 | Preflight placement | System Test / Preflight lives inside Setup Mode, not as a fifth top-level mode. | Confirmed | MVP spec section 9 |
 | D-012 | Persistent settings | Persistent config changes should be made through Setup Mode. | Confirmed | MVP spec section 12 |
 | D-013 | UI demo workflow | Create a broad static UI direction demo before detailed page/mode demos so owner can choose a base visual direction. | Confirmed | `mvp_agent_tasks.md` Task 10A |
+| D-014 | Target structure | Move toward `src/slvrov_core_python`, `src/slvrov_interfaces`, `src/slvrov_launch`, and root `rov_config/`; consolidate Flask, MediaMTX support, and production UI into `slvrov_core_python`. | Confirmed | `slvrov_ros_structure.md` |
+
+## Structural Migration
+
+Confirmed:
+
+- `slvrov_core_python` should contain ROS2 control nodes, Flask server code,
+  MediaMTX support files, and production UI for Setup, Pilot, and Developer
+  modes.
+- `slvrov_interfaces` stores custom interfaces and should split services by
+  node or feature area where useful.
+- `slvrov_launch` stores launch files for each ROV configuration in
+  `rov_config/rovs/`.
+- `rov_config/` should contain grouped configuration under `motors/`,
+  `actions/`, `controls/`, and `rovs/`.
+
+Current repo layout to account for:
+
+- `src/slvrov_core_python/` already exists and contains control nodes,
+  joystick mapper logic, JSON helpers, and hardware-related code.
+- `src/slvrov_web_ui/` exists as an MVP scaffold with Flask/UI subdirectories,
+  but the new target structure folds this work into `slvrov_core_python`.
+- `src/slvrov_science_python/` exists as an MVP scaffold with capture/media/data
+  directories, but the new target structure does not list it as a separate
+  package.
+- `config/` currently contains MVP example configs and schemas; these should
+  be migrated or copied into `rov_config/` once the target config shape is
+  approved.
+- `docs/` currently contains data-directory documentation; docs that support
+  runtime structure can remain root-level if useful, but package-specific docs
+  should move under the owning package.
+
+Recommended defaults, not owner decisions:
+
+- Create `src/slvrov_core_python/slvrov_core_python/web/` with `routes/`,
+  `templates/`, `static/`, and `adapters/` subdirectories for Flask/UI work.
+- Create `src/slvrov_core_python/slvrov_core_python/mediamtx/` for MediaMTX
+  config templates, helper scripts, and maintainer notes.
+- Keep ROS2 node files directly under `slvrov_core_python` or in a
+  `nodes/` subpackage only after the owner chooses the convention.
+- Move reviewed config examples from `config/mvp/` into `rov_config/` by
+  category; keep `config/` only as a temporary migration source until cleanup.
+- Defer removal of `src/slvrov_web_ui/` and `src/slvrov_science_python/` until
+  their useful scaffold files, tests, and docs are either moved or explicitly
+  discarded.
+
+Open questions:
+
+| Question | Owner | Next-step task |
+|---|---|---|
+| Should `slvrov_core_python` web code use a `web/` subpackage, or separate top-level `routes/`, `static/`, and `templates/` package data folders? | Project owner | Structural migration task |
+| Should MVP Scientist camera/capture UI live in `slvrov_core_python`, or should `slvrov_science_python` remain as a future package despite the new target structure? | Project owner | Structural migration task and Scientist capture task |
+| Should `config/` be removed after migration to `rov_config/`, or kept as documentation/example-only material? | Project owner | Config schema task |
+| Should root `docs/` remain for cross-package documentation, or should more docs move into package-specific folders? | Project owner | Structural migration task |
 
 ## UI Direction
 
@@ -58,7 +113,7 @@ Confirmed:
 
 Recommended defaults, not owner decisions:
 
-- Use `src/slvrov_web_ui/slvrov_web_ui/static/` for final packaged frontend
+- Use `src/slvrov_core_python/slvrov_core_python/web/static/` for final packaged frontend
   files.
 - Use existing `ui_static/joystick_mapper_ui_v3/` only as reference material for
   Setup Mode mapping flow, not as the final UI.
@@ -96,9 +151,9 @@ Confirmed:
 
 Recommended defaults, not owner decisions:
 
-- Keep route modules under `src/slvrov_web_ui/slvrov_web_ui/routes/`.
-- Put ROS2 or filesystem work behind adapter interfaces under
-  `src/slvrov_web_ui/slvrov_web_ui/ros_adapters/`.
+- Keep route modules under `src/slvrov_core_python/slvrov_core_python/web/routes/`.
+- Put ROS2, MediaMTX, or filesystem work behind adapter interfaces under
+  `src/slvrov_core_python/slvrov_core_python/web/adapters/`.
 - Keep response helper design in a small shared module after Task 3 approves the
   response shape.
 
@@ -121,14 +176,16 @@ Confirmed:
 - MVP config areas include control mapping, thrusters, pin mappings, cameras,
   UI preferences/layout presets, ROS2 requirements, safety thresholds, and
   recording/storage settings.
-- Starter examples already exist under `../config/mvp/`, but they are not final
-  schemas.
+- Starter examples already exist under `../config/mvp/`, but the target
+  structure moves reviewed runtime config into `../rov_config/`.
 
 Recommended defaults, not owner decisions:
 
-- Keep reviewed example config files in `config/mvp/`.
+- Keep reviewed runtime config files under `rov_config/motors/`,
+  `rov_config/actions/`, `rov_config/controls/`, and `rov_config/rovs/`.
 - Put formal JSON Schema files or documented validation contracts in
-  `config/schemas/` if the owner chooses schema files.
+  `rov_config/schemas/` or package-local validator docs if the owner chooses
+  schema files.
 - Keep runtime generated media and logs outside the repo, following
   `../docs/data_directory.md`.
 - Avoid reusing `submersed_globals.py` current-working-directory persistence
@@ -153,7 +210,9 @@ Confirmed:
   before real node behavior.
 - Existing interfaces live in `src/slvrov_interfaces/`.
 - Existing core control/hardware code lives in `src/slvrov_core_python/`.
-- `slvrov_web_ui` has placeholder docs for future web-facing node boundaries.
+- New web-facing Flask/UI work should live in `slvrov_core_python`, not in the
+  older `slvrov_web_ui` scaffold, unless the owner explicitly preserves that
+  package.
 
 Recommended defaults, not owner decisions:
 
@@ -235,7 +294,7 @@ Open questions:
 | What MediaMTX path convention should be used for up to 6 cameras? | Project owner | Camera strategy/config task |
 | Should camera previews auto-detect available cameras or only use JSON-defined cameras? | Project owner | Task 5 or camera setup task |
 | Which recording implementation is lowest CPU and reliable with MediaMTX/WebRTC? | Project owner | Scientist media capture task |
-| Does media capture belong in `slvrov_science_python`, Flask adapters, or a ROS2 node? | Project owner | Task 4 and Scientist capture task |
+| Does media capture belong in `slvrov_core_python` Flask/MediaMTX adapters, owner-authored ROS2 node logic, or a preserved `slvrov_science_python` package? | Project owner | Structural migration task, Task 4, and Scientist capture task |
 
 ## Storage Policy
 

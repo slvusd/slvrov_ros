@@ -19,7 +19,16 @@ Every coding agent prompt below includes the following standing requirements:
 
 Implementation-task testing should follow the VM workflow in [Agent VM Testing Guide](../system_documents/agent_vm_testing.md). Decision packets and documentation-only tasks do not need VM testing unless they include runnable examples or generated files that should be verified in the Ubuntu ROS2 environment.
 
-Likely `slvrov_web_ui` ROS2 node boundaries to keep in mind:
+Target structure from `summer_2026_update/slvrov_ros_structure.md`:
+
+- `src/slvrov_core_python/`: ROS2 control nodes, Flask server code, MediaMTX support files, and production UI for Setup, Pilot, Developer, and any owner-approved MVP capture screens.
+- `src/slvrov_interfaces/`: custom messages, services, and actions, with services split by node or feature area where useful.
+- `src/slvrov_launch/`: launch files for each approved ROV configuration.
+- `rov_config/`: ROV configuration grouped by `motors/`, `actions/`, `controls/`, and `rovs/`.
+
+The current repo still has older MVP scaffolds at `src/slvrov_web_ui/`, `src/slvrov_science_python/`, root `config/`, and root `docs/`. Structural tasks should plan how to migrate useful content from those locations before deleting or replacing anything.
+
+Likely web-facing `slvrov_core_python` ROS2 node boundaries to keep in mind:
 
 - `web_ros_bridge_node`: allowlisted bridge for web-facing ROS2 service calls, topic reads, and status summaries.
 - `web_safety_bridge_node` or `safety_monitor_node`: emergency stop, control enabled/disabled state, browser disconnect handling, and critical safety fault reporting.
@@ -30,6 +39,28 @@ Likely `slvrov_web_ui` ROS2 node boundaries to keep in mind:
 
 These are planning names, not final API requirements. When a task touches one of these areas, the coding agent should make the boundary easy for the project owner to complete.
 
+## Structural Change Implementation Plan
+
+Use this plan after the owner approves the structural migration decision packet:
+
+1. Snapshot the current layout:
+   - `src/slvrov_core_python/` contains current control nodes, joystick mapper code, JSON helpers, and hardware-related config.
+   - `src/slvrov_web_ui/` contains web/UI scaffold directories that should move into `slvrov_core_python`.
+   - `src/slvrov_science_python/` contains capture/media/data scaffold directories that need an owner decision before migration or retirement.
+   - `config/` contains MVP config examples and schema notes that should move into `rov_config/`.
+   - `docs/` contains cross-package documentation that can remain root-level unless it becomes package-specific.
+2. Create target directories without moving behavior yet:
+   - `src/slvrov_core_python/slvrov_core_python/web/routes/`
+   - `src/slvrov_core_python/slvrov_core_python/web/templates/`
+   - `src/slvrov_core_python/slvrov_core_python/web/static/`
+   - `src/slvrov_core_python/slvrov_core_python/web/adapters/`
+   - `src/slvrov_core_python/slvrov_core_python/mediamtx/`
+   - `rov_config/motors/`, `rov_config/actions/`, `rov_config/controls/`, and `rov_config/rovs/`
+3. Move or copy only low-risk scaffold files first, preserving imports and tests.
+4. Update `setup.py`, package data, tests, and docs to point at the new locations.
+5. Run local import/tests, then validate implementation branches on the Ubuntu VM using the VM testing guide.
+6. Remove old `slvrov_web_ui`, `slvrov_science_python`, and root `config/` scaffolds only after their useful content is migrated or explicitly discarded by the owner.
+
 ## Task 1: Existing System Inventory
 
 ### Scope
@@ -38,7 +69,7 @@ Inventory the current repo before adding MVP code.
 
 ### Coding Agent Prompt
 
-Review the existing packages, launch files, interfaces, joystick mapper code, JSON helpers, tests, and any existing web UI or science package files. Produce a short inventory document that explains what already exists, what can be reused, what should not be touched, and which files/packages are likely owners of future MVP work.
+Review the existing packages, launch files, interfaces, joystick mapper code, JSON helpers, tests, root config/docs, and the current `slvrov_web_ui` / `slvrov_science_python` scaffolds. Produce a short inventory document that explains what already exists, what can be reused, what should not be touched, and which files/packages are likely owners of future MVP work under the new target structure.
 
 Do not implement code in this task.
 
@@ -64,7 +95,7 @@ Create a lightweight decision log for owner-controlled MVP choices.
 
 ### Coding Agent Prompt
 
-Create or update an MVP decision log in `summer_2026_update/`. Include sections for UI direction, Flask route design, config schema choices, ROS2 node boundaries, safety behavior, camera strategy, storage policy, and hardware-dependent decisions. Seed it with the unresolved details from `summer_2026_updates_MVP.md`.
+Create or update an MVP decision log in `summer_2026_update/`. Include sections for target structure, UI direction, Flask route design, config schema choices, ROS2 node boundaries, safety behavior, camera strategy, storage policy, and hardware-dependent decisions. Seed it with the unresolved details from `summer_2026_updates_MVP.md` and `slvrov_ros_structure.md`.
 
 Do not decide on behalf of the owner unless a default is already confirmed in the MVP spec. Mark recommended defaults separately from owner decisions.
 
@@ -142,7 +173,7 @@ Plan JSON config files before writing helpers or routes.
 
 ### Coding Agent Prompt
 
-Propose JSON config structures for cameras, control profiles, thruster configuration, pin mappings, UI preferences/layout presets, required ROS2 nodes/topics/services, safety thresholds, and recording/storage settings. Include examples, validation rules, ownership notes, and which Setup Mode screens can persist each config.
+Propose JSON config structures under `rov_config/` for cameras, control profiles, thruster configuration, pin mappings, UI preferences/layout presets, required ROS2 nodes/topics/services, safety thresholds, and recording/storage settings. Include examples, validation rules, ownership notes, and which Setup Mode screens can persist each config. Group runtime config into `motors/`, `actions/`, `controls/`, and `rovs/` unless the owner approves a different split.
 
 Use the ROS2/web boundary decisions from Task 4 so required-node, topic, service, and fake-adapter config fields match the planned architecture.
 
@@ -158,7 +189,7 @@ Owner approves config file names, top-level fields, and persistence ownership.
 
 ### Acceptance Criteria
 
-- Every MVP config area has a proposed file/schema.
+- Every MVP config area has a proposed `rov_config/` file/schema.
 - Persistent versus temporary config ownership is clear.
 
 ## Task 6: Flask Route Map Decision Packet
@@ -169,7 +200,7 @@ Plan Flask routes after response shape, ROS2 boundaries, and config ownership ar
 
 ### Coding Agent Prompt
 
-Create a Flask route map for owner review. Include planned routes for health, mode pages, global alerts, emergency stop, control enabled/disabled state, camera config/status, media capture, recent photos, setup config save/load, control mapping, thruster config, preflight tests, developer stats, ROS2 monitor status, and storage status.
+Create a Flask route map for owner review. Include planned routes for health, mode pages, global alerts, emergency stop, control enabled/disabled state, camera config/status, media capture, recent photos, setup config save/load, control mapping, thruster config, preflight tests, developer stats, ROS2 monitor status, and storage status. Assume the route modules will live under `slvrov_core_python` unless the owner approves a different structure.
 
 For each route, list method, path, request body, response shape, backing service/adapter, fake adapter behavior, possible ROS2 owner-authored node dependency, config files touched, and whether it is MVP or future.
 
@@ -190,34 +221,68 @@ Owner chooses route naming conventions and approves the first API surface.
 - Routes that may call owner-authored ROS2 nodes are clearly marked.
 - Config dependencies are visible before route implementation begins.
 
-## Task 7: Workspace And Package Skeleton
+## Task 7: Target Structure Migration Decision Packet
 
 ### Scope
 
-Create the MVP package and directory structure after core architecture decisions are known.
+Plan the migration from the current repo layout to the target structure before moving files.
 
 ### Coding Agent Prompt
 
-Implement the initial MVP workspace structure described in `summer_2026_update/summer_2026_updates_MVP.md`. Create package skeletons for `slvrov_web_ui` and `slvrov_science_python` if they do not already exist, and add starter directories for Flask routes, static frontend files, templates if needed, config schemas/examples, tests, docs, and fake adapters.
+Compare the current repo layout against `summer_2026_update/slvrov_ros_structure.md`. Produce a structural migration plan that covers:
 
-Use the approved route map, config plan, and ROS2 boundary document to name directories and placeholder files. If `slvrov_web_ui` needs ROS2 nodes later, add clearly named placeholder locations and docs for owner-authored bridge/monitor nodes rather than real node behavior.
+- moving useful `src/slvrov_web_ui/` Flask/UI scaffold content into `src/slvrov_core_python/slvrov_core_python/web/`
+- deciding whether `src/slvrov_science_python/` is retired, preserved, or folded into `slvrov_core_python`
+- creating `src/slvrov_core_python/slvrov_core_python/mediamtx/`
+- moving reviewed runtime config from root `config/` into `rov_config/`
+- keeping `slvrov_interfaces` service grouping aligned with node/feature ownership
+- ensuring `slvrov_launch` launch files reference `rov_config/rovs/`
+- preserving tests and package metadata during migration
+
+Do not move files in this task.
 
 ### Decision Checkpoint
 
-Owner reviews package layout before feature code is added.
+Owner approves which current scaffolds are migrated, retired, or preserved.
+
+### Tests And Checks
+
+- No runtime tests required.
+- Verify the plan names real current files/directories and exact target locations.
+
+### Acceptance Criteria
+
+- The owner can see exactly what will move, what will stay, and what will be removed later.
+- The plan has a safe phase order and validation steps.
+
+## Task 7A: Apply Target Structure Skeleton
+
+### Scope
+
+Create the approved target directories and low-risk placeholders.
+
+### Coding Agent Prompt
+
+Implement the approved target structure skeleton. Create or update directories for `slvrov_core_python` web routes/templates/static/adapters, MediaMTX support files, and `rov_config/motors/`, `rov_config/actions/`, `rov_config/controls/`, and `rov_config/rovs/`. Move only owner-approved low-risk scaffold files. Do not remove old packages until a later cleanup task confirms their useful content has been migrated or intentionally discarded.
+
+Use the approved route map, config plan, and ROS2 boundary document to name directories and placeholder files.
+
+### Decision Checkpoint
+
+Owner reviews the new skeleton before feature code is added.
 
 ### Tests And Checks
 
 - Verify package manifests and setup files are syntactically valid.
 - Run available package discovery/build checks if `colcon` is available.
-- Add minimal tests that prove importable Python package skeletons import cleanly.
+- Add or update minimal tests that prove importable Python package skeletons import cleanly.
 
 ### Acceptance Criteria
 
-- New packages/directories have clear names and expected ownership.
+- Target directories exist with clear ownership.
 - Starter configs are valid JSON.
 - Docs explain the structure for future maintainers.
-- No feature-specific behavior is implemented beyond placeholders.
+- Old scaffold packages remain untouched unless the owner approved a specific move.
 
 ## Task 8: API Response Helpers
 
@@ -254,7 +319,7 @@ Implement approved config helpers.
 
 ### Coding Agent Prompt
 
-Create Python helpers for loading, validating, saving, and reporting errors for the approved MVP web UI config files. Use simple validation functions or JSON schemas, whichever best fits the current repo style. Keep malformed files from silently falling back to defaults.
+Create Python helpers for loading, validating, saving, and reporting errors for the approved MVP config files under `rov_config/`. Use simple validation functions or JSON schemas, whichever best fits the current repo style. Keep malformed files from silently falling back to defaults.
 
 Do not build UI screens yet.
 
@@ -283,7 +348,7 @@ Create a disposable demo area for UI prototypes.
 
 ### Coding Agent Prompt
 
-Create a simple static UI demo shell where multiple HTML/CSS/JS prototypes can be viewed without committing to production structure. Include a demo index page and instructions for starting/viewing demos.
+Create a simple static UI demo shell where multiple HTML/CSS/JS prototypes can be viewed without committing to production structure. Include a demo index page and instructions for starting/viewing demos. Place demos in the owner-approved `slvrov_core_python` web/static structure or another clearly temporary demo location selected in Task 7.
 
 Do not implement final UI screens in this task.
 
@@ -477,7 +542,7 @@ Implement shared frontend structure after UI direction is selected.
 
 ### Coding Agent Prompt
 
-Based on the owner-selected demos, implement shared CSS variables, layout utilities, reusable frontend helpers, and production static file organization. Keep the production UI plain HTML/CSS/JavaScript.
+Based on the owner-selected demos, implement shared CSS variables, layout utilities, reusable frontend helpers, and production static file organization inside `slvrov_core_python`. Keep the production UI plain HTML/CSS/JavaScript.
 
 Remove or archive unselected demo files if the owner approves.
 
@@ -503,7 +568,7 @@ Create the basic web app shell after route and frontend structure decisions are 
 
 ### Coding Agent Prompt
 
-Build the minimal `slvrov_web_ui` Flask application shell and static frontend shell. The app should serve the main page and mode pages as simple static experiences for now. Add a lightweight `/api/health` endpoint that returns the approved structured JSON response shape.
+Build the minimal `slvrov_core_python` Flask application shell and static frontend shell. The app should serve the main page and mode pages as simple static experiences from the approved `slvrov_core_python` web structure. Add a lightweight `/api/health` endpoint that returns the approved structured JSON response shape.
 
 Do not connect to ROS2 yet. Use a bridge-client interface or fake adapter only if it helps preserve the approved future boundary.
 
@@ -617,7 +682,7 @@ Implement camera config/status backend.
 
 ### Coding Agent Prompt
 
-Implement camera configuration loading and backend endpoints to fetch camera config/status. Use JSON camera configuration for enabled cameras, display names, device paths or indexes, and MediaMTX/WebRTC paths. Keep status Flask/MediaMTX based for now unless an existing ROS2 camera status source exists.
+Implement camera configuration loading and backend endpoints to fetch camera config/status. Use the approved `rov_config/` camera configuration source for enabled cameras, display names, device paths or indexes, and MediaMTX/WebRTC paths. Keep status Flask/MediaMTX based for now unless an existing ROS2 camera status source exists.
 
 If a ROS2 camera-status bridge seems needed, document the boundary and leave node internals for the owner.
 
@@ -755,7 +820,7 @@ Implement selected capture backend behavior.
 
 ### Coding Agent Prompt
 
-Implement backend endpoints for taking photos, starting/stopping per-camera recording, reporting recording state, and listing recent photos. Use timestamped filenames by default and allow optional filename overrides with safe filename validation. Use fake camera/media adapters where hardware is unavailable.
+Implement backend endpoints for taking photos, starting/stopping per-camera recording, reporting recording state, and listing recent photos. Use timestamped filenames by default and allow optional filename overrides with safe filename validation. Use fake camera/media adapters where hardware is unavailable. Implement this inside the owner-approved `slvrov_core_python` web/media structure unless the structural migration decision preserves a separate science package.
 
 If capture commands need ROS2 ownership, define an adapter and fake implementation for the future owner-authored node instead of implementing node internals.
 
@@ -812,7 +877,7 @@ Implement camera setup controls.
 
 ### Coding Agent Prompt
 
-Implement the Setup Mode camera configuration UI using the selected Setup structure. Allow enable/disable camera, display name, camera index/device path, stream URL or MediaMTX path, and test preview. Save changes through approved config helpers.
+Implement the Setup Mode camera configuration UI using the selected Setup structure. Allow enable/disable camera, display name, camera index/device path, stream URL or MediaMTX path, and test preview. Save changes through approved `rov_config/` config helpers.
 
 Do not implement camera auto-detection unless the owner explicitly approves it.
 
@@ -920,7 +985,7 @@ Implement approved thruster config behavior.
 
 ### Coding Agent Prompt
 
-Implement Setup Mode thruster configuration. Store thruster configuration and motor controller channel/pin mappings in JSON. Implement approved validation and generated launch/config helpers if selected. Avoid hidden magic.
+Implement Setup Mode thruster configuration. Store thruster configuration and motor controller channel/pin mappings in `rov_config/motors/` and connect complete ROV selections through `rov_config/rovs/` if approved. Implement approved validation and generated launch/config helpers if selected. Avoid hidden magic.
 
 Do not implement motor test execution or motor-control ROS2 node internals.
 
@@ -1138,6 +1203,34 @@ Owner reviews storage alerts and recording stop behavior.
 - Stop threshold cleanly stops active recordings.
 - Storage config is saved/read from JSON.
 
+## Task 38A: Structural Cleanup Audit
+
+### Scope
+
+Audit old scaffolds after target-structure migration and feature implementation have stabilized.
+
+### Coding Agent Prompt
+
+Compare `src/slvrov_web_ui/`, `src/slvrov_science_python/`, root `config/`, and root package-specific docs against the migrated `slvrov_core_python` and `rov_config/` structure. Identify which files have been migrated, which are still useful, which are duplicate/stale, and which can be safely removed after owner approval.
+
+Do not delete files in this task unless the owner explicitly approves the exact removals.
+
+### Decision Checkpoint
+
+Owner approves which old scaffold files/packages are removed, preserved, or deferred.
+
+### Tests And Checks
+
+- Run import/build checks before and after any approved cleanup.
+- Verify package manifests and launch files do not reference removed packages.
+- Verify docs no longer point to removed paths.
+
+### Acceptance Criteria
+
+- No useful scaffold content is lost.
+- Old package/config paths are either intentionally preserved or ready for removal.
+- Cleanup risk is documented before destructive changes.
+
 ## Task 39: Final Integration Route Audit
 
 ### Scope
@@ -1199,7 +1292,7 @@ Create final setup/run docs and manual checklists.
 
 ### Coding Agent Prompt
 
-Create the MVP documentation package. Add setup/run instructions for the web UI and ROS2 pieces, document config files and important API endpoints, and add a mode-by-mode manual checklist for Pilot, Scientist, Setup, and Developer Mode. Document every owner-authored ROS2 node TODO created by earlier tasks, including expected interface, fake used in tests, and manual/hardware checks needed when the owner fills in the node logic.
+Create the MVP documentation package. Add setup/run instructions for the `slvrov_core_python` Flask/UI pieces, ROS2 pieces, `rov_config/` files, and important API endpoints, and add a mode-by-mode manual checklist for Pilot, Scientist, Setup, and Developer Mode. Document every owner-authored ROS2 node TODO created by earlier tasks, including expected interface, fake used in tests, and manual/hardware checks needed when the owner fills in the node logic.
 
 ### Decision Checkpoint
 

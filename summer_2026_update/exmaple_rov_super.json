@@ -52,5 +52,17 @@
                 "roll": -1.0
             }
         }
+    ],
+    "joysticks": [
+        {
+            "topic": "js0",
+            "deadzone": 0.05,
+            "update_hz": 20
+        },
+        {
+            "topic": "js1",
+            "deadzone": 0.05,
+            "update_hz": 20
+        }
     ]
 }

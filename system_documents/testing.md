@@ -15,6 +15,23 @@ colcon build
 source ./install/setup.bash
 ```
 
+## Checking ROS 2 Health With ros2doctor
+Use `ros2 doctor` before running ROS2 code to catch environment, middleware, network, and graph setup problems early. Run it after sourcing ROS2 and the workspace:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ./install/setup.bash
+ros2 doctor
+```
+
+For a fuller environment report, especially when debugging a failing launch, missing topic, missing service, or communication issue, use:
+
+```bash
+ros2 doctor --report
+```
+
+Run `ros2 doctor` again while code is running if a node cannot see another node, a topic or service does not appear, or behavior differs between terminals. Make sure every terminal used for testing has sourced both ROS2 and the workspace before running doctor or ROS2 commands.
+
 ## Listing Packages
 One of the most basic tests. This is useful after building a new package.
 ```bash
@@ -100,4 +117,3 @@ ros2 topic echo /pca9685_command
 ```
 
 This is commonly used with the ``` /rosout``` topic, which is is subscribed to all of the loggers. It can be very useful for debugging system-wide communication.
-
