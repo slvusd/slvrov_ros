@@ -10,7 +10,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             "config_file",
             default_value="two_joystick_launch.yaml",
-            description="YAML file name inside slvrov_launch/config",
+            description="YAML file name inside slvrov_launch/rov_config/rovs",
         ),
 
         DeclareLaunchArgument(
@@ -26,7 +26,8 @@ def generate_launch_description():
 
     config_path = PathJoinSubstitution([
         FindPackageShare("slvrov_launch"),
-        "config",
+        "rov_config",
+        "rovs",
         LaunchConfiguration("config_file"),
     ])
 
@@ -52,7 +53,7 @@ def generate_launch_description():
         ),
 
         Node(
-            package="slvrov_nodes_python",
+            package="slvrov_core_python",
             executable="joystick_logic",
             namespace="godzillah",
             name="js_logic",

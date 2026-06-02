@@ -1,7 +1,8 @@
 
 ## Packages
-- `slvrov_nodes_python` – ROS2 nodes written in python
+- `slvrov_core_python` – ROS2 control nodes, Flask/UI scaffolding, MediaMTX support, and web adapters
 - `slvrov_interfaces` – Messages and interfaces
+- `slvrov_launch` – Launch files for approved ROV configs
 - `slvrov_tools` – Shared python tools (submodule)
 
 ## Build
@@ -22,5 +23,5 @@ source install/setup.bash
 
 ## Launch
 ```bash
-ros2 launch slvrov_launch launch.py
+ros2 launch slvrov_launch two_joystick_launch.py
 ```

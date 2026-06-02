@@ -26,7 +26,7 @@ Target structure from `summer_2026_update/slvrov_ros_structure.md`:
 - `src/slvrov_launch/`: launch files for each approved ROV configuration.
 - `rov_config/`: ROV configuration grouped by `motors/`, `actions/`, `controls/`, and `rovs/`.
 
-The current repo still has older MVP scaffolds at `src/slvrov_web_ui/`, `src/slvrov_science_python/`, root `config/`, and root `docs/`. Structural tasks should plan how to migrate useful content from those locations before deleting or replacing anything.
+Older MVP scaffolds from `src/slvrov_web_ui/`, `src/slvrov_science_python/`, and root `config/` have been consolidated into `slvrov_core_python` and `rov_config/`. Future structural tasks should avoid recreating those old standalone package paths unless the owner explicitly asks for them.
 
 Likely web-facing `slvrov_core_python` ROS2 node boundaries to keep in mind:
 
@@ -43,11 +43,11 @@ These are planning names, not final API requirements. When a task touches one of
 
 Use this plan after the owner approves the structural migration decision packet:
 
-1. Snapshot the current layout:
+1. Snapshot the current layout before any future structural work:
    - `src/slvrov_core_python/` contains current control nodes, joystick mapper code, JSON helpers, and hardware-related config.
-   - `src/slvrov_web_ui/` contains web/UI scaffold directories that should move into `slvrov_core_python`.
-   - `src/slvrov_science_python/` contains capture/media/data scaffold directories that need an owner decision before migration or retirement.
-   - `config/` contains MVP config examples and schema notes that should move into `rov_config/`.
+   - `src/slvrov_core_python/slvrov_core_python/web/` contains web/UI scaffold directories.
+   - `src/slvrov_core_python/slvrov_core_python/science/` contains capture/media/data scaffold directories.
+   - `rov_config/` contains MVP config examples and schema notes.
    - `docs/` contains cross-package documentation that can remain root-level unless it becomes package-specific.
 2. Create target directories without moving behavior yet:
    - `src/slvrov_core_python/slvrov_core_python/web/routes/`
@@ -59,7 +59,7 @@ Use this plan after the owner approves the structural migration decision packet:
 3. Move or copy only low-risk scaffold files first, preserving imports and tests.
 4. Update `setup.py`, package data, tests, and docs to point at the new locations.
 5. Run local import/tests, then validate implementation branches on the Ubuntu VM using the VM testing guide.
-6. Remove old `slvrov_web_ui`, `slvrov_science_python`, and root `config/` scaffolds only after their useful content is migrated or explicitly discarded by the owner.
+6. Remove or recreate structure only after the owner explicitly approves the exact path-level change.
 
 ## Task 1: Existing System Inventory
 
@@ -69,7 +69,7 @@ Inventory the current repo before adding MVP code.
 
 ### Coding Agent Prompt
 
-Review the existing packages, launch files, interfaces, joystick mapper code, JSON helpers, tests, root config/docs, and the current `slvrov_web_ui` / `slvrov_science_python` scaffolds. Produce a short inventory document that explains what already exists, what can be reused, what should not be touched, and which files/packages are likely owners of future MVP work under the new target structure.
+Review the existing packages, launch files, interfaces, joystick mapper code, JSON helpers, tests, root docs, `rov_config/`, and the current `slvrov_core_python` web/science scaffolds. Produce a short inventory document that explains what already exists, what can be reused, what should not be touched, and which files/packages are likely owners of future MVP work under the new target structure.
 
 Do not implement code in this task.
 
@@ -231,10 +231,10 @@ Plan the migration from the current repo layout to the target structure before m
 
 Compare the current repo layout against `summer_2026_update/slvrov_ros_structure.md`. Produce a structural migration plan that covers:
 
-- moving useful `src/slvrov_web_ui/` Flask/UI scaffold content into `src/slvrov_core_python/slvrov_core_python/web/`
-- deciding whether `src/slvrov_science_python/` is retired, preserved, or folded into `slvrov_core_python`
-- creating `src/slvrov_core_python/slvrov_core_python/mediamtx/`
-- moving reviewed runtime config from root `config/` into `rov_config/`
+- keeping Flask/UI scaffold content in `src/slvrov_core_python/slvrov_core_python/web/`
+- keeping science/capture scaffold content in `src/slvrov_core_python/slvrov_core_python/science/`, unless the owner later splits it out
+- maintaining `src/slvrov_core_python/slvrov_core_python/mediamtx/`
+- keeping reviewed runtime config in `rov_config/`
 - keeping `slvrov_interfaces` service grouping aligned with node/feature ownership
 - ensuring `slvrov_launch` launch files reference `rov_config/rovs/`
 - preserving tests and package metadata during migration
@@ -1211,7 +1211,7 @@ Audit old scaffolds after target-structure migration and feature implementation 
 
 ### Coding Agent Prompt
 
-Compare `src/slvrov_web_ui/`, `src/slvrov_science_python/`, root `config/`, and root package-specific docs against the migrated `slvrov_core_python` and `rov_config/` structure. Identify which files have been migrated, which are still useful, which are duplicate/stale, and which can be safely removed after owner approval.
+Compare any future recreated standalone web/science/config paths and root package-specific docs against the migrated `slvrov_core_python` and `rov_config/` structure. Identify which files have been migrated, which are still useful, which are duplicate/stale, and which can be safely removed after owner approval.
 
 Do not delete files in this task unless the owner explicitly approves the exact removals.
 

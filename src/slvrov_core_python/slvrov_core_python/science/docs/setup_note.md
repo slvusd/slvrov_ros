@@ -1,4 +1,4 @@
-# `slvrov_science_python` MVP Setup Note
+# `slvrov_core_python.science` MVP Setup Note
 
 This package is reserved for science, camera, media-capture, and future
 sensor data-collection code.

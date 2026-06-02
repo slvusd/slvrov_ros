@@ -56,7 +56,7 @@ ros2 run <package name> <node name>
 
 Example:
 ```bash
-ros2 run slvrov_nodes_python pca9685_node
+ros2 run slvrov_core_python pca9685_node
 ```
 
 ## Probing Nodes

@@ -1,3 +1,5 @@
+from glob import glob
+
 from setuptools import find_packages, setup
 
 package_name = 'slvrov_launch'
@@ -10,8 +12,10 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + "/launch", ["launch/two_joystick_launch.py", "launch/test_launch.py"]),
-        ('share/' + package_name + "/config", ["config/two_joystick_launch.yaml", "config/test_launch.yaml"])
+        ('share/' + package_name + '/launch',
+            ['launch/two_joystick_launch.py', 'launch/test_launch.py']),
+        ('share/' + package_name + '/rov_config/rovs',
+            glob('../../rov_config/rovs/*.yaml')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

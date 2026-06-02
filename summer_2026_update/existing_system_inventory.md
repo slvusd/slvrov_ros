@@ -101,8 +101,8 @@ Important files:
 
 - `src/slvrov_launch/launch/two_joystick_launch.py`
 - `src/slvrov_launch/launch/test_launch.py`
-- `src/slvrov_launch/config/two_joystick_launch.yaml`
-- `src/slvrov_launch/config/test_launch.yaml`
+- `rov_config/rovs/two_joystick_launch.yaml`
+- `rov_config/rovs/test_launch.yaml`
 
 What exists:
 
@@ -118,35 +118,35 @@ Can reuse:
 
 Should not touch casually:
 
-- `two_joystick_launch.py` references package `slvrov_nodes_python`, but this
-  repo now contains `slvrov_core_python`. Fixing that should be a focused
-  future task, not part of inventory.
+- Future launch files should continue to point at installed `rov_config/rovs/`
+  paths rather than recreating a package-local `config/` folder.
 
 Likely future owner:
 
 - Startup orchestration for core nodes, web UI, bridge/safety/preflight/monitor
   nodes, and science/media support.
 
-### `src/slvrov_web_ui`
+### `src/slvrov_core_python/slvrov_core_python/web`
 
 MVP Flask and browser UI skeleton.
 
 Important files:
 
-- `src/slvrov_web_ui/slvrov_web_ui/docs/setup_note.md`
-- `src/slvrov_web_ui/slvrov_web_ui/routes/README.md`
-- `src/slvrov_web_ui/slvrov_web_ui/ros_adapters/README.md`
-- `src/slvrov_web_ui/slvrov_web_ui/nodes/README.md`
-- `src/slvrov_web_ui/slvrov_web_ui/static/README.md`
-- `src/slvrov_web_ui/slvrov_web_ui/templates/base.html`
-- `src/slvrov_web_ui/slvrov_web_ui/static/css/base.css`
-- `src/slvrov_web_ui/slvrov_web_ui/static/js/app.js`
+- `src/slvrov_core_python/slvrov_core_python/web/docs/setup_note.md`
+- `src/slvrov_core_python/slvrov_core_python/web/routes/README.md`
+- `src/slvrov_core_python/slvrov_core_python/web/adapters/README.md`
+- `src/slvrov_core_python/slvrov_core_python/web/nodes/README.md`
+- `src/slvrov_core_python/slvrov_core_python/web/static/README.md`
+- `src/slvrov_core_python/slvrov_core_python/web/templates/base.html`
+- `src/slvrov_core_python/slvrov_core_python/web/static/css/base.css`
+- `src/slvrov_core_python/slvrov_core_python/web/static/js/app.js`
 
 What exists:
 
-- Package skeleton exists with `python3-flask` and `rclpy` dependencies.
+- The scaffold now lives inside `slvrov_core_python`, which carries
+  `python3-flask` and `rclpy` dependencies.
 - Placeholder docs already reserve locations for Flask routes, static assets,
-  templates, fake ROS adapters, and owner-authored node placeholders.
+  templates, fake web adapters, and owner-authored node placeholders.
 - No real Flask app, API route, adapter implementation, or mode UI exists yet.
 
 Can reuse:
@@ -164,21 +164,21 @@ Likely future owner:
 - Main page, Pilot Mode, Scientist Mode web surface, Setup Mode, Developer
   Mode, web API helpers, fake adapters, and route-level tests.
 
-### `src/slvrov_science_python`
+### `src/slvrov_core_python/slvrov_core_python/science`
 
 Science/camera/data-collection skeleton.
 
 Important files:
 
-- `src/slvrov_science_python/slvrov_science_python/docs/setup_note.md`
-- `src/slvrov_science_python/slvrov_science_python/capture/README.md`
-- `src/slvrov_science_python/slvrov_science_python/media/README.md`
-- `src/slvrov_science_python/slvrov_science_python/data_logging/README.md`
+- `src/slvrov_core_python/slvrov_core_python/science/docs/setup_note.md`
+- `src/slvrov_core_python/slvrov_core_python/science/capture/README.md`
+- `src/slvrov_core_python/slvrov_core_python/science/media/README.md`
+- `src/slvrov_core_python/slvrov_core_python/science/data_logging/README.md`
 
 What exists:
 
-- Package skeleton exists with placeholder directories for capture, media, and
-  data logging.
+- The scaffold now lives inside `slvrov_core_python` with placeholder
+  directories for capture, media, and data logging.
 - No camera, media, or sensor logging behavior exists yet.
 
 Can reuse:
@@ -188,8 +188,9 @@ Can reuse:
 
 Should not touch casually:
 
-- Camera capture ownership is not decided yet. It may belong in ROS2, Flask
-  adapters, or this package depending on the boundary decision.
+- Camera capture ownership is not decided yet. It may belong in ROS2,
+  `slvrov_core_python.web` adapters, or `slvrov_core_python.science`
+  depending on the boundary decision.
 - Do not store generated media inside this source package.
 
 Likely future owner:
@@ -239,7 +240,7 @@ Important files:
 What exists:
 
 - Three static joystick mapper UI concepts exist outside the packaged
-  `slvrov_web_ui` skeleton.
+  `slvrov_core_python.web` skeleton.
 - V3 documents possible HTTP routes:
   `/joystick_mapper/set_mapper_state`, `/joystick_mapper/set_action`,
   `/joystick_mapper/set_mapping_state`, and `/joystick_mapper/status`.
@@ -259,9 +260,9 @@ Should not touch casually:
 
 Important files:
 
-- `config/README.md`
-- `config/schemas/README.md`
-- `config/mvp/*.example.json`
+- `rov_config/README.md`
+- `rov_config/schemas/README.md`
+- `rov_config/**/*.example.json`
 - `docs/data_directory.md`
 - `summer_2026_update/summer_2026_updates_MVP.md`
 - `summer_2026_update/mvp_agent_tasks.md`
@@ -272,7 +273,7 @@ Important files:
 
 What exists:
 
-- `config/mvp/` contains starter JSON examples for cameras, control profiles,
+- `rov_config/` contains starter JSON examples for cameras, control profiles,
   pin mappings, recording/storage, ROS requirements, safety thresholds,
   thrusters, and UI preferences.
 - The config examples are placeholders, not approved schemas.
@@ -286,7 +287,7 @@ What exists:
 Can reuse:
 
 - `summer_2026_updates_MVP.md` as the source of confirmed MVP requirements.
-- `config/mvp/` and `config/schemas/` as the future shared config area.
+- `rov_config/` and `rov_config/schemas/` as the shared config area.
 - `docs/data_directory.md` as the baseline storage policy.
 
 Should not touch casually:
@@ -301,13 +302,13 @@ Important files:
 - `src/slvrov_core_python/test/test_flake8.py`
 - `src/slvrov_core_python/test/test_pep257.py`
 - `src/slvrov_launch/test/test_flake8.py`
-- `src/slvrov_web_ui/test/test_import_skeleton.py`
-- `src/slvrov_science_python/test/test_import_skeleton.py`
+- `src/slvrov_core_python/test/test_import_skeleton.py`
 
 What exists:
 
 - Packages mostly have generated ament lint/copyright/pep257 tests.
-- `slvrov_web_ui` and `slvrov_science_python` have skeleton import tests.
+- `slvrov_core_python.web` and `slvrov_core_python.science` have skeleton
+  import tests.
 - No focused behavior tests were found for Flask routes, config validation,
   camera/media helpers, JSON helpers, joystick logic, or PCA9685 services.
 
@@ -323,11 +324,12 @@ Should not touch casually:
 ## High-Level Future Ownership Map
 
 - Flask app, routes, API response helpers, frontend, fake adapters:
-  `src/slvrov_web_ui`.
+  `src/slvrov_core_python/slvrov_core_python/web`.
 - Web bridge/safety/preflight/developer monitor placeholders:
-  `src/slvrov_web_ui/slvrov_web_ui/nodes`.
-- Science/media helpers when not ROS2-owned: `src/slvrov_science_python`.
-- Shared config examples/schemas: `config/`.
+  `src/slvrov_core_python/slvrov_core_python/web/nodes`.
+- Science/media helpers when not ROS2-owned:
+  `src/slvrov_core_python/slvrov_core_python/science`.
+- Shared config examples/schemas: `rov_config/`.
 - Runtime media/data policy: `docs/data_directory.md`.
 - Core joystick/thruster/PCA9685 behavior: `src/slvrov_core_python`.
 - ROS2 contracts: `src/slvrov_interfaces`.
@@ -337,12 +339,11 @@ Should not touch casually:
 
 Before implementation tasks change code, confirm:
 
-- Can `src/slvrov_web_ui` be the primary Flask/UI implementation package?
-- Can `src/slvrov_science_python` own non-ROS camera/media helpers?
+- Should all Flask/UI implementation stay in `slvrov_core_python.web`?
+- Should non-ROS camera/media helpers stay in `slvrov_core_python.science`?
 - Should `src/slvrov_core_python` remain read-mostly unless a task targets
   existing joystick/PCA9685 behavior?
-- Should a future task update `src/slvrov_launch` to replace stale
-  `slvrov_nodes_python` references?
+- Which future launch configs should be added under `rov_config/rovs/`?
 - Should vendored `slvrov_tools` stay untouched during MVP work?
 
 ## Checks Performed

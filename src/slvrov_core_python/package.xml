@@ -3,12 +3,13 @@
 <package format="3">
   <name>slvrov_core_python</name>
   <version>0.0.0</version>
-  <description>Provides the core functionality for the SLVROV robot concerning control.</description>
+  <description>Provides SLVROV control nodes, Flask UI support, MediaMTX support, and web adapters.</description>
   <maintainer email="calebhof11@gmail.com">LegionaryOfLogic</maintainer>
   <license>TODO: License declaration</license>
 
   <exec_depend>python3-yaml</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-flask</exec_depend>
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
 

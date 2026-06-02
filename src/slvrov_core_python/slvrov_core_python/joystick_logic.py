@@ -9,7 +9,6 @@ from rclpy.executors import ExternalShutdownException  # type: ignore
 from rclpy.node import Node  # type: ignore
 from sensor_msgs.msg import Joy  # type: ignore
 from slvrov_interfaces.srv import String
-from slvrov_interfaces.srv.JoystickMapper
 from std_srvs.srv import Trigger  # type: ignore
 
 from .control_objects import MappingCandidate, ROVActionMapping, ROVActionType

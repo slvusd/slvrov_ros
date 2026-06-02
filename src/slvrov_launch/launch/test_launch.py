@@ -12,7 +12,7 @@ def get_configuration() -> DeclareLaunchArgument:
     config_file_arg = DeclareLaunchArgument(
         "config_file",
         default_value="test_launch.yaml",
-        description=""
+        description="YAML file name inside slvrov_launch/rov_config/rovs",
     )
 
     return config_file_arg
@@ -26,7 +26,8 @@ def generate_launch_description():
     # Build the full path to the config file at runtime
     config_path = PathJoinSubstitution([
         FindPackageShare('slvrov_launch'),
-        'config',
+        'rov_config',
+        'rovs',
         config_file,
     ])
 

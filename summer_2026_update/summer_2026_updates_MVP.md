@@ -15,7 +15,7 @@ The target codebase structure is defined in `summer_2026_update/slvrov_ros_struc
 - `slvrov_launch` — launch files for each approved ROV configuration
 - `rov_config` — JSON/YAML configuration grouped by motors, actions, controls, and ROV definitions
 
-The current repository still contains older MVP scaffold packages such as `slvrov_web_ui` and `slvrov_science_python`. Future structural work should consolidate useful web/science scaffold pieces into `slvrov_core_python` or explicitly document why a separate package remains necessary.
+Older MVP scaffold packages such as `slvrov_web_ui` and `slvrov_science_python` have been consolidated into `slvrov_core_python`. Future web/science work should continue inside the core package unless the owner explicitly creates a new package.
 
 ## 1. Target Users
 
@@ -731,7 +731,7 @@ The following decisions have been resolved for the MVP.
 | Agent workflow | Strict one-sub-feature-at-a-time prompts/checkpoints | Each sub-feature should include tests before moving on. |
 | ROS2 node authorship | Project owner writes new ROS2 node internals by default | Coding agents should provide scaffolds, contracts, fakes, tests, and TODOs unless asked to implement node behavior. |
 | Owner control | Decision packets before implementation | Use demos, route maps, schemas, and tradeoff notes so the owner chooses before agents build. |
-| Target structure | Consolidate web/UI/MediaMTX support into `slvrov_core_python`; keep interfaces and launch separate; use `rov_config/` for ROV configuration | Existing `slvrov_web_ui`, `slvrov_science_python`, root `config/`, and root `docs/` scaffolds need a planned migration. |
+| Target structure | Consolidate web/UI/MediaMTX support into `slvrov_core_python`; keep interfaces and launch separate; use `rov_config/` for ROV configuration | The old web/science scaffolds and root `config/` tree have been migrated into the new structure. |
 
 ## 17. Remaining Details To Decide During Implementation
 

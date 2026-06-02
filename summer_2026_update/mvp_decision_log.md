@@ -56,43 +56,39 @@ Confirmed:
 - `rov_config/` should contain grouped configuration under `motors/`,
   `actions/`, `controls/`, and `rovs/`.
 
-Current repo layout to account for:
+Current repo layout:
 
 - `src/slvrov_core_python/` already exists and contains control nodes,
-  joystick mapper logic, JSON helpers, and hardware-related code.
-- `src/slvrov_web_ui/` exists as an MVP scaffold with Flask/UI subdirectories,
-  but the new target structure folds this work into `slvrov_core_python`.
-- `src/slvrov_science_python/` exists as an MVP scaffold with capture/media/data
-  directories, but the new target structure does not list it as a separate
-  package.
-- `config/` currently contains MVP example configs and schemas; these should
-  be migrated or copied into `rov_config/` once the target config shape is
-  approved.
+  joystick mapper logic, JSON helpers, hardware-related code, web/UI scaffold
+  directories, science/capture scaffold directories, and MediaMTX support
+  notes.
+- `src/slvrov_web_ui/` and `src/slvrov_science_python/` have been removed as
+  standalone packages after their useful scaffold files moved into
+  `slvrov_core_python`.
+- `rov_config/` contains MVP example configs and schema notes grouped by
+  `motors/`, `actions/`, `controls/`, and `rovs/`.
 - `docs/` currently contains data-directory documentation; docs that support
   runtime structure can remain root-level if useful, but package-specific docs
   should move under the owning package.
 
 Recommended defaults, not owner decisions:
 
-- Create `src/slvrov_core_python/slvrov_core_python/web/` with `routes/`,
-  `templates/`, `static/`, and `adapters/` subdirectories for Flask/UI work.
-- Create `src/slvrov_core_python/slvrov_core_python/mediamtx/` for MediaMTX
-  config templates, helper scripts, and maintainer notes.
+- Continue using `src/slvrov_core_python/slvrov_core_python/web/` with
+  `routes/`, `templates/`, `static/`, and `adapters/` subdirectories for
+  Flask/UI work.
+- Continue using `src/slvrov_core_python/slvrov_core_python/mediamtx/` for
+  MediaMTX config templates, helper scripts, and maintainer notes.
 - Keep ROS2 node files directly under `slvrov_core_python` or in a
   `nodes/` subpackage only after the owner chooses the convention.
-- Move reviewed config examples from `config/mvp/` into `rov_config/` by
-  category; keep `config/` only as a temporary migration source until cleanup.
-- Defer removal of `src/slvrov_web_ui/` and `src/slvrov_science_python/` until
-  their useful scaffold files, tests, and docs are either moved or explicitly
-  discarded.
+- Keep reviewed runtime config examples in `rov_config/` by category.
 
 Open questions:
 
 | Question | Owner | Next-step task |
 |---|---|---|
 | Should `slvrov_core_python` web code use a `web/` subpackage, or separate top-level `routes/`, `static/`, and `templates/` package data folders? | Project owner | Structural migration task |
-| Should MVP Scientist camera/capture UI live in `slvrov_core_python`, or should `slvrov_science_python` remain as a future package despite the new target structure? | Project owner | Structural migration task and Scientist capture task |
-| Should `config/` be removed after migration to `rov_config/`, or kept as documentation/example-only material? | Project owner | Config schema task |
+| Should MVP Scientist camera/capture UI remain in `slvrov_core_python.science`, or should a future package be reintroduced later? | Project owner | Scientist capture task |
+| Should root `config/` stay removed, or should a future docs-only config example area be recreated? | Project owner | Config schema task |
 | Should root `docs/` remain for cross-package documentation, or should more docs move into package-specific folders? | Project owner | Structural migration task |
 
 ## UI Direction
@@ -176,8 +172,7 @@ Confirmed:
 - MVP config areas include control mapping, thrusters, pin mappings, cameras,
   UI preferences/layout presets, ROS2 requirements, safety thresholds, and
   recording/storage settings.
-- Starter examples already exist under `../config/mvp/`, but the target
-  structure moves reviewed runtime config into `../rov_config/`.
+- Starter examples now live under `../rov_config/`.
 
 Recommended defaults, not owner decisions:
 
@@ -210,9 +205,7 @@ Confirmed:
   before real node behavior.
 - Existing interfaces live in `src/slvrov_interfaces/`.
 - Existing core control/hardware code lives in `src/slvrov_core_python/`.
-- New web-facing Flask/UI work should live in `slvrov_core_python`, not in the
-  older `slvrov_web_ui` scaffold, unless the owner explicitly preserves that
-  package.
+- New web-facing Flask/UI work should live in `slvrov_core_python`.
 
 Recommended defaults, not owner decisions:
 
@@ -232,7 +225,7 @@ Open questions:
 | Which owner-authored nodes should be written first? | Project owner | Task 4 |
 | Should Scientist media capture be Flask/MediaMTX-layer behavior or a ROS2 node? | Project owner | Task 4 and camera strategy |
 | Should storage warnings be Flask-only or published through a ROS2 storage monitor/global alert path? | Project owner | Task 4 and storage policy |
-| Should the stale `slvrov_nodes_python` launch reference be corrected in a future focused launch task? | Project owner | Future launch task |
+| Which additional launch files should be updated to use `rov_config/rovs/` as new ROV configs are approved? | Project owner | Future launch task |
 
 ## Safety Behavior
 
@@ -294,7 +287,7 @@ Open questions:
 | What MediaMTX path convention should be used for up to 6 cameras? | Project owner | Camera strategy/config task |
 | Should camera previews auto-detect available cameras or only use JSON-defined cameras? | Project owner | Task 5 or camera setup task |
 | Which recording implementation is lowest CPU and reliable with MediaMTX/WebRTC? | Project owner | Scientist media capture task |
-| Does media capture belong in `slvrov_core_python` Flask/MediaMTX adapters, owner-authored ROS2 node logic, or a preserved `slvrov_science_python` package? | Project owner | Structural migration task, Task 4, and Scientist capture task |
+| Does media capture belong in `slvrov_core_python` Flask/MediaMTX adapters or owner-authored ROS2 node logic? | Project owner | Task 4 and Scientist capture task |
 
 ## Storage Policy
 

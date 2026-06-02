@@ -134,7 +134,8 @@ ros2 pkg list | grep slvrov
 You should see:
 ```
 slvrov_interfaces
-slvrov_nodes_python
+slvrov_core_python
+slvrov_launch
 slvrov_tools_vendor
 ```
 
@@ -160,5 +161,5 @@ ros2 run [package name] [node name]
 
 Example:
 ```bash
-ros2 run slvrov_nodes_python pca9685_node
+ros2 run slvrov_core_python pca9685_node
 ```
