@@ -10,10 +10,7 @@ def test_core_web_scaffold_imports():
     importlib.import_module('slvrov_core_python.web.routes')
 
 
-def test_core_science_scaffold_imports():
-    package = importlib.import_module('slvrov_core_python.science')
+def test_core_control_package_imports():
+    package = importlib.import_module('slvrov_core_python.control')
 
-    assert package.PACKAGE_AREA == 'science'
-    importlib.import_module('slvrov_core_python.science.capture')
-    importlib.import_module('slvrov_core_python.science.data_logging')
-    importlib.import_module('slvrov_core_python.science.media')
+    assert package.PACKAGE_AREA == 'control'

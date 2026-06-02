@@ -123,7 +123,7 @@ Throughout operation, the joystick node will read and pubish input messages to a
 The pin configuration client can be run to edit the physical pin map of software-defined pwm devices. Through a few services, a user could view existing configurations or add new ones. These will exist on a file on the ROV computer.
 
 #### Gstreamer Streaming
-For simple cases, a script located in slvrov-tools (slvrov_tools_vendor/slvrov-tools) called 'udp-cam' could be used to display a live udp stream from the ROV. For more complex cases, more verbose gstreamer commands can be used (e.g. using compositor to display multiple feeds at once).
+For simple cases, the `udp-cam` script from the venv-installed `slvrov-tools` repo can be used to display a live UDP stream from the ROV. For more complex cases, more verbose gstreamer commands can be used (e.g. using compositor to display multiple feeds at once).
 
 ### Ubuntu Server (ROV/Raspberry Pi 4)
 ...

@@ -13,7 +13,7 @@ git branch --show-current
 Then log into the Ubuntu VM:
 
 ```bash
-ssh codex-tester
+ssh codex_tester
 ```
 
 ## 2. Pull the Latest Code to Test
@@ -27,7 +27,7 @@ cd ~/slvrov_ros
 If the checkout does not exist yet, clone it first:
 
 ```bash
-git clone --recurse-submodules https://github.com/slvusd/slvrov_ros.git ~/slvrov_ros
+git clone https://github.com/slvusd/slvrov_ros.git ~/slvrov_ros
 cd ~/slvrov_ros
 ```
 
@@ -38,7 +38,6 @@ git status --short
 git fetch --all --prune
 git checkout <branch-name>
 git pull --ff-only origin <branch-name>
-git submodule update --init --recursive
 ```
 
 Replace `<branch-name>` with the branch from the local workspace. If the local changes are not committed and pushed, the VM cannot pull them from git yet.

@@ -35,20 +35,24 @@ Sources:
 | D-006 | Joystick controls | Physical joystick input only for MVP; web joystick controls are future work. | Confirmed | MVP spec sections 2, 6, 8, 16 |
 | D-007 | Vehicle state | Use simple `control enabled / disabled`, not full arming/disarming. | Confirmed | MVP spec sections 2 and 16 |
 | D-008 | Camera layouts | Use fixed/preset camera layouts only for MVP. | Confirmed | MVP spec sections 2, 6, 14, 16 |
-| D-009 | File history | Include a simple recent photos gallery; no full file browser for MVP. | Confirmed | MVP spec sections 2, 13, 16 |
+| D-009 | File history | Runtime logs only for MVP; photo/video/CSV browsing is deferred with science/capture scope. | Confirmed | MVP spec sections 2, 13, 16 |
 | D-010 | ROS2 node authorship | Owner writes new ROS2 node internals by default; agents provide scaffolds, interfaces, fakes, tests, and TODOs. | Confirmed | MVP spec sections 2, 12, 15, 16 |
 | D-011 | Preflight placement | System Test / Preflight lives inside Setup Mode, not as a fifth top-level mode. | Confirmed | MVP spec section 9 |
 | D-012 | Persistent settings | Persistent config changes should be made through Setup Mode. | Confirmed | MVP spec section 12 |
 | D-013 | UI demo workflow | Create a broad static UI direction demo before detailed page/mode demos so owner can choose a base visual direction. | Confirmed | `mvp_agent_tasks.md` Task 10A |
-| D-014 | Target structure | Move toward `src/slvrov_core_python`, `src/slvrov_interfaces`, `src/slvrov_launch`, and root `rov_config/`; consolidate Flask, MediaMTX support, and production UI into `slvrov_core_python`. | Confirmed | `slvrov_ros_structure.md` |
+| D-014 | Target structure | Use `src/slvrov_core_python`, `src/slvrov_interfaces`, `src/slvrov_launch`, and root `rov_config/`; keep core control code under `slvrov_core_python.control`, Flask/UI code under `slvrov_core_python.web`, and MediaMTX support under `slvrov_core_python.mediamtx`. | Confirmed | `slvrov_ros_structure.md`; owner structural update |
+| D-015 | Tools dependency | Remove the `slvrov_tools_vendor` ROS package/submodule; install the real `slvrov-tools` repo into the active Python virtual environment. | Confirmed | Owner structural update; `system_documents/setup.md` |
+| D-016 | Science scope | Remove the `slvrov_core_python.science` scaffold from the MVP package; defer Scientist Mode, photo/video capture, and sensor data workflows. | Confirmed | Owner structural update |
 
 ## Structural Migration
 
 Confirmed:
 
-- `slvrov_core_python` should contain ROS2 control nodes, Flask server code,
-  MediaMTX support files, and production UI for Setup, Pilot, and Developer
-  modes.
+- `slvrov_core_python` should contain ROS2 control nodes/helpers under
+  `slvrov_core_python.control`, Flask server/UI code under
+  `slvrov_core_python.web`, MediaMTX support files under
+  `slvrov_core_python.mediamtx`, and production UI for Setup, Pilot, and
+  Developer modes.
 - `slvrov_interfaces` stores custom interfaces and should split services by
   node or feature area where useful.
 - `slvrov_launch` stores launch files for each ROV configuration in
@@ -60,11 +64,13 @@ Current repo layout:
 
 - `src/slvrov_core_python/` already exists and contains control nodes,
   joystick mapper logic, JSON helpers, hardware-related code, web/UI scaffold
-  directories, science/capture scaffold directories, and MediaMTX support
-  notes.
-- `src/slvrov_web_ui/` and `src/slvrov_science_python/` have been removed as
-  standalone packages after their useful scaffold files moved into
-  `slvrov_core_python`.
+  directories, and MediaMTX support notes.
+- Control code is grouped under
+  `src/slvrov_core_python/slvrov_core_python/control/`.
+- `src/slvrov_web_ui/`, `src/slvrov_science_python/`, and
+  `src/slvrov_tools_vendor/` have been removed.
+- `slvrov_tools` is installed into the active Python virtual environment from
+  the real upstream repository instead of being vendored as a ROS package.
 - `rov_config/` contains MVP example configs and schema notes grouped by
   `motors/`, `actions/`, `controls/`, and `rovs/`.
 - `docs/` currently contains data-directory documentation; docs that support
@@ -78,16 +84,15 @@ Recommended defaults, not owner decisions:
   Flask/UI work.
 - Continue using `src/slvrov_core_python/slvrov_core_python/mediamtx/` for
   MediaMTX config templates, helper scripts, and maintainer notes.
-- Keep ROS2 node files directly under `slvrov_core_python` or in a
-  `nodes/` subpackage only after the owner chooses the convention.
+- Keep control nodes, control data objects, control JSON helpers, and
+  hardware-control helpers under
+  `src/slvrov_core_python/slvrov_core_python/control/`.
 - Keep reviewed runtime config examples in `rov_config/` by category.
 
 Open questions:
 
 | Question | Owner | Next-step task |
 |---|---|---|
-| Should `slvrov_core_python` web code use a `web/` subpackage, or separate top-level `routes/`, `static/`, and `templates/` package data folders? | Project owner | Structural migration task |
-| Should MVP Scientist camera/capture UI remain in `slvrov_core_python.science`, or should a future package be reintroduced later? | Project owner | Scientist capture task |
 | Should root `config/` stay removed, or should a future docs-only config example area be recreated? | Project owner | Config schema task |
 | Should root `docs/` remain for cross-package documentation, or should more docs move into package-specific folders? | Project owner | Structural migration task |
 
@@ -95,14 +100,12 @@ Open questions:
 
 Confirmed:
 
-- Four top-level modes: Pilot, Scientist, Setup, Developer.
+- Three top-level modes: Pilot, Setup, Developer.
 - Dark theme by default, based on the existing project theme.
 - Optimize for large monitor/laptop displays, especially 4:3 and 16:10.
 - Touch-specific UI is not required for MVP.
 - Main page should not remember the last selected mode.
 - Pilot should prioritize camera visibility and low distraction.
-- Scientist should focus on cameras, media capture, recent photos, recording
-  state, and storage warnings.
 - Setup should be structured and step-by-step.
 - Developer can be technical, with organized stats and allowlisted tools.
 - Create static mockups before final implementation choices are locked.
@@ -126,7 +129,6 @@ Open questions:
 | Which main page mode-selector layout should be implemented? | Project owner | Task 10A, then Task 11 |
 | Which global emergency-stop and critical-alert placement should be used? | Project owner | Task 10A, then Task 12 |
 | Which Pilot Mode camera layout presets should be MVP defaults? | Project owner | Task 10A, then Task 14 |
-| Which Scientist Mode capture layout should be implemented first? | Project owner | Task 10A, then Task 14 |
 | Should Setup Mode always show a status bar, or only on specific setup screens? | Project owner | Task 10A, then Task 13/14 |
 | Which Developer Mode stat dashboard density is preferred? | Project owner | Task 10A, then Task 14 |
 
@@ -142,8 +144,8 @@ Confirmed:
 - Error responses should use structured JSON with `ok`, `error_code`,
   `message`, `details`, and `suggested_action`.
 - Planned route areas include health, safety, alerts, camera status/config,
-  media capture, recent photos, setup config, control mapping, thruster config,
-  preflight tests, developer stats, ROS2 health, and storage status.
+  setup config, control mapping, thruster config, preflight tests, developer
+  stats, ROS2 health, and storage status.
 
 Recommended defaults, not owner decisions:
 
@@ -171,7 +173,7 @@ Confirmed:
 - Setup Mode is the place for persistent config changes.
 - MVP config areas include control mapping, thrusters, pin mappings, cameras,
   UI preferences/layout presets, ROS2 requirements, safety thresholds, and
-  recording/storage settings.
+  runtime log/storage settings.
 - Starter examples now live under `../rov_config/`.
 
 Recommended defaults, not owner decisions:
@@ -181,7 +183,7 @@ Recommended defaults, not owner decisions:
 - Put formal JSON Schema files or documented validation contracts in
   `rov_config/schemas/` or package-local validator docs if the owner chooses
   schema files.
-- Keep runtime generated media and logs outside the repo, following
+- Keep runtime generated logs and future media outside the repo, following
   `../docs/data_directory.md`.
 - Avoid reusing `submersed_globals.py` current-working-directory persistence
   behavior for new MVP web config paths.
@@ -211,7 +213,7 @@ Recommended defaults, not owner decisions:
 
 - Use `web_ros_bridge_node` as the broad allowlisted service/topic bridge name
   unless Task 4 chooses a better name.
-- Keep safety, preflight, developer monitoring, media capture, and storage
+- Keep safety, preflight, developer monitoring, and storage
   monitoring as separate boundaries when that makes ownership easier.
 - Use fake adapters for early Flask/UI tests until owner-authored ROS2 nodes are
   ready.
@@ -223,7 +225,6 @@ Open questions:
 | Which MVP features are Flask-only, fake-adapter-backed, existing-ROS-backed, or new-node-backed? | Project owner | Task 4 |
 | Which suggested node names should become final? | Project owner | Task 4 |
 | Which owner-authored nodes should be written first? | Project owner | Task 4 |
-| Should Scientist media capture be Flask/MediaMTX-layer behavior or a ROS2 node? | Project owner | Task 4 and camera strategy |
 | Should storage warnings be Flask-only or published through a ROS2 storage monitor/global alert path? | Project owner | Task 4 and storage policy |
 | Which additional launch files should be updated to use `rov_config/rovs/` as new ROV configs are approved? | Project owner | Future launch task |
 
@@ -245,7 +246,7 @@ Confirmed:
 Recommended defaults, not owner decisions:
 
 - Model global motion state as `control enabled / disabled`.
-- Make emergency stop override every test and capture workflow that could
+- Make emergency stop override every test workflow that could
   affect safety.
 - Keep dangerous Developer Mode actions allowlisted and confirmation-gated.
 
@@ -266,17 +267,12 @@ Confirmed:
 - Use USB cameras.
 - Support up to 6 cameras.
 - Use MediaMTX with WebRTC for streaming.
-- Pilot and Scientist share single-camera and multi-camera fixed/preset layout
-  needs.
-- Scientist Mode needs photo capture, video recording, timestamp filenames,
-  optional filename overrides, JPEG photos, and MP4 videos.
-- Sensor display/logging is deferred until sensors are ready.
+- Pilot Mode needs single-camera and multi-camera fixed/preset layout support.
+- Science capture, photo/video recording, and sensor display/logging are
+  deferred until the owner reopens that scope.
 
 Recommended defaults, not owner decisions:
 
-- Prefer individual per-camera recording if it is more efficient and robust.
-- Treat combined-layout recording as a future option unless owner chooses it for
-  MVP.
 - Keep basic camera configuration in JSON and editable from Setup Mode.
 
 Open questions:
@@ -286,31 +282,28 @@ Open questions:
 | What USB camera device naming strategy should be used? | Project owner | Task 5 or camera setup task |
 | What MediaMTX path convention should be used for up to 6 cameras? | Project owner | Camera strategy/config task |
 | Should camera previews auto-detect available cameras or only use JSON-defined cameras? | Project owner | Task 5 or camera setup task |
-| Which recording implementation is lowest CPU and reliable with MediaMTX/WebRTC? | Project owner | Scientist media capture task |
-| Does media capture belong in `slvrov_core_python` Flask/MediaMTX adapters or owner-authored ROS2 node logic? | Project owner | Task 4 and Scientist capture task |
 
 ## Storage Policy
 
 Confirmed:
 
-- Store collected data outside the source repository.
-- Recommended layout is a sibling `data/` directory with `photos/`, `videos/`,
-  `csv/`, `preflight_logs/`, `test_logs/`, and `metadata/`.
-- Photos should be viewable in the web UI.
-- Video and CSV downloads are not required for MVP.
-- Full file browser and downloads are future features.
+- Store runtime data outside the source repository.
+- Recommended layout is a sibling `data/` directory with `preflight_logs/`,
+  `test_logs/`, and `metadata/`.
+- Photo galleries, video downloads, CSV downloads, and full file browsing are
+  future science/capture features.
 - Remaining storage should be monitored.
 - Warning and stop thresholds should exist.
-- At the stop threshold, recording should stop automatically, the current file
-  should be saved cleanly, and the user should be warned.
+- At the stop threshold, active logging or future capture should stop cleanly
+  and the user should be warned.
 
 Recommended defaults, not owner decisions:
 
 - Use `../data/` relative to `slvrov_ros/` as the initial target-machine layout
   unless the owner chooses an absolute runtime path.
-- Keep recording/storage settings in JSON under the future approved config
+- Keep runtime storage settings in JSON under the future approved config
   shape.
-- Show storage warnings globally when they affect active recording.
+- Show storage warnings globally when they affect active runtime behavior.
 
 Open questions:
 
@@ -318,9 +311,7 @@ Open questions:
 |---|---|---|
 | What exact storage directory path should the target machine use? | Project owner | Storage policy task or Task 5 |
 | What warning and stop thresholds should be used for disk remaining? | Project owner | Storage policy task |
-| How should the 60-minute data budget be estimated for photo/video/CSV types? | Project owner | Storage policy task |
 | Should storage status be Flask-only or backed by a ROS2 `storage_monitor_node`? | Project owner | Task 4 |
-| What metadata should be saved with photos/videos? | Project owner | Scientist media capture task |
 
 ## Hardware-Dependent Decisions
 
@@ -349,7 +340,6 @@ Open questions:
 | Which joystick axes/buttons should be included in the first control profile? | Project owner | Control mapping task |
 | Which required ROS2 nodes, topics, services, and parameters should Developer Mode monitor? | Project owner | Task 4 and Task 5 |
 | Which Developer Mode restart/shutdown actions are safe enough to expose? | Project owner | Developer Mode task |
-| Should vendored `slvrov_tools` remain untouched during MVP work? | Project owner | Dependency/launch maintenance task |
 
 ## Immediate Next Owner Review
 

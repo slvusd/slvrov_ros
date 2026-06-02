@@ -10,18 +10,18 @@ The project repository/package workspace is named:
 
 The target codebase structure is defined in `summer_2026_update/slvrov_ros_structure.md`. The MVP should move toward this structure:
 
-- `slvrov_core_python` — ROS2 control nodes, Flask server code, MediaMTX support files, and production UI for Setup, Pilot, and Developer modes
+- `slvrov_core_python` — ROS2 control nodes under `slvrov_core_python.control`, Flask server code under `slvrov_core_python.web`, MediaMTX support files under `slvrov_core_python.mediamtx`, and production UI for Setup, Pilot, and Developer modes
 - `slvrov_interfaces` — custom messages, services, and actions
 - `slvrov_launch` — launch files for each approved ROV configuration
 - `rov_config` — JSON/YAML configuration grouped by motors, actions, controls, and ROV definitions
 
-Older MVP scaffold packages such as `slvrov_web_ui` and `slvrov_science_python` have been consolidated into `slvrov_core_python`. Future web/science work should continue inside the core package unless the owner explicitly creates a new package.
+Older MVP scaffold packages such as `slvrov_web_ui` and `slvrov_science_python` have been removed. Web and MediaMTX work now live inside `slvrov_core_python`; science/capture work is deferred and should not be reintroduced for the MVP unless the owner explicitly asks for it.
 
 ## 1. Target Users
 
 ### Amateur operators/scientists
 
-These users need a clear, low-friction UI for driving, camera viewing, photo/video capture, and science data collection.
+These users need a clear, low-friction UI for driving, camera viewing, setup, and basic system monitoring.
 
 ### Amateur programmers/maintainers
 
@@ -42,9 +42,6 @@ These users need a codebase that is simple, readable, well-commented, and split 
 - Cameras: USB cameras
 - Camera count: support up to 6 cameras
 - Camera streaming stack: MediaMTX with WebRTC
-- Scientist media formats:
-  - Video: MP4
-  - Photos: JPEG
 - Physical joystick input: Linux `js#` joystick devices through ROS2 joystick nodes
 - Emergency stop: visible globally in all modes
 - UI theme: dark theme by default, based on the existing project theme
@@ -61,20 +58,19 @@ These users need a codebase that is simple, readable, well-commented, and split 
 - Web joystick/controller controls: not part of MVP; add in a future version.
 - Vehicle state model: use a simple software `control enabled / disabled` state rather than a full arming/disarming model for MVP.
 - Backend live-update strategy: REST polling first; upgrade to WebSockets or Server-Sent Events only if polling becomes insufficient.
-- File history: include a simple recent photos gallery.
-- Visual style: hybrid by mode. Pilot should feel like a simple vehicle control panel; Scientist should feel more data/capture focused; Developer can be more technical. Create visual mockups before final implementation choices are locked.
+- File history: runtime logs only; photo/video history is deferred with science/capture scope.
+- Visual style: hybrid by mode. Pilot should feel like a simple vehicle control panel; Setup should feel procedural and confidence-building; Developer can be more technical. Create visual mockups before final implementation choices are locked.
 - Agent workflow: strict one-sub-feature-at-a-time prompts/checkpoints.
 - ROS2 node implementation: the project owner wants to write ROS2 nodes, or at least the important parts of them, personally. Coding agents should therefore prefer scaffolding, interfaces, adapters, fake implementations, tests, and clear TODO notes over fully implementing new ROS2 node internals unless the project owner explicitly asks for that node logic.
 - Owner control: use small decision packets before implementation when architecture, route design, UI layout, safety behavior, or ROS2 boundaries are still open. The agent should show options, tradeoffs, and recommended defaults, then stop for owner review before building the selected option.
 
 ## 3. MVP Navigation
 
-The main page acts as a mode selector. The minimum version includes four top-level modes:
+The main page acts as a mode selector. The minimum version includes three top-level modes:
 
 1. Pilot Mode
-2. Scientist Mode
-3. Setup Mode
-4. Developer Mode
+2. Setup Mode
+3. Developer Mode
 
 Each mode should be visually distinct and focused on its user goal.
 
@@ -116,9 +112,8 @@ Give the user a clear entry point into the major workflows of the ROV web UI.
 
 ### MVP Features
 
-- Four large navigation cards or buttons:
+- Three large navigation cards or buttons:
   - Pilot
-  - Scientist
   - Setup
   - Developer
 - Short description under each mode
@@ -166,23 +161,18 @@ Potential camera layouts:
 
 Pilot Mode should be the simplest of all modes. It should prioritize low distraction, clear visual feedback, and safe operation.
 
-## 7. Scientist Mode
+## 7. Deferred Science And Capture Work
 
 ### Purpose
 
-Provide a camera-centered science interface for photo/video capture and future data collection.
+Science-focused capture and data collection are no longer part of the MVP.
 
 ### MVP Scope
 
-For the current MVP, Scientist Mode only needs to handle cameras and media capture. Sensor data display/logging can be designed into the architecture but does not need to be implemented until sensors are ready.
+Do not implement a Scientist Mode, science package, media capture package, photo workflow, video-recording workflow, or sensor data workflow for the MVP unless the owner explicitly reopens this scope.
 
-### MVP Features
+### Deferred Features
 
-- Dedicated camera view with the same camera features as Pilot Mode:
-  - Single-camera view
-  - Multi-camera view
-  - Fixed/preset layout choices
-  - Up to 6 USB cameras
 - Take photos from each camera
 - Record video from each camera
 - Save media filenames using timestamps by default
@@ -192,10 +182,6 @@ For the current MVP, Scientist Mode only needs to handle cameras and media captu
 - Choose the lowest-CPU recording strategy that works reliably with MediaMTX/WebRTC
   - If individual per-camera recording is more efficient and robust, prefer that.
   - If combined-layout recording is simpler or more useful later, document it as a future option.
-
-### Future Sensor/Data Features
-
-These are planned but not necessarily MVP implementation items until sensor details are available:
 
 - Live sensor readings
 - CSV data logging
@@ -207,7 +193,7 @@ These are planned but not necessarily MVP implementation items until sensor deta
 
 ### Design Goal
 
-Scientist Mode should be data/capture oriented, but for MVP it should focus on reliable camera capture and file organization.
+If science work returns later, it should be data/capture oriented and can reuse Pilot camera infrastructure, Flask adapters, and MediaMTX conventions.
 
 ## 8. Setup Mode
 
@@ -281,7 +267,7 @@ Camera configuration should be saved in JSON.
 
 ### Sensor Calibration
 
-Sensor calibration is deferred for MVP because current MVP science functionality only uses cameras.
+Sensor calibration is deferred for MVP because science functionality is out of MVP scope.
 
 Potential future calibration tools:
 
@@ -468,7 +454,8 @@ Many web requests and responses should mirror their ROS2 counterparts in naming 
 Use a split architecture:
 
 - Flask code lives in `slvrov_core_python` and serves the web UI through a single understandable server entry point.
-- UI assets for Setup, Pilot, Developer, and any MVP Scientist/capture screens should be served by that Flask server from clearly separated static/template directories inside `slvrov_core_python`.
+- UI assets for Setup, Pilot, and Developer screens should be served by that Flask server from clearly separated static/template directories inside `slvrov_core_python`.
+- Control nodes and control helpers live under `slvrov_core_python.control`.
 - MediaMTX support files live under `slvrov_core_python` unless a later owner decision creates a dedicated runtime/config location.
 - A ROS2 bridge node or service layer handles ROS2-specific communication.
 - Shared objects or clearly defined interfaces can connect Flask to ROS2 logic where appropriate, but keep the boundary understandable.
@@ -485,7 +472,6 @@ Potential nodes or service layers include:
 - `web_safety_bridge_node` or `safety_monitor_node`: emergency stop, control enabled/disabled state, browser disconnect handling, and critical safety fault reporting.
 - `web_preflight_bridge_node` or `preflight_test_node`: Setup Mode test orchestration, test progress, cancel/stop behavior, and test result reporting.
 - `web_developer_monitor_node` or `ros_health_monitor_node`: required-node visibility, topic freshness, service availability, and allowlisted developer diagnostics.
-- `media_capture_node` or `science_capture_node`: optional camera capture/recording command handling if Scientist Mode capture is better kept in ROS2 than in the Flask/MediaMTX layer.
 - `storage_monitor_node`: optional storage warning/stop-threshold reporting if storage state should be published into ROS2/global alerts.
 
 These names are suggestions, not final requirements. During implementation, coding agents should document which node boundary they expect and provide fakes or tests so the owner can fill in the ROS2 node internals.
@@ -496,8 +482,6 @@ Use REST polling first for MVP because it is simpler to understand and maintain.
 
 REST endpoints should cover:
 
-- Start/stop recording
-- Take photo
 - Save settings
 - Start a test
 - Call an allowlisted service
@@ -518,7 +502,6 @@ Route planning should happen before major backend work for:
 
 - Global safety and alerts
 - Camera configuration and status
-- Media capture and recent file history
 - Setup configuration screens
 - Control mapping
 - Thruster configuration
@@ -577,9 +560,6 @@ Recommended high-level layout:
 slvrov_workspace/
 ├── slvrov_ros/
 └── data/
-    ├── photos/
-    ├── videos/
-    ├── csv/
     ├── preflight_logs/
     ├── test_logs/
     └── metadata/
@@ -587,21 +567,16 @@ slvrov_workspace/
 
 ### File Access
 
-- Photos should be viewable in the web UI.
-- Video and CSV downloads are not required for MVP.
-- Include a simple recent photos gallery.
-- Full file browser and downloads are not required for MVP.
+- Full file browser, photo gallery, video downloads, and CSV downloads are not required for MVP.
 
 ### File Size and Storage Limits
 
-- Each data type should have a maximum size/usage policy based roughly on around 60 minutes of data.
+- Runtime logs and test output should have simple size/usage policies.
 - Remaining storage should be monitored.
 - When remaining storage crosses a warning threshold, show warnings such as:
-  - "Only about 2 minutes of video recording remaining on camera 1."
-  - "Only about 30 more data points can be stored for sensor 5."
+  - "Only limited log storage remains."
 - When storage reaches the stop threshold:
-  - Automatically stop recording.
-  - Save the current file cleanly.
+  - Stop optional future capture/logging behavior cleanly.
   - Warn the user.
 
 ## 14. UI/UX
@@ -623,16 +598,10 @@ slvrov_workspace/
 Use a hybrid style by mode, and create visual mockups before committing to final implementation details.
 
 - Pilot Mode should lean toward a simple vehicle control panel: clear camera view, minimal distraction, obvious safety controls.
-- Scientist Mode should lean toward a scientific/data-capture dashboard: camera capture controls, recent photos, recording state, storage warnings.
 - Setup Mode should be structured and step-by-step.
 - Developer Mode can be more technical, with box-based stats and allowlisted tools.
 
-Before implementation, create at least two static mockups:
-
-1. Simple vehicle-control style
-2. Scientific/data dashboard style
-
-Then combine the useful parts into the mode-specific hybrid design.
+Before implementation, create multiple static mockups for owner review, including a simple vehicle-control style, a procedural setup style, and a technical developer style.
 
 ### UI Demo Selection Workflow
 
@@ -643,7 +612,6 @@ Recommended demos:
 - Main page: at least 2 mode-selection approaches.
 - Global safety: at least 2 emergency-stop/alert placements.
 - Pilot Mode: at least 3 camera layout/control-density approaches.
-- Scientist Mode: at least 2 capture-focused layouts.
 - Setup Mode: at least 2 step-by-step configuration flows.
 - Developer Mode: at least 2 dense technical dashboard layouts.
 
@@ -701,14 +669,13 @@ The agent should:
 10. Implement the selected theme, frontend utilities, Flask shell, and main page inside `slvrov_core_python`.
 11. Implement global safety API/UI shell with fake ROS2 adapter.
 12. Implement camera config/status API, one-stream WebRTC prototype, and selected Pilot layouts.
-13. Decide storage policy before media capture behavior depends on it.
-14. Plan and implement Scientist media capture in backend and UI sub-steps, with package placement decided before implementation.
-15. Plan and implement Setup camera, control mapping, and thruster configuration in separate sub-steps.
-16. Plan and implement Preflight/test API/UI with fake ROS2 adapters.
-17. Plan and implement Developer stats and ROS2 monitor in separate sub-steps.
-18. Implement storage limit handling and global alert integration.
-19. Audit old scaffold packages/config paths before removing anything.
-20. Audit routes, add end-to-end tests, and write docs/manual hardware checklists.
+13. Decide storage policy before storage warnings and runtime log handling depend on it.
+14. Plan and implement Setup camera, control mapping, and thruster configuration in separate sub-steps.
+15. Plan and implement Preflight/test API/UI with fake ROS2 adapters.
+16. Plan and implement Developer stats and ROS2 monitor in separate sub-steps.
+17. Implement storage limit handling and global alert integration for logs/runtime output.
+18. Audit old scaffold packages/config paths before removing anything.
+19. Audit routes, add end-to-end tests, and write docs/manual hardware checklists.
 
 ## 16. Resolved MVP Decisions
 
@@ -723,15 +690,16 @@ The following decisions have been resolved for the MVP.
 | Thruster tuning | Use the recommended MVP parameter set | Refine exact values after hardware testing. |
 | Motor test safety | Use recommended low-power, timed, preset pulse policy | Exact pulse duration and power should be chosen during hardware testing. |
 | Camera setup | Include basic camera setup in Setup Mode | Keep saved configuration in JSON. |
+| Science/capture scope | Defer Scientist Mode, photo/video capture, and sensor data workflows | Reintroduce later only after owner approval. |
 | Sensor calibration | Defer all sensor calibration | Add when non-camera science sensors are introduced. |
 | Developer ROS2 access | Allowlisted topics, services, and parameters only | Avoid arbitrary ROS2 access from the browser for MVP. |
 | Backend live updates | REST polling first | Upgrade to WebSockets/SSE later only if needed. |
-| File history | Simple recent photos gallery | Full file browser and downloads are future features. |
-| Visual style | Hybrid by mode, with mockups first | Pilot simple/control-focused; Scientist capture/data-focused; Developer technical. |
+| File history | Runtime logs only for MVP | Photo/video/CSV browsing is future science/capture work. |
+| Visual style | Hybrid by mode, with mockups first | Pilot simple/control-focused; Setup procedural; Developer technical. |
 | Agent workflow | Strict one-sub-feature-at-a-time prompts/checkpoints | Each sub-feature should include tests before moving on. |
 | ROS2 node authorship | Project owner writes new ROS2 node internals by default | Coding agents should provide scaffolds, contracts, fakes, tests, and TODOs unless asked to implement node behavior. |
 | Owner control | Decision packets before implementation | Use demos, route maps, schemas, and tradeoff notes so the owner chooses before agents build. |
-| Target structure | Consolidate web/UI/MediaMTX support into `slvrov_core_python`; keep interfaces and launch separate; use `rov_config/` for ROV configuration | The old web/science scaffolds and root `config/` tree have been migrated into the new structure. |
+| Target structure | Keep control code in `slvrov_core_python.control`, web/UI code in `slvrov_core_python.web`, MediaMTX support in `slvrov_core_python.mediamtx`; keep interfaces and launch separate; use `rov_config/` for ROV configuration | The old web/science/vendor scaffolds and root `config/` tree have been removed or migrated into the new structure. |
 
 ## 17. Remaining Details To Decide During Implementation
 
@@ -765,4 +733,4 @@ These are not blocking architectural decisions, but they should be finalized whe
 
 - Exact storage directory path on the target machine.
 - Exact warning and stop thresholds for remaining disk space.
-- Approximate video/photo storage usage for 60 minutes of data per type.
+- Approximate runtime log/test-output storage usage for expected operating sessions.

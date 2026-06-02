@@ -3,14 +3,20 @@
 - `slvrov_core_python` – ROS2 control nodes, Flask/UI scaffolding, MediaMTX support, and web adapters
 - `slvrov_interfaces` – Messages and interfaces
 - `slvrov_launch` – Launch files for approved ROV configs
-- `slvrov_tools` – Shared python tools (submodule)
+- `slvrov_tools` – Shared Python tools installed into the active virtual environment
 
 ## Build
 ```bash
-git clone --recurse-submodules https://github.com/slvusd/slvrov_ros.git
-cd ./slvrov_ros/src/slvrov_tools_vendor/slvrov_tools
+python3 -m venv venv
+source venv/bin/activate
+pip install empy==3.3.4 catkin-pkg lark pyparsing
+git clone https://github.com/LegionaryOfLogic/slvrov-tools.git
+cd slvrov-tools
 make
-cd ./../../..
+pip install .
+cd ..
+git clone https://github.com/slvusd/slvrov_ros.git
+cd slvrov_ros
 source /opt/ros/jazzy/setup.bash
 colcon build
 source install/setup.bash

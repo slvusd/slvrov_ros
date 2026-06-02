@@ -97,11 +97,11 @@ Go back to your home directory (or wherever you want the project to live), then 
 
 ```bash
 cd ~
-git clone --recurse-submodules https://github.com/LegionaryOfLogic/slvrov_ros.git
+git clone https://github.com/LegionaryOfLogic/slvrov_ros.git
 cd slvrov_ros
 ```
 
-> The `--recurse-submodules` flag is important — it also downloads `slvrov_tools` as a submodule inside the ROS workspace.
+> `slvrov_tools` is installed into the virtual environment in Step 5. It is no longer a ROS workspace submodule/package.
 
 ---
 
@@ -136,7 +136,6 @@ You should see:
 slvrov_interfaces
 slvrov_core_python
 slvrov_launch
-slvrov_tools_vendor
 ```
 
 ---

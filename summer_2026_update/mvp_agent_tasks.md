@@ -21,12 +21,12 @@ Implementation-task testing should follow the VM workflow in [Agent VM Testing G
 
 Target structure from `summer_2026_update/slvrov_ros_structure.md`:
 
-- `src/slvrov_core_python/`: ROS2 control nodes, Flask server code, MediaMTX support files, and production UI for Setup, Pilot, Developer, and any owner-approved MVP capture screens.
+- `src/slvrov_core_python/`: ROS2 control nodes/helpers under `slvrov_core_python.control`, Flask server/UI code under `slvrov_core_python.web`, MediaMTX support files under `slvrov_core_python.mediamtx`, and production UI for Setup, Pilot, and Developer modes.
 - `src/slvrov_interfaces/`: custom messages, services, and actions, with services split by node or feature area where useful.
 - `src/slvrov_launch/`: launch files for each approved ROV configuration.
 - `rov_config/`: ROV configuration grouped by `motors/`, `actions/`, `controls/`, and `rovs/`.
 
-Older MVP scaffolds from `src/slvrov_web_ui/`, `src/slvrov_science_python/`, and root `config/` have been consolidated into `slvrov_core_python` and `rov_config/`. Future structural tasks should avoid recreating those old standalone package paths unless the owner explicitly asks for them.
+Older MVP scaffolds from `src/slvrov_web_ui/`, `src/slvrov_science_python/`, `src/slvrov_tools_vendor/`, and root `config/` have been removed or consolidated into `slvrov_core_python`, `rov_config/`, and the virtual-environment setup flow. Future structural tasks should avoid recreating those old standalone package paths unless the owner explicitly asks for them.
 
 Likely web-facing `slvrov_core_python` ROS2 node boundaries to keep in mind:
 
@@ -34,7 +34,6 @@ Likely web-facing `slvrov_core_python` ROS2 node boundaries to keep in mind:
 - `web_safety_bridge_node` or `safety_monitor_node`: emergency stop, control enabled/disabled state, browser disconnect handling, and critical safety fault reporting.
 - `web_preflight_bridge_node` or `preflight_test_node`: Setup Mode test orchestration, progress, cancel/stop behavior, and result reporting.
 - `web_developer_monitor_node` or `ros_health_monitor_node`: required-node visibility, topic freshness, service availability, and allowlisted diagnostics.
-- `media_capture_node` or `science_capture_node`: optional camera capture/recording command handling if Scientist Mode capture is better kept in ROS2.
 - `storage_monitor_node`: optional storage warning/stop-threshold reporting if storage state should feed ROS2/global alerts.
 
 These are planning names, not final API requirements. When a task touches one of these areas, the coding agent should make the boundary easy for the project owner to complete.
@@ -46,7 +45,7 @@ Use this plan after the owner approves the structural migration decision packet:
 1. Snapshot the current layout before any future structural work:
    - `src/slvrov_core_python/` contains current control nodes, joystick mapper code, JSON helpers, and hardware-related config.
    - `src/slvrov_core_python/slvrov_core_python/web/` contains web/UI scaffold directories.
-   - `src/slvrov_core_python/slvrov_core_python/science/` contains capture/media/data scaffold directories.
+   - `src/slvrov_core_python/slvrov_core_python/control/` contains control nodes and local control helpers.
    - `rov_config/` contains MVP config examples and schema notes.
    - `docs/` contains cross-package documentation that can remain root-level unless it becomes package-specific.
 2. Create target directories without moving behavior yet:
@@ -69,7 +68,7 @@ Inventory the current repo before adding MVP code.
 
 ### Coding Agent Prompt
 
-Review the existing packages, launch files, interfaces, joystick mapper code, JSON helpers, tests, root docs, `rov_config/`, and the current `slvrov_core_python` web/science scaffolds. Produce a short inventory document that explains what already exists, what can be reused, what should not be touched, and which files/packages are likely owners of future MVP work under the new target structure.
+Review the existing packages, launch files, interfaces, joystick mapper code, JSON helpers, tests, root docs, `rov_config/`, and the current `slvrov_core_python` control/web/MediaMTX scaffolds. Produce a short inventory document that explains what already exists, what can be reused, what should not be touched, and which files/packages are likely owners of future MVP work under the new target structure.
 
 Do not implement code in this task.
 
@@ -147,7 +146,7 @@ Plan web-to-ROS boundaries before route and config details harden.
 
 ### Coding Agent Prompt
 
-Create a boundary document that explains which MVP features are Flask-only, which use fake adapters, which may call existing ROS2 services/topics, and which likely need owner-authored ROS2 nodes. Include expected inputs/outputs for `web_ros_bridge_node`, `web_safety_bridge_node` or `safety_monitor_node`, `web_preflight_bridge_node` or `preflight_test_node`, `web_developer_monitor_node` or `ros_health_monitor_node`, optional `media_capture_node`, and optional `storage_monitor_node`.
+Create a boundary document that explains which MVP features are Flask-only, which use fake adapters, which may call existing ROS2 services/topics, and which likely need owner-authored ROS2 nodes. Include expected inputs/outputs for `web_ros_bridge_node`, `web_safety_bridge_node` or `safety_monitor_node`, `web_preflight_bridge_node` or `preflight_test_node`, `web_developer_monitor_node` or `ros_health_monitor_node`, and optional `storage_monitor_node`.
 
 Do not implement ROS2 nodes in this task.
 
@@ -200,7 +199,7 @@ Plan Flask routes after response shape, ROS2 boundaries, and config ownership ar
 
 ### Coding Agent Prompt
 
-Create a Flask route map for owner review. Include planned routes for health, mode pages, global alerts, emergency stop, control enabled/disabled state, camera config/status, media capture, recent photos, setup config save/load, control mapping, thruster config, preflight tests, developer stats, ROS2 monitor status, and storage status. Assume the route modules will live under `slvrov_core_python` unless the owner approves a different structure.
+Create a Flask route map for owner review. Include planned routes for health, mode pages, global alerts, emergency stop, control enabled/disabled state, camera config/status, setup config save/load, control mapping, thruster config, preflight tests, developer stats, ROS2 monitor status, and storage status. Assume the route modules will live under `slvrov_core_python.web` unless the owner approves a different structure.
 
 For each route, list method, path, request body, response shape, backing service/adapter, fake adapter behavior, possible ROS2 owner-authored node dependency, config files touched, and whether it is MVP or future.
 
@@ -232,7 +231,9 @@ Plan the migration from the current repo layout to the target structure before m
 Compare the current repo layout against `summer_2026_update/slvrov_ros_structure.md`. Produce a structural migration plan that covers:
 
 - keeping Flask/UI scaffold content in `src/slvrov_core_python/slvrov_core_python/web/`
-- keeping science/capture scaffold content in `src/slvrov_core_python/slvrov_core_python/science/`, unless the owner later splits it out
+- keeping control nodes/helpers in `src/slvrov_core_python/slvrov_core_python/control/`
+- removing the science/capture scaffold from MVP scope
+- removing `src/slvrov_tools_vendor/` and using a venv-installed `slvrov-tools`
 - maintaining `src/slvrov_core_python/slvrov_core_python/mediamtx/`
 - keeping reviewed runtime config in `rov_config/`
 - keeping `slvrov_interfaces` service grouping aligned with node/feature ownership
@@ -383,7 +384,6 @@ choices. The demo should include lightweight, non-production mockups for:
 - Main mode selection.
 - Global emergency stop and critical alerts.
 - Pilot camera layout presets.
-- Scientist camera/capture workflow.
 - Setup Mode status/navigation structure.
 - Developer Mode stat/dashboard density.
 
@@ -437,7 +437,7 @@ Generate alternate main mode-selection UI demos.
 
 ### Coding Agent Prompt
 
-Create at least two static main-page demos for Pilot, Scientist, Setup, and Developer mode selection. Use the dark theme direction and large-display target. Make the demos meaningfully different in layout, information density, and visual emphasis.
+Create at least two static main-page demos for Pilot, Setup, and Developer mode selection. Use the dark theme direction and large-display target. Make the demos meaningfully different in layout, information density, and visual emphasis.
 
 Do not implement the production main page yet.
 
@@ -515,7 +515,7 @@ Generate alternate UI demos for each major mode.
 
 ### Coding Agent Prompt
 
-Create static demos for Pilot, Scientist, Setup, and Developer Mode. Provide at least three Pilot camera layout/control-density options, at least two Scientist capture layouts, at least two Setup flow demos based on the approved Setup information architecture, and at least two Developer dashboard layouts. Use fake data and placeholder camera panels.
+Create static demos for Pilot, Setup, and Developer Mode. Provide at least three Pilot camera layout/control-density options, at least two Setup flow demos based on the approved Setup information architecture, and at least two Developer dashboard layouts. Use fake data and placeholder camera panels.
 
 Do not implement production mode pages yet.
 
@@ -597,7 +597,7 @@ Implement the selected main page.
 
 ### Coding Agent Prompt
 
-Implement the owner-selected main mode-selection page. It should show four large navigation cards or buttons with short descriptions. It should not require login and should not remember the last selected mode.
+Implement the owner-selected main mode-selection page. It should show three large navigation cards or buttons with short descriptions. It should not require login and should not remember the last selected mode.
 
 Do not implement mode internals in this task.
 
@@ -607,7 +607,7 @@ Owner reviews the production main page before mode internals are added.
 
 ### Tests And Checks
 
-- Frontend smoke test that all four navigation targets are present.
+- Frontend smoke test that all three navigation targets are present.
 - Manual or browser-automation check at 4:3 and 16:10-ish viewport sizes.
 - Verify no local storage/session behavior remembers the last selected mode.
 
@@ -716,7 +716,7 @@ Do not implement recording or multi-camera layouts yet.
 
 ### Decision Checkpoint
 
-Owner reviews the camera embed approach before Pilot and Scientist pages depend on it.
+Owner reviews the camera embed approach before Pilot and Setup preview pages depend on it.
 
 ### Tests And Checks
 
@@ -727,7 +727,7 @@ Owner reviews the camera embed approach before Pilot and Scientist pages depend 
 ### Acceptance Criteria
 
 - One camera preview can be selected and displayed.
-- The component can be reused by Pilot, Scientist, and Setup pages.
+- The component can be reused by Pilot and Setup pages.
 
 ## Task 22: Pilot Mode Selected Camera Layouts
 
@@ -743,7 +743,7 @@ Do not add joystick visualization, telemetry, or web joystick controls.
 
 ### Decision Checkpoint
 
-Owner reviews Pilot Mode before Scientist camera/capture UI is built.
+Owner reviews Pilot Mode before Setup camera-preview wiring depends on the same component.
 
 ### Tests And Checks
 
@@ -762,17 +762,17 @@ Owner reviews Pilot Mode before Scientist camera/capture UI is built.
 
 ### Scope
 
-Plan media/data storage policy before capture behavior is implemented.
+Plan runtime log/storage policy before storage warnings are implemented.
 
 ### Coding Agent Prompt
 
-Propose the storage policy for media/data directories. Include warning threshold, stop threshold, estimated remaining photo/video capacity, automatic recording stop behavior, global alert behavior, and whether a future owner-authored `storage_monitor_node` is useful.
+Propose the storage policy for runtime data directories. Include warning threshold, stop threshold, log/test-output capacity expectations, global alert behavior, and whether a future owner-authored `storage_monitor_node` is useful.
 
 Do not implement storage code in this task.
 
 ### Decision Checkpoint
 
-Owner approves thresholds, messages, and stop behavior before media capture depends on them.
+Owner approves thresholds, messages, and stop behavior before storage warnings are implemented.
 
 ### Tests And Checks
 
@@ -784,23 +784,23 @@ Owner approves thresholds, messages, and stop behavior before media capture depe
 - Storage limits are understandable before implementation.
 - Shutdown behavior is clear and testable.
 
-## Task 24: Scientist Capture Route Decision Packet
+## Task 24: Deferred Science Capture Route Decision Packet
 
 ### Scope
 
-Plan media capture routes and strategy.
+Future-only planning for science/media capture routes.
 
 ### Coding Agent Prompt
 
-Propose the backend route design and adapter strategy for Scientist Mode media capture. Cover taking photos, starting/stopping per-camera video recording, reporting recording state, safe filename overrides, recent photos, storage checks, and hardware/MediaMTX assumptions.
+Do not run this task for the MVP. If the owner later reopens science/capture scope, propose the backend route design and adapter strategy for Scientist Mode media capture. Cover taking photos, starting/stopping per-camera video recording, reporting recording state, safe filename overrides, recent photos, storage checks, and hardware/MediaMTX assumptions.
 
-Compare Flask/MediaMTX-only capture with a future owner-authored `media_capture_node` or `science_capture_node`. Use the approved storage policy from Task 23 when planning recording stop behavior.
+Compare Flask/MediaMTX-only capture with a future owner-authored `media_capture_node` or `science_capture_node`. Use the approved storage policy when planning recording stop behavior.
 
 Do not implement capture routes in this task.
 
 ### Decision Checkpoint
 
-Owner chooses capture route names and whether capture should stay Flask-side for MVP or use a ROS2 node boundary.
+Owner decides whether science/capture returns to scope, then chooses capture route names and whether capture should stay Flask-side or use a ROS2 node boundary.
 
 ### Tests And Checks
 
@@ -812,21 +812,21 @@ Owner chooses capture route names and whether capture should stay Flask-side for
 - Capture behavior is planned before code exists.
 - Hardware-dependent gaps are called out.
 
-## Task 25: Scientist Capture Backend
+## Task 25: Deferred Scientist Capture Backend
 
 ### Scope
 
-Implement selected capture backend behavior.
+Future-only implementation of selected capture backend behavior.
 
 ### Coding Agent Prompt
 
-Implement backend endpoints for taking photos, starting/stopping per-camera recording, reporting recording state, and listing recent photos. Use timestamped filenames by default and allow optional filename overrides with safe filename validation. Use fake camera/media adapters where hardware is unavailable. Implement this inside the owner-approved `slvrov_core_python` web/media structure unless the structural migration decision preserves a separate science package.
+Do not run this task for the MVP. If the owner later reopens science/capture scope, implement backend endpoints for taking photos, starting/stopping per-camera recording, reporting recording state, and listing recent photos. Use timestamped filenames by default and allow optional filename overrides with safe filename validation. Use fake camera/media adapters where hardware is unavailable. Implement this inside the owner-approved `slvrov_core_python` web/media structure unless a future structural decision creates a separate science package.
 
 If capture commands need ROS2 ownership, define an adapter and fake implementation for the future owner-authored node instead of implementing node internals.
 
 ### Decision Checkpoint
 
-Owner reviews backend capture behavior before final Scientist UI wiring.
+Owner reviews backend capture behavior before final future Scientist UI wiring.
 
 ### Tests And Checks
 
@@ -841,21 +841,21 @@ Owner reviews backend capture behavior before final Scientist UI wiring.
 - Media filenames are safe and timestamped by default.
 - Hardware-dependent gaps are documented.
 
-## Task 26: Scientist Mode UI
+## Task 26: Deferred Scientist Mode UI
 
 ### Scope
 
-Implement selected Scientist Mode UI.
+Future-only implementation of selected Scientist Mode UI.
 
 ### Coding Agent Prompt
 
-Implement the owner-selected Scientist Mode camera/capture UI. Include camera viewing, photo capture, video recording controls, recording state, optional filename override, and a simple recent photos gallery.
+Do not run this task for the MVP. If the owner later reopens science/capture scope, implement the owner-selected Scientist Mode camera/capture UI. Include camera viewing, photo capture, video recording controls, recording state, optional filename override, and a simple recent photos gallery.
 
 Do not implement sensor data logging yet.
 
 ### Decision Checkpoint
 
-Owner reviews Scientist Mode before storage limits are integrated deeply.
+Owner reviews Scientist Mode before future capture storage limits are integrated deeply.
 
 ### Tests And Checks
 
@@ -1178,11 +1178,11 @@ Owner reviews monitor display before any real ROS2 graph integration.
 
 ### Scope
 
-Implement approved storage handling after capture behavior exists.
+Implement approved storage handling for runtime logs and test output.
 
 ### Coding Agent Prompt
 
-Implement MVP storage limit handling for media/data directories. Track disk remaining and estimate remaining photo/video capacity using the approved policy. Show warnings when warning thresholds are crossed and automatically stop recording cleanly when stop thresholds are reached.
+Implement MVP storage limit handling for runtime data directories. Track disk remaining and estimate remaining log/test-output capacity using the approved policy. Show warnings when warning thresholds are crossed and cleanly stop optional logging behavior when stop thresholds are reached.
 
 Storage checks can be Flask-side for MVP. If storage warnings need to feed ROS2/global alerts, define the contract for a future owner-authored `storage_monitor_node` and test it with a fake adapter.
 
@@ -1292,7 +1292,7 @@ Create final setup/run docs and manual checklists.
 
 ### Coding Agent Prompt
 
-Create the MVP documentation package. Add setup/run instructions for the `slvrov_core_python` Flask/UI pieces, ROS2 pieces, `rov_config/` files, and important API endpoints, and add a mode-by-mode manual checklist for Pilot, Scientist, Setup, and Developer Mode. Document every owner-authored ROS2 node TODO created by earlier tasks, including expected interface, fake used in tests, and manual/hardware checks needed when the owner fills in the node logic.
+Create the MVP documentation package. Add setup/run instructions for the `slvrov_core_python` Flask/UI pieces, ROS2 pieces, `rov_config/` files, and important API endpoints, and add a mode-by-mode manual checklist for Pilot, Setup, and Developer Mode. Document every owner-authored ROS2 node TODO created by earlier tasks, including expected interface, fake used in tests, and manual/hardware checks needed when the owner fills in the node logic.
 
 ### Decision Checkpoint
 

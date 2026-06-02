@@ -1,3 +1,0 @@
-[submodule "src/slvrov_tools_vendor/slvrov_tools"]
-	path = src/slvrov_tools_vendor/slvrov_tools
-	url = https://github.com/LegionaryOfLogic/slvrov-tools.git
