@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify  # type: ignore
 custom_actions_bp = Blueprint('custom_actions', __name__, url_prefix='/custom-actions')
 
 
+# TESTED
 @custom_actions_bp.route("/create_actions", methods=["POST"])
 def create_actions():
     """
@@ -18,12 +19,13 @@ def create_actions():
     action_file = data.get("action_file")
 
     with open(f"rov_config/actions/{action_file}", "w") as file:
-        json.dump(actions, file)
+        json.dump({"actions": actions}, file, indent=2)
     
     # if any error occurs during this process, return error response
-    return jsonify({"status": "success"}), 200
+    return jsonify({"success": True}), 200
 
 
+# TESTED
 @custom_actions_bp.route("/read_actions")
 def read_actions():
     """
@@ -37,10 +39,10 @@ def read_actions():
         with open(f"rov_config/actions/{action_file}", "r") as file:
             actions = json.load(file)
 
-        return jsonify({"status": "success", "actions": actions}), 200
+        return jsonify({"success": True, "actions": actions}), 200
     
     except Exception as exception:
-        return jsonify({"status": "error", "message": str(exception)}), 500
+        return jsonify({"success": False, "message": str(exception)}), 500
 
 
 @custom_actions_bp.route("/update_action", methods=["POST"])
@@ -53,6 +55,7 @@ def update_action():
     return ...
 
 
+# TESTED
 @custom_actions_bp.route("/delete_action", methods=["POST"])
 def delete_action():
     """
@@ -60,7 +63,32 @@ def delete_action():
     * delete action from custom action file in rov_config/actions
     * Return success or error response
     """
-    return ...
+    data = request.get_json()
+    action_name = data.get("action_name")
+    action_file = data.get("action_file")
+
+    try:
+        with open(f"rov_config/actions/{action_file}", "r") as file:
+            content = json.load(file)
+            actions = content.get("actions")
+
+        updated_actions = [action for action in actions if action.get("action_name") != action_name]
+        if len(updated_actions) == len(actions):
+            return {"success": False, "message": "Action does not exist in specified file"}
+
+        with open(f"rov_config/actions/{action_file}", "w") as file:
+            json.dump({"actions": updated_actions}, file, indent=2)
+
+        return jsonify({"success": True, "message": "Action was deleted"})
+    
+    except FileNotFoundError as e:
+        return jsonify({"success": False, "message": "Action file not found"})
+    
+    except json.JSONDecodeError as e:
+        return jsonify({"success": False, "message": "Invalid JSON format in file"})
+    
+    except Exception as exception:
+        return jsonify({"success": False, "message": f"Unexpected error: {str(exception)}"})
 
 
 @custom_actions_bp.route("/delete_action_file", methods=["POST"])

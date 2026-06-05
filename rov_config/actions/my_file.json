@@ -1,0 +1,8 @@
+{
+  "actions": [
+    {
+      "action_name": "my_action",
+      "action_type": "js_axis"
+    }
+  ]
+}

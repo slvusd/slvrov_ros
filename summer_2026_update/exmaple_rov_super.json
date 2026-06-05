@@ -1,5 +1,5 @@
 {
-    "actions": [
+    "mapped_actions": [
         {
             "action_name": "strafe",
             "topic": "/js0",
@@ -15,7 +15,7 @@
             "invert": false
         }
     ],
-    "motors": [
+    "mapped_motors": [
         {
             "motor_name": "forward_left",
             "pin": 2,
@@ -55,14 +55,20 @@
     ],
     "joysticks": [
         {
-            "topic": "js0",
+            "topic": "/js0",
             "deadzone": 0.05,
             "update_hz": 20
         },
         {
-            "topic": "js1",
+            "topic": "/js1",
             "deadzone": 0.05,
             "update_hz": 20
+        }
+    ],
+    "actions": [
+        {
+            "action_name": "strafe",
+            "action_type": "js_axis"
         }
     ]
 }
