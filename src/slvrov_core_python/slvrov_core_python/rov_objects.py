@@ -41,15 +41,17 @@ class Motor:
     motor_name: str
     pin: int
 
-    default_pwm: int = 1500
-    min_pwm: int = 1000
-    max_pwm: int = 2000
-    clamp_delta_pwm: int = 100
+    default_pwm: int
+    min_pwm: int
+    max_pwm: int
+    clamp_delta_pwm: int
 
+    action_contributions: dict[str, float] = field(default_factory=dict)
+
+    # not for MVP, but will be used in future versions
     direction: MotorDirection | None = None
     position: list[float] | None = None
     angle: float | None = None
-    action_contributions: dict[str, float] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, object]:
         """Converts the motor to the saved JSON shape."""
@@ -82,10 +84,17 @@ class Motor:
         return cls(
             motor_name=str(json_dict["motor_name"]),
             pin=int(json_dict["pin"]),
-            default_pwm=int(json_dict.get("default_pwm", 1500)),
-            min_pwm=int(json_dict.get("min_pwm", 1000)),
-            max_pwm=int(json_dict.get("max_pwm", 2000)),
-            clamp_delta_pwm=int(json_dict.get("clamp_delta_pwm", 100)),
+            default_pwm=int(json_dict["default_pwm"]),
+            min_pwm=int(json_dict["min_pwm"]),
+            max_pwm=int(json_dict["max_pwm"]),
+            clamp_delta_pwm=int(json_dict["clamp_delta_pwm"]),
+            action_contributions={
+                str(action_name): float(contribution)
+                for action_name, contribution in json_dict.get(
+                    "action_contributions",
+                    {},
+                ).items()
+            },
             direction=(
                 MotorDirection(direction)
                 if direction is not None
@@ -101,13 +110,6 @@ class Motor:
                 if json_dict.get("angle") is not None
                 else None
             ),
-            action_contributions={
-                str(action_name): float(contribution)
-                for action_name, contribution in json_dict.get(
-                    "action_contributions",
-                    {},
-                ).items()
-            },
         )
 
 

@@ -1,0 +1,147 @@
+# SLVROV Web UI Design Guide
+
+This guide turns the collected UI advice into project-specific rules for the
+MVP website demos. Use it when creating static demos, production frontend
+structure, and later mode pages.
+
+## 1. Product Intent
+
+- Design for operators who need to drive an ROV safely, configure it without
+  developer knowledge, and diagnose issues quickly.
+- Build the actual tool UI first. Do not create a marketing landing page.
+- Keep the MVP focused on three modes: Pilot, Setup, and Developer.
+- Treat camera visibility, safety state, and clear operator feedback as higher
+  priority than decoration.
+- Use progressive disclosure: show the controls needed for the current task,
+  then reveal advanced details only when the user asks for them.
+
+## 2. Global Interaction Rules
+
+- Every interactive element must have a clear signifier: button affordance,
+  hover state, pressed/active state, disabled state, and loading/error feedback.
+- Use icons with labels where an action could be ambiguous. Use icon-only
+  buttons only for familiar actions and include tooltips.
+- Prefer Lucide icons for interface actions when available.
+- Avoid decorative emojis.
+- Use optimistic UI only for low-risk changes. Safety actions, test starts,
+  motor actions, and destructive operations must wait for explicit confirmation
+  and show authoritative state after the backend responds.
+- Keyboard shortcuts are useful for Developer Mode and repeated Setup tasks,
+  but do not rely on them for safety-critical actions.
+- Do not use drag-and-drop for MVP camera layouts or setup workflows; fixed
+  presets are easier to test and safer to explain.
+
+## 3. Layout And Navigation
+
+- Use predictable web-app conventions: top-level mode navigation, clear page
+  titles, left-to-right and top-to-bottom scanning, and stable controls.
+- Pilot Mode should minimize chrome and maximize camera area.
+- Setup Mode should feel procedural: grouped steps, tabs, or a guided flow.
+- Developer Mode can be denser, but it must remain organized and scannable.
+- Sidebars are allowed only when they reduce cognitive load. Avoid a sidebar
+  that simply repeats the top navigation.
+- Use a consistent 4-point spacing grid. Components may adapt responsively, but
+  spacing should feel intentional.
+- Define stable dimensions for camera tiles, status bars, toolbar buttons,
+  tabs, cards, and test-result rows so state changes do not shift the layout.
+- Do not nest UI cards inside other cards. Use cards for repeated items,
+  modals, and framed tools only.
+
+## 4. Visual Hierarchy
+
+- Important safety and mode-state information must be visible without reading
+  paragraphs.
+- Use size, position, contrast, and color to guide attention. Do not use color
+  alone to communicate state.
+- Keep the most important action or status near the top of each mode view.
+- Use concise text. Avoid visible instructional copy that explains obvious UI
+  mechanics; the interface should communicate through structure and states.
+- Use empty states for missing cameras, disconnected services, no test results,
+  and unavailable developer data.
+
+## 5. Color And Theme
+
+- Dark theme is the default.
+- Use neutral dark backgrounds with slightly lighter surfaces for depth; avoid
+  pure black except where it improves camera contrast.
+- Use semantic colors consistently:
+  - Red: emergency stop, critical alerts, destructive actions.
+  - Yellow/amber: warnings and caution states.
+  - Green: healthy/success states.
+  - Blue/cyan: neutral active selection, links, or live/connected status.
+- Keep accent color usage sparse. Status, active tabs, and critical actions
+  should carry most of the color.
+- Do not create a one-note palette dominated by a single hue family.
+- Check contrast for all text, icons, controls, and camera overlays.
+- Never place text over camera imagery without a readable backing treatment
+  such as a solid/translucent surface or gradient.
+
+## 6. Typography
+
+- Use one high-quality sans-serif font stack.
+- Keep letter spacing at `0`; do not use negative tracking.
+- Use a limited type scale. Dashboard/tool surfaces should use compact,
+  readable headings rather than hero-scale text.
+- Use line heights that support scanning: tighter for headings, comfortable for
+  body text and table rows.
+- Ensure long labels, device names, and status strings wrap or truncate cleanly
+  without overlapping controls.
+
+## 7. Components And Feedback
+
+- Buttons need clear hover, pressed, disabled, loading, success, and error
+  states.
+- Segmented controls fit mode/layout choices.
+- Tabs fit Setup sections and Developer subviews.
+- Toggles fit enabled/disabled camera or config settings.
+- Sliders/steppers/number inputs fit tunable numeric values.
+- Tables/lists fit Developer diagnostics and setup summaries; include search,
+  filter, or sort only when the data volume justifies it.
+- Toasts can confirm low-risk saves. Critical safety alerts should use
+  persistent banners or panels, not transient toasts.
+- Modals are appropriate for confirmations and complex focused tasks.
+- Popovers are appropriate for simple display settings or secondary actions.
+
+## 8. Mode-Specific Guidance
+
+### Pilot Mode
+
+- Camera-first layout. Keep controls sparse and out of the camera path.
+- Emergency stop and critical alerts must remain visible in every camera layout.
+- Provide selected single-camera and fixed multi-camera presets.
+- Use clear unavailable/offline camera placeholders.
+- Avoid telemetry clutter unless a later task explicitly approves it.
+
+### Setup Mode
+
+- Organize camera setup, control mapping, thruster configuration, and preflight
+  into a guided flow or clear tabs.
+- Show progress and saved/unsaved state.
+- Make dangerous motor-test actions explicit, confirmed, low-power, timed, and
+  cancelable.
+- Favor forms with grouped fields, validation messages, and clear save/revert
+  behavior.
+
+### Developer Mode
+
+- Dense is acceptable; chaotic is not.
+- Use compact stat cards, lists, and tables with clear healthy/warning/error
+  states.
+- Allow developers to choose visible stats where useful.
+- Keep dangerous actions allowlisted and confirmation-gated.
+- Do not expose arbitrary ROS2 publish/service-call tools in MVP demos unless
+  the task explicitly asks for that risk.
+
+## 9. Demo Requirements
+
+- Every demo must be clearly labeled as non-production.
+- Provide enough fake data to judge layout, density, empty states, warnings,
+  and critical alerts.
+- Include at least one offline/error state in each mode demo.
+- Check 4:3 and 16:10-ish large-display viewports.
+- Verify text, controls, camera tiles, alert banners, and emergency stop
+  controls do not overlap.
+- Include short tradeoff notes for each demo option so the owner can choose
+  based on usability, not just taste.
+- Keep unselected demos disposable or clearly archived after the owner chooses
+  a direction.

@@ -1,0 +1,12 @@
+{
+  "actions": [
+    {
+      "action_name": "my_updated_action",
+      "action_type": "js_button"
+    },
+    {
+      "action_name": "my_action",
+      "action_type": "js_axis"
+    }
+  ]
+}

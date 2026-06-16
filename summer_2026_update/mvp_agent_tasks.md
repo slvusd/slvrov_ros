@@ -7,6 +7,7 @@ Each task should be completed independently, reviewed, and tested before the nex
 Every coding agent prompt below includes the following standing requirements:
 
 - Follow `system_documents/ros2_python_style_guide.md` for ROS2 Python code.
+- Follow `system_documents/ui_design` for UI demos and frontend implementation.
 - Add comments where amateur maintainers or maintainers-to-be would need help understanding ROS2, Flask, frontend, safety, or data-flow decisions.
 - Keep implementation simple and readable.
 - Add focused tests for implementation tasks.
@@ -18,6 +19,13 @@ Every coding agent prompt below includes the following standing requirements:
 - Stop at the end of the task and report what changed, what was tested, the VM branch/commit tested when VM testing applies, what remains, and what owner decision is needed next.
 
 Implementation-task testing should follow the VM workflow in [Agent VM Testing Guide](../system_documents/agent_vm_testing.md). Decision packets and documentation-only tasks do not need VM testing unless they include runnable examples or generated files that should be verified in the Ubuntu ROS2 environment.
+
+UI demo tasks are intentionally backend-free. Tasks 10, 10A, 11, 12, 14, and
+any owner-requested demo variants must use static HTML/CSS/JavaScript and local
+fixture data only. They must not create Flask routes, start ROS2 nodes, call
+ROS2 services/topics, connect to MediaMTX/WebRTC streams, fetch from API
+endpoints, or introduce backend adapter code. A local static file server is
+allowed only to preview static files in the browser.
 
 Target structure from `summer_2026_update/slvrov_ros_structure.md`:
 
@@ -351,7 +359,10 @@ Create a disposable demo area for UI prototypes.
 
 Create a simple static UI demo shell where multiple HTML/CSS/JS prototypes can be viewed without committing to production structure. Include a demo index page and instructions for starting/viewing demos. Place demos in the owner-approved `slvrov_core_python` web/static structure or another clearly temporary demo location selected in Task 7.
 
-Do not implement final UI screens in this task.
+Do not implement final UI screens in this task. Do not create or modify Flask
+app code, Flask routes, ROS2 code, backend adapters, API clients, package entry
+points, or production frontend files. Demo pages may load local fixture JSON or
+hard-coded JavaScript objects, but they must not call backend endpoints.
 
 ### Decision Checkpoint
 
@@ -365,6 +376,7 @@ Owner confirms the demo review workflow.
 ### Acceptance Criteria
 
 - UI demos are easy to open and compare.
+- Demo shell runs as static files, with no Flask/API/ROS2 dependency.
 - Unselected demos can be removed or archived later.
 
 ## Task 10A: Static UI Direction Demo
@@ -387,23 +399,33 @@ choices. The demo should include lightweight, non-production mockups for:
 - Setup Mode status/navigation structure.
 - Developer Mode stat/dashboard density.
 
+Apply `system_documents/ui_design` to every option. Each option should show:
+
+- Clear affordances and visible hover/pressed/disabled/loading/error states.
+- Semantic safety colors for emergency, warning, healthy, and active states.
+- Stable 4-point-grid spacing and fixed camera/control dimensions.
+- Readable dark-mode contrast and camera overlays.
+- At least one empty/unavailable state and one critical-alert state.
+
 Include at least these style families:
 
 - Apple/macOS-inspired: restrained, polished, high-clarity, with subtle depth
-  and native-control feeling.
+  and native-control feeling, adapted for a browser-based ROV tool.
 - Existing project style: based on references in `ui_static/` and
   `ui_examples/`, including the current dark control-station look.
 - Hybrid style: combine the best parts of the macOS-inspired and existing
   project styles.
 - Agent-recommended style: a clearly labeled additional direction the coding
-  agent thinks fits the ROV audience and MVP goals.
+  agent thinks fits the ROV audience, safety needs, and MVP goals.
 
 Each style family should show the same core decisions so the owner can compare
 layout, information density, safety-control placement, camera emphasis, and
 operator readability across styles. Use fake data and placeholder camera panels.
 
 Do not implement production UI screens, Flask routes, ROS2 behavior, or final
-frontend utilities in this task.
+frontend utilities in this task. Do not make `fetch()` calls or wire any
+runtime API clients; all state should come from static fixtures or in-page mock
+objects.
 
 ### Decision Checkpoint
 
@@ -413,11 +435,14 @@ questions are answered well enough to update the decision log.
 ### Tests And Checks
 
 - Verify the demo index loads locally.
+- Verify demos still work with backend, ROS2, and MediaMTX offline.
 - Browser/manual check at 4:3 and 16:10-ish viewport sizes.
 - Verify text, controls, alert banners, and emergency stop controls do not
   overlap.
 - Verify every demo is clearly labeled as non-production.
 - Verify each style option has a short tradeoff note.
+- Verify each option avoids decorative emojis, decorative-only animations,
+  nested cards, and text/control overlap.
 
 ### Acceptance Criteria
 
@@ -439,7 +464,9 @@ Generate alternate main mode-selection UI demos.
 
 Create at least two static main-page demos for Pilot, Setup, and Developer mode selection. Use the dark theme direction and large-display target. Make the demos meaningfully different in layout, information density, and visual emphasis.
 
-Do not implement the production main page yet.
+Do not implement the production main page yet. Do not connect demos to Flask,
+API routes, local storage, backend state, or ROS2; links may navigate only
+between static demo pages.
 
 ### Decision Checkpoint
 
@@ -449,6 +476,9 @@ Owner selects a main page direction or requests another demo.
 
 - Browser/manual check at 4:3 and 16:10-ish viewport sizes.
 - Verify no demo uses login or remembered-mode behavior.
+- Verify there are no backend/API calls.
+- Verify each demo follows `system_documents/ui_design` for affordances,
+  hierarchy, semantic colors, typography, and empty/unavailable states.
 
 ### Acceptance Criteria
 
@@ -465,7 +495,9 @@ Generate alternate emergency stop and alert placement demos.
 
 Create at least two static demos showing how global emergency stop, critical alerts, and disabled-control state could appear across mode pages. Include one low-distraction option for Pilot Mode and one more status-rich option for Setup/Developer contexts.
 
-Do not wire real API calls or ROS2 commands.
+Do not wire real API calls, fake API clients, backend state, local storage, or
+ROS2 commands. Safety state should be represented with static fixtures and
+in-page mock state only.
 
 ### Decision Checkpoint
 
@@ -474,7 +506,10 @@ Owner selects the global safety layout and alert behavior direction.
 ### Tests And Checks
 
 - Browser/manual check that emergency stop remains visible at target viewports.
+- Verify emergency stop interactions do not call backend endpoints.
 - Verify alerts do not hide critical controls.
+- Verify emergency, warning, healthy, disabled, and loading states are visually
+  distinct without relying on color alone.
 
 ### Acceptance Criteria
 
@@ -515,9 +550,11 @@ Generate alternate UI demos for each major mode.
 
 ### Coding Agent Prompt
 
-Create static demos for Pilot, Setup, and Developer Mode. Provide at least three Pilot camera layout/control-density options, at least two Setup flow demos based on the approved Setup information architecture, and at least two Developer dashboard layouts. Use fake data and placeholder camera panels.
+Create static demos for Pilot, Setup, and Developer Mode. Provide at least three Pilot camera layout/control-density options, at least two Setup flow demos based on the approved Setup information architecture, and at least two Developer dashboard layouts. Use fake data and placeholder camera panels, and include normal, empty/unavailable, warning, and critical states where relevant.
 
-Do not implement production mode pages yet.
+Do not implement production mode pages yet. Do not connect to Flask, API
+routes, ROS2, MediaMTX/WebRTC, config files, local storage, or backend
+adapters. Camera streams should be static placeholders or local mock panels.
 
 ### Decision Checkpoint
 
@@ -526,8 +563,11 @@ Owner selects a UI direction for each mode and notes any pieces to combine.
 ### Tests And Checks
 
 - Browser/manual check at 4:3 and 16:10-ish viewport sizes.
+- Verify demos still work with backend, ROS2, and MediaMTX offline.
 - Verify text and controls do not overlap.
 - Verify demos are clearly labeled as non-production.
+- Verify camera tiles, toolbars, tabs, stat cards, and alert banners keep stable
+  dimensions across state changes.
 
 ### Acceptance Criteria
 
@@ -546,6 +586,11 @@ Based on the owner-selected demos, implement shared CSS variables, layout utilit
 
 Remove or archive unselected demo files if the owner approves.
 
+If the owner has not approved backend work yet, keep this task frontend-only:
+do not create Flask routes, backend adapters, ROS2 code, API clients, or live
+`fetch()` calls. Use a small mock data module or static fixtures as the future
+replacement point for backend data.
+
 ### Decision Checkpoint
 
 Owner reviews the shared theme before feature pages depend on it.
@@ -554,6 +599,11 @@ Owner reviews the shared theme before feature pages depend on it.
 
 - Frontend smoke check that shared styles load.
 - Browser/manual check at target viewports.
+- Verify no backend/API/ROS2 calls are made unless the owner explicitly moved
+  beyond the backend-free UI phase.
+- Verify the shared theme encodes the approved subset of
+  `system_documents/ui_design`, including semantic colors, focus states,
+  interaction states, spacing tokens, type scale, and responsive constraints.
 
 ### Acceptance Criteria
 
@@ -613,7 +663,7 @@ Owner reviews the production main page before mode internals are added.
 
 ### Acceptance Criteria
 
-- Four mode entry points are visible and easy to select.
+- Three mode entry points are visible and easy to select.
 - Descriptions are concise and understandable.
 - Page uses the selected shared theme.
 

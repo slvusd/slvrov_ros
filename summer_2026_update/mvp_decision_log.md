@@ -15,6 +15,7 @@ Sources:
 - [Shared config README](../config/README.md)
 - [Data directory note](../docs/data_directory.md)
 - [ROS2 Python style guide](../system_documents/ros2_python_style_guide.md)
+- [SLVROV Web UI design guide](../system_documents/ui_design)
 
 ## Status Key
 
@@ -40,6 +41,7 @@ Sources:
 | D-011 | Preflight placement | System Test / Preflight lives inside Setup Mode, not as a fifth top-level mode. | Confirmed | MVP spec section 9 |
 | D-012 | Persistent settings | Persistent config changes should be made through Setup Mode. | Confirmed | MVP spec section 12 |
 | D-013 | UI demo workflow | Create a broad static UI direction demo before detailed page/mode demos so owner can choose a base visual direction. | Confirmed | `mvp_agent_tasks.md` Task 10A |
+| D-013A | UI demo backend policy | UI demos are static-only and backend-free: no Flask routes, API calls, ROS2, MediaMTX/WebRTC, runtime config reads, or backend adapters. Use local fixtures/mock state only. | Confirmed | Owner instruction, 2026-06-15 |
 | D-014 | Target structure | Use `src/slvrov_core_python`, `src/slvrov_interfaces`, `src/slvrov_launch`, and root `rov_config/`; keep core control code under `slvrov_core_python.control`, Flask/UI code under `slvrov_core_python.web`, and MediaMTX support under `slvrov_core_python.mediamtx`. | Confirmed | `slvrov_ros_structure.md`; owner structural update |
 | D-015 | Tools dependency | Remove the `slvrov_tools_vendor` ROS package/submodule; install the real `slvrov-tools` repo into the active Python virtual environment. | Confirmed | Owner structural update; `system_documents/setup.md` |
 | D-016 | Science scope | Remove the `slvrov_core_python.science` scaffold from the MVP package; defer Scientist Mode, photo/video capture, and sensor data workflows. | Confirmed | Owner structural update |
@@ -108,6 +110,12 @@ Confirmed:
 - Pilot should prioritize camera visibility and low distraction.
 - Setup should be structured and step-by-step.
 - Developer can be technical, with organized stats and allowlisted tools.
+- UI demos and production UI should follow `system_documents/ui_design`.
+- UI should use clear affordances, semantic colors, stable spacing, readable
+  typography, and visible hover/pressed/disabled/loading/error states.
+- Demos should include normal, empty/unavailable, warning, and critical states.
+- UI demos should use static fixtures or in-page mock state only; backend
+  integration begins only after owner approval.
 - Create static mockups before final implementation choices are locked.
 
 Recommended defaults, not owner decisions:
@@ -117,7 +125,8 @@ Recommended defaults, not owner decisions:
 - Use existing `ui_static/joystick_mapper_ui_v3/` only as reference material for
   Setup Mode mapping flow, not as the final UI.
 - Include apple/macOS-inspired, existing-project, hybrid, and agent-recommended
-  style families in the static UI direction demo.
+  style families in the static UI direction demo, interpreted through the ROV
+  safety/operator context rather than as generic SaaS or landing-page styles.
 - Keep unselected demos disposable; remove or clearly archive them after owner
   selection.
 
@@ -131,6 +140,7 @@ Open questions:
 | Which Pilot Mode camera layout presets should be MVP defaults? | Project owner | Task 10A, then Task 14 |
 | Should Setup Mode always show a status bar, or only on specific setup screens? | Project owner | Task 10A, then Task 13/14 |
 | Which Developer Mode stat dashboard density is preferred? | Project owner | Task 10A, then Task 14 |
+| Which parts of `system_documents/ui_design` should become hard production rules versus demo-only guidance? | Project owner | Task 10A |
 
 ## Flask Route Design
 

@@ -585,6 +585,7 @@ slvrov_workspace/
 
 - Dark theme by default.
 - Use the existing project theme as the starting point.
+- Follow `system_documents/ui_design` when creating UI demos and production UI.
 - A light theme can be considered later if it does not add significant complexity.
 
 ### Display Target
@@ -600,12 +601,20 @@ Use a hybrid style by mode, and create visual mockups before committing to final
 - Pilot Mode should lean toward a simple vehicle control panel: clear camera view, minimal distraction, obvious safety controls.
 - Setup Mode should be structured and step-by-step.
 - Developer Mode can be more technical, with box-based stats and allowlisted tools.
+- All modes should use clear affordances, semantic safety colors, stable spacing, readable typography, and visible interaction states.
+- Demos should include normal, empty/unavailable, warning, and critical states so the owner can judge behavior rather than only appearance.
 
-Before implementation, create multiple static mockups for owner review, including a simple vehicle-control style, a procedural setup style, and a technical developer style.
+Before implementation, create multiple static mockups for owner review, including a simple vehicle-control style, a procedural setup style, a dense diagnostics style, and an agent-recommended hybrid based on the UI design guide.
 
 ### UI Demo Selection Workflow
 
 Before implementing final UI screens, the agent should create small static demos for owner review. These demos should be quick to inspect, disposable, and focused on decisions rather than production polish.
+
+The UI demo phase must remain backend-free. Demo pages should use static
+HTML/CSS/JavaScript and local fixture data only. They should not create Flask
+routes, call API endpoints, connect to ROS2, connect to MediaMTX/WebRTC, read
+runtime config files, or introduce backend adapter code. A local static file
+server is allowed only for browser preview.
 
 Recommended demos:
 
@@ -615,7 +624,7 @@ Recommended demos:
 - Setup Mode: at least 2 step-by-step configuration flows.
 - Developer Mode: at least 2 dense technical dashboard layouts.
 
-After the owner selects a direction, the agent should implement only the selected direction and remove or clearly archive unselected demos.
+Each demo should include a short tradeoff note, clear non-production labeling, fake data, and at least one unavailable/error state. After the owner selects a direction, the agent should implement only the selected direction and remove or clearly archive unselected demos.
 
 ### Status Bar
 

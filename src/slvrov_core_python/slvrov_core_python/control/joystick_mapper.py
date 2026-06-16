@@ -20,8 +20,8 @@ from slvrov_interfaces.srv.JoystickMapper import (
 )
 from std_srvs.srv import Trigger  # type: ignore
 
-from .control_objects import MappingCandidate, ROVActionMapping, ROVActionType
-from .json_crud import load_from_json, save_to_json
+from ..control_objects import MappingCandidate, ROVActionMapping, ROVActionType
+from ..json_crud import load_from_json, save_to_json
 from .log_messages import BaseLogMessages, JoystickMapperLogMessages
 
 ActionReq = SetAction.Request
