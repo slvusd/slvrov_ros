@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLVROV MVP UI Demo Shell</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="demo-topbar">
+    <div>
+      <p class="eyebrow">Static review area</p>
+      <h1>SLVROV MVP UI Demo Shell</h1>
+    </div>
+    <span class="demo-badge">Non-production</span>
+  </header>
+
+  <main class="demo-layout">
+    <section class="intro-panel" aria-labelledby="shell-purpose-title">
+      <div>
+        <p class="eyebrow">Task 10</p>
+        <h2 id="shell-purpose-title">Prototype Index</h2>
+        <p>
+          Use this shell to compare static HTML, CSS, and JavaScript UI
+          directions before anything moves into production Flask or ROS2-backed
+          frontend code.
+        </p>
+      </div>
+
+      <div class="status-grid" aria-label="Demo shell status">
+        <div class="status-tile">
+          <span class="status-label">Backend</span>
+          <strong>Offline OK</strong>
+        </div>
+        <div class="status-tile">
+          <span class="status-label">ROS2</span>
+          <strong>Not Used</strong>
+        </div>
+        <div class="status-tile">
+          <span class="status-label">MediaMTX</span>
+          <strong>Not Used</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo-list-panel" aria-labelledby="demo-list-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Available prototypes</p>
+          <h2 id="demo-list-title">Demo Pages</h2>
+        </div>
+        <button class="icon-button" id="refresh-view-button" type="button" title="Refresh index view" aria-label="Refresh index view">
+          <span aria-hidden="true">R</span>
+        </button>
+      </div>
+      <div class="demo-list" id="demo-list"></div>
+    </section>
+
+    <aside class="notes-panel" aria-labelledby="workflow-title">
+      <p class="eyebrow">Workflow</p>
+      <h2 id="workflow-title">Review Notes</h2>
+      <ul>
+        <li>Demos are disposable and live outside production frontend files.</li>
+        <li>Pages may use local mock objects, but no backend/API calls.</li>
+        <li>Run with a static server only when browser behavior needs testing.</li>
+      </ul>
+      <a class="secondary-link" href="./README.md">Open shell instructions</a>
+    </aside>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

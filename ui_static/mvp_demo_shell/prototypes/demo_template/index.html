@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLVROV Static Prototype Template</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Static prototype template</p>
+      <h1>SLVROV Review Mockup</h1>
+    </div>
+    <div class="topbar-actions">
+      <span class="demo-badge">Non-production</span>
+      <button class="stop-button" type="button">Emergency Stop</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="alert-strip" aria-label="Critical alerts">
+      <strong>Critical alert sample</strong>
+      <span>Forward camera unavailable. Controls stay disabled in this mock state.</span>
+    </section>
+
+    <section class="camera-area" aria-labelledby="camera-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Placeholder camera layout</p>
+          <h2 id="camera-title">Pilot Preview Area</h2>
+        </div>
+        <div class="segmented-control" aria-label="Camera layout preset">
+          <button type="button" class="active">Single</button>
+          <button type="button">Grid</button>
+          <button type="button" disabled>Six</button>
+        </div>
+      </div>
+
+      <div class="camera-tile">
+        <div>
+          <span class="camera-label">CAM 01</span>
+          <strong>No stream connected</strong>
+        </div>
+      </div>
+    </section>
+
+    <aside class="notes-panel" aria-labelledby="notes-title">
+      <p class="eyebrow">Tradeoff notes</p>
+      <h2 id="notes-title">What This Template Tests</h2>
+      <ul>
+        <li>Global safety control remains visible.</li>
+        <li>Critical alert area has stable height.</li>
+        <li>Unavailable camera state is obvious without backend data.</li>
+      </ul>
+      <a href="../../index.html">Back to demo index</a>
+    </aside>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
