@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEL SLVROV Apple UI Direction</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body data-theme="dark">
+  <header class="demo-header">
+    <div>
+      <p class="eyebrow">Selected UI direction</p>
+      <h1>SEL SLVROV Apple/macOS Direction</h1>
+    </div>
+    <div class="header-actions">
+      <span class="demo-badge">Non-production</span>
+      <button class="theme-toggle" id="theme-toggle" type="button">Light Mode</button>
+      <a class="back-link" href="../../index.html">Demo Index</a>
+    </div>
+  </header>
+
+  <main class="demo-layout">
+    <aside class="control-panel" aria-label="Demo controls">
+      <section class="control-section">
+        <p class="eyebrow">Mock screens</p>
+        <div class="screen-tabs" id="screen-tabs"></div>
+      </section>
+
+      <section class="control-section">
+        <p class="eyebrow">Color rules</p>
+        <div class="rule-list">
+          <div><span class="swatch status"></span><strong>Status</strong><p>Light blue for active, connected, healthy, and selected state.</p></div>
+          <div><span class="swatch warning"></span><strong>Warning</strong><p>Yellow/orange for caution, pending work, and loading.</p></div>
+          <div><span class="swatch error"></span><strong>Error</strong><p>Red for emergency, failed, destructive, and critical states.</p></div>
+        </div>
+      </section>
+
+      <section class="control-section">
+        <p class="eyebrow">Owner decision</p>
+        <div class="decision-box">
+          <strong>Apple/macOS direction selected.</strong>
+          <p>Modes use the same neutral Apple-style palette. Color is reserved for notifications, state, and primary affordances.</p>
+        </div>
+      </section>
+    </aside>
+
+    <section class="preview-panel" aria-labelledby="preview-title">
+      <div class="preview-meta">
+        <div>
+          <p class="eyebrow" id="screen-kicker">Selected direction</p>
+          <h2 id="preview-title">Main Mode Selection</h2>
+        </div>
+        <span class="style-status">Apple/macOS</span>
+      </div>
+
+      <div class="tradeoff-note">
+        Calm native-control styling, consistent mode treatment, and high-contrast notification colors. The UI should feel like a tool, not a themed dashboard.
+      </div>
+
+      <div class="mock-shell" id="mock-shell" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

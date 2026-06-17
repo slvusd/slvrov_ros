@@ -231,11 +231,11 @@ Should not touch casually:
 
 Important files:
 
-- `ui_static/joystick_mapper_ui_v1/*`
-- `ui_static/joystick_mapper_ui_v2/*`
-- `ui_static/joystick_mapper_ui_v3/*`
-- `ui_static/joystick_mapper_ui_v3/requests.md`
-- `ui_static/joystick_mapper_ui_v3/layout.md`
+- `ui_static/archive/joystick_mapper_ui_v1/*`
+- `ui_static/archive/joystick_mapper_ui_v2/*`
+- `ui_static/archive/joystick_mapper_ui_v3/*`
+- `ui_static/archive/joystick_mapper_ui_v3/requests.md`
+- `ui_static/archive/joystick_mapper_ui_v3/layout.md`
 
 What exists:
 

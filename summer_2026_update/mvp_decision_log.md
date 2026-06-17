@@ -45,6 +45,10 @@ Sources:
 | D-014 | Target structure | Use `src/slvrov_core_python`, `src/slvrov_interfaces`, `src/slvrov_launch`, and root `rov_config/`; keep core control code under `slvrov_core_python.control`, Flask/UI code under `slvrov_core_python.web`, and MediaMTX support under `slvrov_core_python.mediamtx`. | Confirmed | `slvrov_ros_structure.md`; owner structural update |
 | D-015 | Tools dependency | Remove the `slvrov_tools_vendor` ROS package/submodule; install the real `slvrov-tools` repo into the active Python virtual environment. | Confirmed | Owner structural update; `system_documents/setup.md` |
 | D-016 | Science scope | Remove the `slvrov_core_python.science` scaffold from the MVP package; defer Scientist Mode, photo/video capture, and sensor data workflows. | Confirmed | Owner structural update |
+| D-017 | UI visual direction | Use the Apple/macOS-inspired direction for MVP UI demos and later production UI: restrained, polished, high-clarity controls with subtle depth and native-control feel. | Confirmed | Owner selection, 2026-06-16 |
+| D-018 | UI theme modes | Provide dark and light mode. Dark may remain the default, but the UI must support both themes. | Confirmed | Owner selection, 2026-06-16 |
+| D-019 | UI color semantics | Do not assign separate colors to Pilot, Setup, or Developer modes. Use color only for meaning: error red, warning yellow/orange, and status/active/connected/healthy light blue. | Confirmed | Owner selection, 2026-06-16 |
+| D-020 | UI demo archive | Move unselected legacy UI demos and examples away from the active Apple/macOS direction so future tasks continue from the selected path. | Confirmed | Owner selection, 2026-06-16 |
 
 ## Structural Migration
 
@@ -103,13 +107,17 @@ Open questions:
 Confirmed:
 
 - Three top-level modes: Pilot, Setup, Developer.
-- Dark theme by default, based on the existing project theme.
+- Apple/macOS-inspired is the selected visual direction.
+- Dark and light mode are both required; dark can remain the default.
 - Optimize for large monitor/laptop displays, especially 4:3 and 16:10.
 - Touch-specific UI is not required for MVP.
 - Main page should not remember the last selected mode.
 - Pilot should prioritize camera visibility and low distraction.
 - Setup should be structured and step-by-step.
 - Developer can be technical, with organized stats and allowlisted tools.
+- Pilot, Setup, and Developer should not use different mode colors.
+- Notification and state colors should be simple and consistent: error red,
+  warning yellow/orange, and status/active/connected/healthy light blue.
 - UI demos and production UI should follow `system_documents/ui_design`.
 - UI should use clear affordances, semantic colors, stable spacing, readable
   typography, and visible hover/pressed/disabled/loading/error states.
@@ -122,25 +130,21 @@ Recommended defaults, not owner decisions:
 
 - Use `src/slvrov_core_python/slvrov_core_python/web/static/` for final packaged frontend
   files.
-- Use existing `ui_static/joystick_mapper_ui_v3/` only as reference material for
-  Setup Mode mapping flow, not as the final UI.
-- Include apple/macOS-inspired, existing-project, hybrid, and agent-recommended
-  style families in the static UI direction demo, interpreted through the ROV
-  safety/operator context rather than as generic SaaS or landing-page styles.
-- Keep unselected demos disposable; remove or clearly archive them after owner
-  selection.
+- Continue UI demo work from
+  `ui_static/mvp_demo_shell/prototypes/apple_macos_direction/`.
+- Keep archived demos as reference only:
+  `ui_static/archive/` and `ui_archive/legacy_ui_examples/`.
 
 Open questions:
 
 | Question | Owner | Next-step task |
 |---|---|---|
-| Which base visual style should guide the MVP UI: apple/macOS-inspired, existing project style, hybrid, or agent-recommended? | Project owner | Task 10A |
-| Which main page mode-selector layout should be implemented? | Project owner | Task 10A, then Task 11 |
-| Which global emergency-stop and critical-alert placement should be used? | Project owner | Task 10A, then Task 12 |
-| Which Pilot Mode camera layout presets should be MVP defaults? | Project owner | Task 10A, then Task 14 |
-| Should Setup Mode always show a status bar, or only on specific setup screens? | Project owner | Task 10A, then Task 13/14 |
-| Which Developer Mode stat dashboard density is preferred? | Project owner | Task 10A, then Task 14 |
-| Which parts of `system_documents/ui_design` should become hard production rules versus demo-only guidance? | Project owner | Task 10A |
+| Which main page mode-selector layout should be implemented within the Apple/macOS direction? | Project owner | Task 11 |
+| Which global emergency-stop and critical-alert placement should be used within the Apple/macOS direction? | Project owner | Task 12 |
+| Which Pilot Mode camera layout presets should be MVP defaults? | Project owner | Task 14 |
+| Should Setup Mode always show a status bar, or only on specific setup screens? | Project owner | Task 13/14 |
+| Which Developer Mode stat dashboard density is preferred? | Project owner | Task 14 |
+| Which parts of `system_documents/ui_design` should become hard production rules versus demo-only guidance? | Project owner | Task 15 |
 
 ## Flask Route Design
 

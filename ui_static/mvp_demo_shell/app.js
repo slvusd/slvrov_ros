@@ -1,19 +1,13 @@
 const demos = [
   {
-    title: "Prototype Template",
-    description: "A starter page with static mock state, safety markers, and tradeoff notes for future UI direction demos.",
-    href: "./prototypes/demo_template/index.html",
+    title: "Selected Apple/macOS Direction",
+    description: "The owner-selected MVP visual direction with dark/light mode and consistent notification colors.",
+    href: "./prototypes/apple_macos_direction/index.html",
     state: "ready",
   },
   {
-    title: "Task 10A UI Direction Set",
-    description: "Reserved for the broader visual direction comparison: macOS-inspired, existing project, hybrid, and recommended.",
-    href: "./prototypes/ui_direction_10a/index.html",
-    state: "ready",
-  },
-  {
-    title: "Task 11 Main Page Options",
-    description: "Reserved for static mode-selection demos after the owner chooses the broader visual direction.",
+    title: "Archived Legacy Demos",
+    description: "Earlier joystick mapper concepts, old examples, and starter templates were moved to archive folders for reference.",
     href: "",
     state: "reserved",
   },

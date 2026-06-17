@@ -2,11 +2,11 @@
 
 This document describes the browser requests expected by the version 2 static UI.
 
-The UI files live at:
+The archived UI files live at:
 
-- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v2/index.html`
-- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v2/style.css`
-- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v2/app.js`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/ui_static/archive/joystick_mapper_ui_v2/index.html`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/ui_static/archive/joystick_mapper_ui_v2/style.css`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/ui_static/archive/joystick_mapper_ui_v2/app.js`
 
 ## Layout differences from V1
 

@@ -1,7 +1,7 @@
 # Layout for V3
 
 ## Top bar
-* Shows Company (ROV) in bright blue letters, left aligned (same as v2)
+* Shows company (SEL ROV) in bright blue letters, left aligned (same as v2)
 * shows product name and version number in smaller, gray letter to the right of company name, left aligned (same as v2)
 * remove 'statis UI concept' in right corner
 * text displaying last requests' success state, right aligned (same as v2)
@@ -22,7 +22,7 @@
 ## Activation section
 * change to have a shape similar to action setup (more like a column)
 * has text box for user to type in topic names, one topic per line (same as v2)
-* has button below text box; when inactive, button is green and reads "Activate"; when active, button is red and reads "Deactivate"
+* has button below text box; when inactive, button is blue and reads "Activate"; when active, button is red and reads "Deactivate"
 
 ## Completed Mappings + toggle mapping
 * similar size and shape to action setup
@@ -35,7 +35,7 @@
 * this gives a little bit of a visual, but isn't detailed
 
 ```txt
-|ROV JOYSTICK MAPPER V3
+|SEL ROV JOYSTICK MAPPER V3
 |Mapper| |Mapping| |Topics| |Current Action| |Save State|  |refresh| |last msg status|
 |
 |Activation|               |Action Wizard|              |Mapping Wizard|

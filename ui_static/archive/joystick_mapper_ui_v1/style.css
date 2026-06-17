@@ -3,11 +3,11 @@
   --surface: #111418;
   --surface-2: #0d1014;
   --border: #1e2530;
-  --accent: #00e5ff;
-  --accent-2: #ff6b35;
-  --success: #37d67a;
-  --warning: #ffb000;
-  --danger: #ff3b5c;
+  --accent: #4aa8ff;
+  --accent-2: #f5c84b;
+  --success: #78c7ff;
+  --warning: #f5c84b;
+  --danger: #ff5a67;
   --text: #c8d6e5;
   --text-dim: #7a9eb8;
   --mono: 'Share Tech Mono', monospace;
@@ -25,8 +25,8 @@
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(0, 229, 255, 0.12), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(255, 107, 53, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(74, 168, 255, 0.12), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(245, 200, 75, 0.1), transparent 24%),
     var(--bg);
   color: var(--text);
   font-family: var(--sans);
@@ -43,14 +43,12 @@ body {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 2;
   backdrop-filter: blur(10px);
 }
 
 .brand-block,
-.topbar-meta,
-.status-strip,
-.status-card {
+.topbar-meta {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -66,14 +64,12 @@ label,
 .mono-chip,
 code,
 .console-line,
-.status-chip-label,
-.status-chip-value,
+.status-grid dt,
+.status-grid dd,
 button,
 input,
 select,
-textarea,
-.mapping-item-title,
-.queue-count {
+textarea {
   font-family: var(--mono);
 }
 
@@ -105,54 +101,17 @@ textarea,
 
 .status-bar {
   color: var(--accent);
-  background: rgba(0, 229, 255, 0.08);
-  border-color: rgba(0, 229, 255, 0.24);
-}
-
-.status-strip {
-  padding: 10px 18px 0;
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.status-card {
-  grid-column: span 3;
-  min-height: 56px;
-  padding: 10px 12px;
-  border: 1px solid rgba(30, 37, 48, 0.7);
-  background: rgba(17, 20, 24, 0.95);
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-}
-
-.status-card-actions {
-  grid-column: span 12;
-  justify-content: center;
-  align-items: stretch;
-}
-
-.status-chip-label {
-  color: var(--text-dim);
-  font-size: 0.58rem;
-  letter-spacing: 1.4px;
-}
-
-.status-chip-value {
-  color: var(--text);
-  font-size: 0.72rem;
-  letter-spacing: 0.8px;
-  word-break: break-word;
+  background: rgba(74, 168, 255, 0.08);
+  border-color: rgba(74, 168, 255, 0.24);
 }
 
 .dashboard {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 2px;
-  padding: 10px 2px 2px;
-  min-height: calc(100vh - 146px);
-  background: transparent;
+  padding: 2px;
+  min-height: calc(100vh - 66px);
+  background: var(--border);
 }
 
 .panel {
@@ -171,12 +130,7 @@ textarea,
 }
 
 .panel-tall {
-  min-height: 420px;
-}
-
-.panel-console-area {
-  grid-column: span 4;
-  min-height: 420px;
+  min-height: 320px;
 }
 
 .panel-label {
@@ -203,8 +157,7 @@ textarea,
   gap: 12px;
 }
 
-.field-group,
-.queue-block {
+.field-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -233,8 +186,8 @@ input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: rgba(0, 229, 255, 0.45);
-  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.15);
+  border-color: rgba(74, 168, 255, 0.45);
+  box-shadow: 0 0 0 1px rgba(74, 168, 255, 0.15);
 }
 
 textarea {
@@ -242,9 +195,7 @@ textarea {
   min-height: 108px;
 }
 
-.field-hint,
-.mapping-item-body,
-.mapping-empty {
+.field-hint {
   color: var(--text-dim);
   font-size: 0.9rem;
   line-height: 1.5;
@@ -257,6 +208,7 @@ textarea {
 }
 
 .btn {
+  min-height: 32px;
   border: 1px solid var(--border);
   border-radius: 2px;
   background: transparent;
@@ -279,38 +231,47 @@ textarea {
 
 .btn-accent {
   color: var(--accent);
-  border-color: rgba(0, 229, 255, 0.35);
+  border-color: rgba(74, 168, 255, 0.35);
 }
 
 .btn-accent:hover {
-  background: rgba(0, 229, 255, 0.1);
+  background: rgba(74, 168, 255, 0.1);
 }
 
 .btn-accent2 {
   color: var(--accent-2);
-  border-color: rgba(255, 107, 53, 0.4);
+  border-color: rgba(245, 200, 75, 0.4);
 }
 
 .btn-accent2:hover {
-  background: rgba(255, 107, 53, 0.1);
+  background: rgba(245, 200, 75, 0.1);
 }
 
 .btn-success {
   color: var(--success);
-  border-color: rgba(55, 214, 122, 0.4);
+  border-color: rgba(120, 199, 255, 0.4);
 }
 
 .btn-success:hover {
-  background: rgba(55, 214, 122, 0.1);
+  background: rgba(120, 199, 255, 0.1);
 }
 
 .btn-warning {
   color: var(--warning);
-  border-color: rgba(255, 176, 0, 0.4);
+  border-color: rgba(245, 200, 75, 0.4);
 }
 
 .btn-warning:hover {
-  background: rgba(255, 176, 0, 0.1);
+  background: rgba(245, 200, 75, 0.1);
+}
+
+.btn-danger {
+  color: var(--danger);
+  border-color: rgba(255, 90, 103, 0.45);
+}
+
+.btn-danger:hover {
+  background: rgba(255, 90, 103, 0.1);
 }
 
 .btn-muted {
@@ -318,9 +279,9 @@ textarea {
 }
 
 .btn-small {
+  min-height: 32px;
   padding: 6px 8px;
   font-size: 0.58rem;
-  width: 100%;
 }
 
 .inline-status {
@@ -333,53 +294,75 @@ textarea {
 
 code {
   color: var(--accent);
-  background: rgba(0, 229, 255, 0.07);
+  background: rgba(74, 168, 255, 0.07);
   padding: 6px 8px;
   border-radius: 2px;
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  border: 1px solid rgba(74, 168, 255, 0.18);
   font-size: 0.68rem;
   word-break: break-all;
 }
 
-.queue-header,
-.queue-footer,
-.console-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.queue-count {
-  color: var(--text-dim);
-  font-size: 0.62rem;
-  letter-spacing: 1px;
-}
-
-.queue-list,
-.mapping-list {
+.mapping-stage {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.queue-item,
-.mapping-item,
-.mapping-empty {
-  border: 1px solid rgba(30, 37, 48, 0.7);
-  background: rgba(10, 12, 15, 0.75);
-  padding: 10px 12px;
+.stage-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
 }
 
-.mapping-item-title {
-  color: var(--accent);
-  font-size: 0.68rem;
-  letter-spacing: 1px;
-  margin-bottom: 4px;
+.indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--text-dim);
+  box-shadow: 0 0 0 0 rgba(122, 158, 184, 0.25);
+}
+
+.stage-indicator.active .indicator-dot {
+  background: var(--success);
+  box-shadow: 0 0 0 6px rgba(120, 199, 255, 0.14);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.status-grid div {
+  padding: 10px 12px;
+  background: rgba(10, 12, 15, 0.7);
+  border: 1px solid rgba(30, 37, 48, 0.7);
+}
+
+.status-grid dt {
+  color: var(--text-dim);
+  font-size: 0.6rem;
+  letter-spacing: 1.2px;
+  margin-bottom: 6px;
+}
+
+.status-grid dd {
+  color: var(--text);
+  font-size: 0.76rem;
+  letter-spacing: 0.8px;
+  word-break: break-word;
 }
 
 .panel-console {
   min-height: 0;
+}
+
+.console-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .console-log {
@@ -406,42 +389,58 @@ code {
   color: var(--text);
 }
 
-@media (max-width: 1200px) {
-  .status-card {
-    grid-column: span 4;
-  }
+.mapping-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-  .status-card-actions {
-    grid-column: span 12;
-  }
+.mapping-item,
+.mapping-empty {
+  border: 1px solid rgba(30, 37, 48, 0.7);
+  background: rgba(10, 12, 15, 0.75);
+  padding: 10px 12px;
+}
 
+.mapping-item-title {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.mapping-item-body,
+.mapping-empty {
+  color: var(--text-dim);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
   .panel,
-  .panel-wide,
-  .panel-console-area {
+  .panel-wide {
     grid-column: span 6;
   }
 
-  .field-grid {
+  .field-grid,
+  .status-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 720px) {
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .status-strip,
   .dashboard {
     grid-template-columns: 1fr;
   }
 
-  .status-card,
-  .status-card-actions,
   .panel,
-  .panel-wide,
-  .panel-console-area {
+  .panel-wide {
     grid-column: 1;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

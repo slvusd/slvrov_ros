@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ROV Playback</title>
+  <title>SEL ROV Playback</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -35,13 +35,13 @@
       cursor: pointer; background: transparent; color: var(--text-dim);
     }
     .btn-speed:hover { color: var(--text); border-color: var(--text-dim); }
-    .btn-speed.active { color: var(--accent); border-color: var(--accent); background: rgba(0,229,255,0.07); }
+    .btn-speed.active { color: var(--accent); border-color: var(--accent); background: rgba(74, 168, 255,0.07); }
     .btn-playpause {
       font-family: var(--mono); font-size: 0.7rem; letter-spacing: 1.5px;
-      border: 1px solid rgba(0,229,255,0.4); border-radius: 2px; padding: 3px 12px;
+      border: 1px solid rgba(74, 168, 255,0.4); border-radius: 2px; padding: 3px 12px;
       cursor: pointer; background: transparent; color: var(--accent);
     }
-    .btn-playpause:hover { background: rgba(0,229,255,0.08); }
+    .btn-playpause:hover { background: rgba(74, 168, 255,0.08); }
     .time-display {
       font-family: var(--mono); font-size: 0.65rem; color: var(--text-dim);
       letter-spacing: 1px; margin-left: auto;

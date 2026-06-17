@@ -2,11 +2,11 @@
 
 This document describes the browser requests the new static UI expects a future web bridge to handle.
 
-The V1 UI files live at:
+The archived V1 UI files live at:
 
-- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v1/index.html`
-- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v1/style.css`
-- `/Users/caleb/repositories/slvusd/slvrov_ros/src/slvrov_core_python/slvrov_core_python/ui_static/joystick_mapper_ui_v1/app.js`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/ui_static/archive/joystick_mapper_ui_v1/index.html`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/ui_static/archive/joystick_mapper_ui_v1/style.css`
+- `/Users/caleb/repositories/slvusd/slvrov_ros/ui_static/archive/joystick_mapper_ui_v1/app.js`
 
 ## ROS services exposed by `joystick_mapper.py`
 

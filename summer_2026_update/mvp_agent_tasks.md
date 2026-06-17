@@ -27,6 +27,17 @@ ROS2 services/topics, connect to MediaMTX/WebRTC streams, fetch from API
 endpoints, or introduce backend adapter code. A local static file server is
 allowed only to preview static files in the browser.
 
+Owner-selected UI direction as of 2026-06-16:
+
+- Continue from the Apple/macOS-inspired direction in
+  `ui_static/mvp_demo_shell/prototypes/apple_macos_direction/`.
+- Support dark and light mode.
+- Do not use different colors for Pilot, Setup, and Developer modes.
+- Use notification/state colors consistently: error red, warning yellow/orange,
+  and status/active/connected/healthy light blue.
+- Treat archived demos under `ui_static/archive/` and
+  `ui_archive/legacy_ui_examples/` as reference-only, not active directions.
+
 Target structure from `summer_2026_update/slvrov_ros_structure.md`:
 
 - `src/slvrov_core_python/`: ROS2 control nodes/helpers under `slvrov_core_python.control`, Flask server/UI code under `slvrov_core_python.web`, MediaMTX support files under `slvrov_core_python.mediamtx`, and production UI for Setup, Pilot, and Developer modes.
@@ -407,18 +418,18 @@ Apply `system_documents/ui_design` to every option. Each option should show:
 - Readable dark-mode contrast and camera overlays.
 - At least one empty/unavailable state and one critical-alert state.
 
-Include at least these style families:
+Historical Task 10A exploration included these style families:
 
 - Apple/macOS-inspired: restrained, polished, high-clarity, with subtle depth
   and native-control feeling, adapted for a browser-based ROV tool.
-- Existing project style: based on references in `ui_static/` and
-  `ui_examples/`, including the current dark control-station look.
+- Existing project style: based on references now archived under
+  `ui_static/archive/` and `ui_archive/legacy_ui_examples/`.
 - Hybrid style: combine the best parts of the macOS-inspired and existing
   project styles.
 - Agent-recommended style: a clearly labeled additional direction the coding
   agent thinks fits the ROV audience, safety needs, and MVP goals.
 
-Each style family should show the same core decisions so the owner can compare
+Each style family showed the same core decisions so the owner could compare
 layout, information density, safety-control placement, camera emphasis, and
 operator readability across styles. Use fake data and placeholder camera panels.
 
@@ -429,8 +440,9 @@ objects.
 
 ### Decision Checkpoint
 
-Owner selects one base style direction, any pieces to combine, and which UI
-questions are answered well enough to update the decision log.
+Completed: owner selected the Apple/macOS-inspired direction on 2026-06-16.
+Future UI demo tasks should not reopen broad style-family exploration unless
+the owner explicitly asks.
 
 ### Tests And Checks
 
@@ -454,6 +466,13 @@ questions are answered well enough to update the decision log.
 - Later UI demo tasks can narrow from the selected direction instead of
   exploring unrelated styles again.
 
+### Outcome
+
+- Selected active demo path:
+  `ui_static/mvp_demo_shell/prototypes/apple_macos_direction/`.
+- Unselected legacy demos/examples archived under `ui_static/archive/` and
+  `ui_archive/legacy_ui_examples/`.
+
 ## Task 11: Main Page UI Demos
 
 ### Scope
@@ -462,7 +481,7 @@ Generate alternate main mode-selection UI demos.
 
 ### Coding Agent Prompt
 
-Create at least two static main-page demos for Pilot, Setup, and Developer mode selection. Use the dark theme direction and large-display target. Make the demos meaningfully different in layout, information density, and visual emphasis.
+Create at least two static main-page demos for Pilot, Setup, and Developer mode selection. Use the selected Apple/macOS direction, dark/light theme support, and large-display target. Make the demos meaningfully different in layout, information density, and visual emphasis.
 
 Do not implement the production main page yet. Do not connect demos to Flask,
 API routes, local storage, backend state, or ROS2; links may navigate only
@@ -479,6 +498,9 @@ Owner selects a main page direction or requests another demo.
 - Verify there are no backend/API calls.
 - Verify each demo follows `system_documents/ui_design` for affordances,
   hierarchy, semantic colors, typography, and empty/unavailable states.
+- Verify notification/state colors are consistent: error red, warning
+  yellow/orange, and status/active/connected/healthy light blue.
+- Verify Pilot, Setup, and Developer do not use different mode colors.
 
 ### Acceptance Criteria
 
@@ -493,7 +515,7 @@ Generate alternate emergency stop and alert placement demos.
 
 ### Coding Agent Prompt
 
-Create at least two static demos showing how global emergency stop, critical alerts, and disabled-control state could appear across mode pages. Include one low-distraction option for Pilot Mode and one more status-rich option for Setup/Developer contexts.
+Create at least two static demos showing how global emergency stop, critical alerts, and disabled-control state could appear across mode pages. Use the selected Apple/macOS direction and dark/light theme support. Include one low-distraction option for Pilot Mode and one more status-rich option for Setup/Developer contexts.
 
 Do not wire real API calls, fake API clients, backend state, local storage, or
 ROS2 commands. Safety state should be represented with static fixtures and
@@ -508,8 +530,11 @@ Owner selects the global safety layout and alert behavior direction.
 - Browser/manual check that emergency stop remains visible at target viewports.
 - Verify emergency stop interactions do not call backend endpoints.
 - Verify alerts do not hide critical controls.
-- Verify emergency, warning, healthy, disabled, and loading states are visually
-  distinct without relying on color alone.
+- Verify error, warning, status/healthy, disabled, and loading states are
+  visually distinct without relying on color alone.
+- Verify notification/state colors are consistent: error red, warning
+  yellow/orange, and status/active/connected/healthy light blue.
+- Verify modes do not use different colors.
 
 ### Acceptance Criteria
 
@@ -550,7 +575,7 @@ Generate alternate UI demos for each major mode.
 
 ### Coding Agent Prompt
 
-Create static demos for Pilot, Setup, and Developer Mode. Provide at least three Pilot camera layout/control-density options, at least two Setup flow demos based on the approved Setup information architecture, and at least two Developer dashboard layouts. Use fake data and placeholder camera panels, and include normal, empty/unavailable, warning, and critical states where relevant.
+Create static demos for Pilot, Setup, and Developer Mode using the selected Apple/macOS direction and dark/light theme support. Provide at least three Pilot camera layout/control-density options, at least two Setup flow demos based on the approved Setup information architecture, and at least two Developer dashboard layouts. Use fake data and placeholder camera panels, and include normal, empty/unavailable, warning, and critical states where relevant.
 
 Do not implement production mode pages yet. Do not connect to Flask, API
 routes, ROS2, MediaMTX/WebRTC, config files, local storage, or backend
@@ -566,6 +591,9 @@ Owner selects a UI direction for each mode and notes any pieces to combine.
 - Verify demos still work with backend, ROS2, and MediaMTX offline.
 - Verify text and controls do not overlap.
 - Verify demos are clearly labeled as non-production.
+- Verify notification/state colors are consistent: error red, warning
+  yellow/orange, and status/active/connected/healthy light blue.
+- Verify Pilot, Setup, and Developer do not use different mode colors.
 - Verify camera tiles, toolbars, tabs, stat cards, and alert banners keep stable
   dimensions across state changes.
 

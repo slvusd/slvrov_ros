@@ -2,13 +2,11 @@ const endpoints = {
   status: "/joystick_mapper/status",
   activation: "/joystick_mapper/activation",
   setAction: "/joystick_mapper/set_action",
-  queueMapNow: "/joystick_mapper/action_queue/map_now",
-  queueMapNext: "/joystick_mapper/action_queue/map_next",
+  toggleMapping: "/joystick_mapper/toggle_mapping",
 };
 
 const state = {
   pendingMappings: [],
-  queuedActions: [],
   lastResult: "none",
 };
 
@@ -19,14 +17,16 @@ const elements = {
   actionType: document.getElementById("action-type"),
   actionPreview: document.getElementById("action-preview"),
   globalStatus: document.getElementById("global-status"),
+  mappingIndicator: document.getElementById("mapping-indicator"),
+  mappingPhase: document.getElementById("mapping-phase"),
   consoleLog: document.getElementById("console-log"),
   mappingList: document.getElementById("mapping-list"),
-  queueList: document.getElementById("queue-list"),
-  queueCount: document.getElementById("queue-count"),
   statusBackend: document.getElementById("status-backend"),
   statusActive: document.getElementById("status-active"),
   statusMapping: document.getElementById("status-mapping"),
-  statusSaved: document.getElementById("status-saved"),
+  statusCurrentAction: document.getElementById("status-current-action"),
+  statusTopics: document.getElementById("status-topics"),
+  statusLastResult: document.getElementById("status-last-result"),
 };
 
 function getTopics() {
@@ -40,7 +40,6 @@ function buildActionPayload() {
   const name = elements.actionName.value.trim();
   const type = elements.actionType.value;
   const effectiveName = name || "action_name";
-
   return {
     name,
     type,
@@ -51,10 +50,10 @@ function buildActionPayload() {
 function setGlobalStatus(message, level = "info") {
   elements.globalStatus.textContent = message;
   const palette = {
-    info: "#00e5ff",
-    success: "#37d67a",
-    warning: "#ffb000",
-    danger: "#ff3b5c",
+    info: "#4aa8ff",
+    success: "#78c7ff",
+    warning: "#f5c84b",
+    danger: "#ff5a67",
   };
   elements.globalStatus.style.color = palette[level] || palette.info;
 }
@@ -64,18 +63,6 @@ function logRequest(direction, url, payload, resultText) {
   line.className = "console-line";
   line.innerHTML = `<strong>${direction}</strong> ${url}\n${payload ? JSON.stringify(payload, null, 2) : ""}${resultText ? `\n${resultText}` : ""}`;
   elements.consoleLog.prepend(line);
-}
-
-function updateActionPreview() {
-  const payload = buildActionPayload();
-  elements.actionPreview.textContent = payload.rosServiceData;
-}
-
-function updateStatusPanel(status = {}) {
-  elements.statusBackend.textContent = status.backend || "reachable";
-  elements.statusActive.textContent = String(status.active ?? "unknown");
-  elements.statusMapping.textContent = String(status.mapping ?? "unknown");
-  elements.statusSaved.textContent = String(status.saved ?? "unknown");
 }
 
 function renderPendingMappings() {
@@ -94,22 +81,25 @@ function renderPendingMappings() {
     .join("");
 }
 
-function renderQueue() {
-  elements.queueCount.textContent = `${state.queuedActions.length} queued`;
+function setMappingStage(active) {
+  elements.mappingIndicator.classList.toggle("active", active);
+  elements.mappingPhase.textContent = active ? "Mapping in progress" : "Idle";
+}
 
-  if (!state.queuedActions.length) {
-    elements.queueList.innerHTML = '<div class="mapping-empty">No queued actions yet.</div>';
-    return;
-  }
+function updateActionPreview() {
+  const payload = buildActionPayload();
+  elements.actionPreview.textContent = payload.rosServiceData;
+}
 
-  elements.queueList.innerHTML = state.queuedActions
-    .map((item, index) => `
-      <div class="queue-item">
-        <div class="mapping-item-title">${index + 1}. ${item.name}</div>
-        <div class="mapping-item-body">${item.rosServiceData}</div>
-      </div>
-    `)
-    .join("");
+function updateStatusPanel(status = {}) {
+  elements.statusBackend.textContent = status.backend || "reachable";
+  elements.statusActive.textContent = String(status.active ?? "unknown");
+  elements.statusMapping.textContent = String(status.mapping ?? "unknown");
+  elements.statusCurrentAction.textContent = status.current_action || "none";
+  elements.statusTopics.textContent = (status.topics || []).join(", ") || "none";
+  elements.statusLastResult.textContent = state.lastResult;
+
+  setMappingStage(Boolean(status.mapping));
 }
 
 async function sendJson(url, payload) {
@@ -152,10 +142,12 @@ async function refreshStatus() {
       backend: "offline",
       active: "unknown",
       mapping: "unknown",
-      saved: "unknown",
+      current_action: "none",
+      topics: [],
     });
-    state.lastResult = error.message;
     setGlobalStatus("BACKEND OFFLINE", "danger");
+    state.lastResult = error.message;
+    elements.statusLastResult.textContent = state.lastResult;
   }
 }
 
@@ -178,7 +170,8 @@ async function activateMapper() {
     backend: "reachable",
     active: true,
     mapping: false,
-    saved: data.saved,
+    current_action: data.current_action,
+    topics,
   });
   setGlobalStatus("MAPPER ACTIVE", "success");
 }
@@ -194,78 +187,65 @@ async function deactivateMapper() {
     backend: "reachable",
     active: false,
     mapping: false,
-    saved: data.saved,
+    current_action: "none",
+    topics: [],
   });
   setGlobalStatus("MAPPER INACTIVE", "warning");
 }
 
-async function addActionToQueue() {
+async function setCurrentAction() {
   const payload = buildActionPayload();
 
   if (!payload.name) {
     throw new Error("Action name is required.");
   }
 
-  state.queuedActions.push(payload);
-  renderQueue();
-  state.lastResult = `Queued ${payload.rosServiceData}.`;
-  setGlobalStatus("ACTION QUEUED", "success");
+  const data = await sendJson(endpoints.setAction, payload);
+  state.lastResult = data.message || "Action set.";
+  updateStatusPanel({
+    backend: "reachable",
+    current_action: payload.rosServiceData,
+  });
+  setGlobalStatus("ACTION STAGED", "success");
 }
 
-async function mapActionNow() {
-  const payload = buildActionPayload();
-
-  if (!payload.name) {
-    throw new Error("Action name is required.");
-  }
-
-  const request = {
-    action: payload,
+async function startMapping() {
+  const payload = {
     desired_state: "start",
-    orchestration: ["set_action", "toggle_mapping"],
   };
 
-  const data = await sendJson(endpoints.queueMapNow, request);
-  state.lastResult = data.message || "Immediate mapping started.";
+  const data = await sendJson(endpoints.toggleMapping, payload);
+  state.lastResult = data.message || "Mapping started.";
+  setMappingStage(true);
   updateStatusPanel({
     backend: "reachable",
     mapping: true,
-    saved: data.saved,
   });
-  setGlobalStatus("MAP NOW SENT", "success");
+  setGlobalStatus("MAPPING ACTIVE", "success");
 }
 
-async function mapNextAction() {
-  if (!state.queuedActions.length) {
-    throw new Error("No queued actions available.");
-  }
-
-  const nextAction = state.queuedActions[0];
-  const request = {
-    desired_state: "start",
-    action: nextAction,
-    queue_length: state.queuedActions.length,
-    orchestration: ["set_action", "toggle_mapping"],
+async function stopMapping() {
+  const payload = {
+    desired_state: "stop",
   };
 
-  const data = await sendJson(endpoints.queueMapNext, request);
-  state.lastResult = data.message || "Next queued action sent for mapping.";
-  state.queuedActions.shift();
-  renderQueue();
+  const data = await sendJson(endpoints.toggleMapping, payload);
+  state.lastResult = data.message || "Mapping stopped.";
+  setMappingStage(false);
   updateStatusPanel({
     backend: "reachable",
-    mapping: true,
-    saved: data.saved,
+    mapping: false,
   });
-  setGlobalStatus("NEXT ACTION SENT", "success");
-}
 
-function pushCompletedMapping(actionString, message) {
-  state.pendingMappings.unshift({
-    action: actionString,
-    message,
-  });
-  renderPendingMappings();
+  if (data.success && data.message) {
+    state.pendingMappings.unshift({
+      action: elements.actionPreview.textContent,
+      message: data.message,
+    });
+    renderPendingMappings();
+  }
+
+  setGlobalStatus(data.success ? "MAPPING COMPLETE" : "MAPPING FAILED", data.success ? "success" : "warning");
 }
 
 function bindEvents() {
@@ -306,30 +286,33 @@ function bindEvents() {
 
   document.getElementById("refresh-btn").addEventListener("click", refreshStatus);
 
-  document.getElementById("add-action-queue-btn").addEventListener("click", async () => {
+  document.getElementById("set-action-btn").addEventListener("click", async () => {
     try {
-      await addActionToQueue();
+      await setCurrentAction();
     } catch (error) {
       state.lastResult = error.message;
-      setGlobalStatus("QUEUE ERROR", "danger");
+      elements.statusLastResult.textContent = state.lastResult;
+      setGlobalStatus("ACTION ERROR", "danger");
     }
   });
 
-  document.getElementById("map-action-now-btn").addEventListener("click", async () => {
+  document.getElementById("start-mapping-btn").addEventListener("click", async () => {
     try {
-      await mapActionNow();
+      await startMapping();
     } catch (error) {
       state.lastResult = error.message;
-      setGlobalStatus("MAP NOW ERROR", "danger");
+      elements.statusLastResult.textContent = state.lastResult;
+      setGlobalStatus("START ERROR", "danger");
     }
   });
 
-  document.getElementById("map-next-action-btn").addEventListener("click", async () => {
+  document.getElementById("stop-mapping-btn").addEventListener("click", async () => {
     try {
-      await mapNextAction();
+      await stopMapping();
     } catch (error) {
       state.lastResult = error.message;
-      setGlobalStatus("MAP NEXT ERROR", "danger");
+      elements.statusLastResult.textContent = state.lastResult;
+      setGlobalStatus("STOP ERROR", "danger");
     }
   });
 
@@ -340,10 +323,5 @@ function bindEvents() {
 
 updateActionPreview();
 renderPendingMappings();
-renderQueue();
 bindEvents();
 refreshStatus();
-
-window.joystickMapperV2Demo = {
-  pushCompletedMapping,
-};

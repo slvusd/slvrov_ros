@@ -78,10 +78,10 @@ function buildActionPayload() {
 function setGlobalStatus(message, level = "info") {
   elements.globalStatus.textContent = message;
   const palette = {
-    info: "#00e5ff",
-    success: "#37d67a",
-    warning: "#ffb000",
-    danger: "#ff3b5c",
+    info: "#4aa8ff",
+    success: "#78c7ff",
+    warning: "#f5c84b",
+    danger: "#ff5a67",
   };
   elements.globalStatus.style.color = palette[level] || palette.info;
 }

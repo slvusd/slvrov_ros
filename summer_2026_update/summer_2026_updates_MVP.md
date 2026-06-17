@@ -44,7 +44,7 @@ These users need a codebase that is simple, readable, well-commented, and split 
 - Camera streaming stack: MediaMTX with WebRTC
 - Physical joystick input: Linux `js#` joystick devices through ROS2 joystick nodes
 - Emergency stop: visible globally in all modes
-- UI theme: dark theme by default, based on the existing project theme
+- UI theme: dark and light mode, with dark allowed as the default
 - Primary display target: large displays such as monitors or laptops, especially 4:3 and 16:10 layouts
 - Touch-specific UI: not required for MVP
 - Main page should not remember the last selected mode
@@ -59,7 +59,8 @@ These users need a codebase that is simple, readable, well-commented, and split 
 - Vehicle state model: use a simple software `control enabled / disabled` state rather than a full arming/disarming model for MVP.
 - Backend live-update strategy: REST polling first; upgrade to WebSockets or Server-Sent Events only if polling becomes insufficient.
 - File history: runtime logs only; photo/video history is deferred with science/capture scope.
-- Visual style: hybrid by mode. Pilot should feel like a simple vehicle control panel; Setup should feel procedural and confidence-building; Developer can be more technical. Create visual mockups before final implementation choices are locked.
+- Visual style: Apple/macOS-inspired. Use restrained, polished, high-clarity controls with subtle depth and native-control feel across Pilot, Setup, and Developer.
+- UI color semantics: do not assign separate colors to modes. Use red for errors/critical/destructive/emergency, yellow/orange for warnings/caution/loading/pending, and light blue for status/active/connected/healthy states.
 - Agent workflow: strict one-sub-feature-at-a-time prompts/checkpoints.
 - ROS2 node implementation: the project owner wants to write ROS2 nodes, or at least the important parts of them, personally. Coding agents should therefore prefer scaffolding, interfaces, adapters, fake implementations, tests, and clear TODO notes over fully implementing new ROS2 node internals unless the project owner explicitly asks for that node logic.
 - Owner control: use small decision packets before implementation when architecture, route design, UI layout, safety behavior, or ROS2 boundaries are still open. The agent should show options, tradeoffs, and recommended defaults, then stop for owner review before building the selected option.
@@ -583,10 +584,10 @@ slvrov_workspace/
 
 ### Theme
 
-- Dark theme by default.
-- Use the existing project theme as the starting point.
+- Support dark and light mode.
+- Dark mode may be the default.
+- Use the owner-selected Apple/macOS-inspired direction as the starting point.
 - Follow `system_documents/ui_design` when creating UI demos and production UI.
-- A light theme can be considered later if it does not add significant complexity.
 
 ### Display Target
 
@@ -596,15 +597,22 @@ slvrov_workspace/
 
 ### Style Direction
 
-Use a hybrid style by mode, and create visual mockups before committing to final implementation details.
+Use the owner-selected Apple/macOS-inspired style direction, and narrow future
+mockups from that direction rather than reopening broad style exploration.
 
 - Pilot Mode should lean toward a simple vehicle control panel: clear camera view, minimal distraction, obvious safety controls.
 - Setup Mode should be structured and step-by-step.
 - Developer Mode can be more technical, with box-based stats and allowlisted tools.
-- All modes should use clear affordances, semantic safety colors, stable spacing, readable typography, and visible interaction states.
+- All modes should use the same neutral visual palette. Do not use different colors for different modes.
+- Notification and state colors should be simple and consistent:
+  - Error: red.
+  - Warning: yellow/orange.
+  - Status, active, connected, or healthy state: light blue.
+- All modes should use clear affordances, stable spacing, readable typography, and visible interaction states.
 - Demos should include normal, empty/unavailable, warning, and critical states so the owner can judge behavior rather than only appearance.
 
-Before implementation, create multiple static mockups for owner review, including a simple vehicle-control style, a procedural setup style, a dense diagnostics style, and an agent-recommended hybrid based on the UI design guide.
+Before implementation, create focused static mockups for owner review using the
+selected Apple/macOS direction.
 
 ### UI Demo Selection Workflow
 
@@ -624,7 +632,9 @@ Recommended demos:
 - Setup Mode: at least 2 step-by-step configuration flows.
 - Developer Mode: at least 2 dense technical dashboard layouts.
 
-Each demo should include a short tradeoff note, clear non-production labeling, fake data, and at least one unavailable/error state. After the owner selects a direction, the agent should implement only the selected direction and remove or clearly archive unselected demos.
+Each demo should include a short tradeoff note, clear non-production labeling,
+fake data, and at least one unavailable/error state. Unselected legacy demos
+should remain archived away from the active Apple/macOS direction.
 
 ### Status Bar
 
