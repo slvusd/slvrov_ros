@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SEL Action Dashboard Demo</title>
+  <style>
+    :root {
+      --status: #6bbcff;
+      --status-strong: #2087e5;
+      --warning: #f2b84b;
+      --warning-strong: #b56d00;
+      --error: #ff5a67;
+      --error-strong: #c72235;
+      --radius: 8px;
+      color-scheme: dark light;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    }
+
+    body[data-theme="dark"] {
+      --page-bg: #0b1016;
+      --page-panel: #141b24;
+      --page-panel-2: #1b2530;
+      --page-panel-3: #202b37;
+      --border: #334252;
+      --text: #f3f7fb;
+      --muted: #a7b5c4;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    body[data-theme="light"] {
+      --page-bg: #eef3f7;
+      --page-panel: #ffffff;
+      --page-panel-2: #f6f8fb;
+      --page-panel-3: #e8eef5;
+      --border: #c8d4df;
+      --text: #17202a;
+      --muted: #556575;
+      --shadow: 0 18px 50px rgba(50, 70, 90, 0.16);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background: var(--page-bg);
+      color: var(--text);
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 72px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--page-panel);
+    }
+
+    .brand-group,
+    .header-actions,
+    .editor-toolbar,
+    .editor-meta,
+    .response-drawer summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--status-strong);
+      border-radius: 50%;
+      color: var(--status);
+      background: rgba(107, 188, 255, 0.14);
+      font-size: 0.82rem;
+      font-weight: 900;
+    }
+
+    .eyebrow {
+      margin-bottom: 4px;
+      color: var(--status);
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(1.2rem, 1.45vw, 1.68rem);
+      line-height: 1.1;
+    }
+
+    h2 {
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .demo-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border: 1px solid rgba(107, 188, 255, 0.42);
+      border-radius: 999px;
+      color: var(--status);
+      background: rgba(107, 188, 255, 0.1);
+      font-size: 0.76rem;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .dashboard-shell {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      gap: 22px;
+      width: min(1540px, 100%);
+      min-height: calc(100vh - 72px);
+      margin: 0 auto;
+      padding: 18px 24px 24px;
+    }
+
+    .panel,
+    .file-pane,
+    .response-drawer {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--page-panel);
+      box-shadow: var(--shadow);
+    }
+
+    .file-pane {
+      display: grid;
+      grid-template-rows: auto auto minmax(220px, 1fr) auto;
+      gap: 12px;
+      min-height: calc(100vh - 116px);
+      padding: 16px;
+    }
+
+    .file-pane-header {
+      text-align: center;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      color: rgba(167, 181, 196, 0.88);
+      font-size: 0.78rem;
+      font-weight: 760;
+    }
+
+    input,
+    select {
+      min-height: 38px;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      background: var(--page-panel-2);
+      padding: 0 10px;
+      outline: none;
+    }
+
+    input::placeholder {
+      color: rgba(167, 181, 196, 0.58);
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--status);
+      box-shadow: 0 0 0 3px rgba(107, 188, 255, 0.18);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      background: var(--page-panel-3);
+      font-size: 0.88rem;
+      font-weight: 760;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      filter: brightness(1.06);
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.48;
+    }
+
+    .button.status {
+      border-color: var(--status-strong);
+      color: #ffffff;
+      background: var(--status-strong);
+    }
+
+    .button.warning {
+      border-color: var(--warning-strong);
+      color: #111820;
+      background: var(--warning);
+    }
+
+    .button.error {
+      border-color: var(--error-strong);
+      color: #ffffff;
+      background: var(--error-strong);
+    }
+
+    .file-list {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--page-panel-2);
+    }
+
+    .file-row {
+      display: grid;
+      align-items: center;
+      min-height: 54px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .file-row:last-child {
+      border-bottom: 0;
+    }
+
+    .file-row button {
+      min-width: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      color: var(--text);
+      background: transparent;
+      font: inherit;
+      font-weight: 780;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .file-row button span {
+      display: block;
+      overflow: hidden;
+      padding: 0 14px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-row button:hover {
+      background: rgba(107, 188, 255, 0.08);
+    }
+
+    .file-row.is-selected {
+      background: rgba(107, 188, 255, 0.18);
+    }
+
+    .file-row.is-loaded button span::after {
+      content: " loaded";
+      color: var(--status);
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .file-footer {
+      display: grid;
+      gap: 8px;
+      align-self: end;
+    }
+
+    .file-action-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .file-action-grid.secondary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .merge-footer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 96px;
+      gap: 8px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .notification {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--page-panel);
+      box-shadow: var(--shadow);
+      font-size: 0.86rem;
+    }
+
+    .notification strong {
+      color: var(--text);
+    }
+
+    .notification span {
+      color: rgba(167, 181, 196, 0.94);
+    }
+
+    .notification.status {
+      border-color: rgba(107, 188, 255, 0.52);
+      background: rgba(107, 188, 255, 0.12);
+    }
+
+    .notification.warning {
+      border-color: rgba(242, 184, 75, 0.52);
+      background: rgba(242, 184, 75, 0.12);
+    }
+
+    .notification.error {
+      border-color: rgba(255, 90, 103, 0.52);
+      background: rgba(255, 90, 103, 0.12);
+    }
+
+    .editor-panel {
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 14px;
+      min-height: 0;
+      padding: 18px;
+    }
+
+    .editor-toolbar {
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .editor-meta {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      color: rgba(167, 181, 196, 0.86);
+      font-size: 0.76rem;
+    }
+
+    .editor-meta span {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .editor-meta strong {
+      color: rgba(243, 247, 251, 0.9);
+      font-weight: 760;
+    }
+
+    body[data-theme="light"] .editor-meta strong {
+      color: rgba(23, 32, 42, 0.9);
+    }
+
+    .action-composer {
+      display: grid;
+      grid-template-columns: minmax(280px, 1fr) 150px 150px;
+      gap: 10px;
+      align-items: end;
+      padding: 14px;
+      border: 1px solid rgba(107, 188, 255, 0.44);
+      border-radius: var(--radius);
+      background: rgba(107, 188, 255, 0.12);
+    }
+
+    .action-select-field span {
+      color: var(--text);
+      font-size: 0.86rem;
+    }
+
+    .add-button,
+    .save-button {
+      min-height: 44px;
+      font-size: 0.95rem;
+    }
+
+    .table-wrap {
+      position: relative;
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--page-panel);
+    }
+
+    .action-table {
+      width: 100%;
+      min-width: 680px;
+      border-collapse: collapse;
+    }
+
+    .action-table th,
+    .action-table td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    .action-table th {
+      color: rgba(167, 181, 196, 0.92);
+      background: var(--page-panel-2);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    .action-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .action-table .row-actions {
+      width: 104px;
+      text-align: right;
+    }
+
+    .valid-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 8px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 850;
+    }
+
+    .valid-pill.status {
+      color: var(--status);
+      background: rgba(107, 188, 255, 0.12);
+    }
+
+    .valid-pill.error {
+      color: var(--error);
+      background: rgba(255, 90, 103, 0.12);
+    }
+
+    .empty-state {
+      padding: 18px;
+      color: rgba(167, 181, 196, 0.9);
+      text-align: center;
+    }
+
+    .empty-state.is-hidden {
+      display: none;
+    }
+
+    .response-drawer {
+      overflow: hidden;
+      box-shadow: none;
+    }
+
+    .response-drawer summary {
+      justify-content: space-between;
+      min-height: 42px;
+      padding: 0 12px;
+      color: rgba(167, 181, 196, 0.92);
+      font-size: 0.78rem;
+      font-weight: 760;
+      cursor: pointer;
+    }
+
+    .response-drawer summary::marker {
+      color: var(--muted);
+    }
+
+    .response-drawer .button {
+      min-height: 30px;
+      padding: 0 9px;
+      font-size: 0.76rem;
+    }
+
+    #response-log {
+      max-height: 190px;
+      overflow: auto;
+      margin: 0;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      color: rgba(243, 247, 251, 0.9);
+      background: var(--page-panel-2);
+      font-size: 0.78rem;
+      white-space: pre-wrap;
+    }
+
+    body[data-theme="light"] #response-log {
+      color: rgba(23, 32, 42, 0.9);
+    }
+
+    @media (max-width: 980px) {
+      .dashboard-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .file-pane {
+        min-height: 520px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .app-header,
+      .header-actions,
+      .editor-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .dashboard-shell {
+        padding: 12px;
+      }
+
+      .action-composer,
+      .file-action-grid,
+      .file-action-grid.secondary,
+      .merge-footer {
+        grid-template-columns: 1fr;
+      }
+
+      .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <header class="app-header">
+    <div class="brand-group">
+      <span class="brand-mark">SEL</span>
+      <div>
+        <p class="eyebrow">Standalone demo</p>
+        <h1>Action Configuration</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="demo-pill">No backend required</span>
+      <button class="button" id="theme-toggle" type="button">Light Mode</button>
+    </div>
+  </header>
+
+  <main class="dashboard-shell">
+    <aside class="file-pane panel" aria-label="Action files">
+      <div class="file-pane-header">
+        <p class="eyebrow">Files</p>
+        <h2>Action Files</h2>
+      </div>
+
+      <label class="field">
+        <span>File name</span>
+        <input id="action-file" autocomplete="off" placeholder="pool_test_actions.json">
+      </label>
+
+      <div class="file-list" id="file-list" aria-label="Saved action files"></div>
+
+      <div class="file-footer">
+        <div class="file-action-grid">
+          <button class="button error" id="delete-file" type="button">Delete</button>
+          <button class="button" id="rename-current" type="button">Rename</button>
+          <button class="button status" id="load-file" type="button">View</button>
+        </div>
+        <input id="rename-file" autocomplete="off" placeholder="rename_to.json" aria-label="Rename file to">
+        <div class="file-action-grid secondary">
+          <button class="button" id="refresh-files" type="button">Reset</button>
+          <button class="button" id="new-file" type="button">New</button>
+        </div>
+        <div class="merge-footer">
+          <input id="merged-file" autocomplete="off" placeholder="merged.json" aria-label="Merged file name">
+          <button class="button status" id="merge-files" type="button">Merge</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="workspace" aria-label="Action editor">
+      <section class="notification status" id="status-banner" role="status" aria-live="polite">
+        <strong>Status</strong>
+        <span>Select or create an action file.</span>
+      </section>
+
+      <section class="panel editor-panel">
+        <div class="editor-toolbar">
+          <div>
+            <p class="eyebrow">Editor</p>
+            <h2 id="editor-title">No File Loaded</h2>
+          </div>
+          <div class="editor-meta" aria-label="Action file summary">
+            <span><strong id="action-count">0</strong> actions</span>
+            <span><strong id="validation-count">Ready</strong> validation</span>
+            <span><strong id="last-route">None</strong> route</span>
+          </div>
+        </div>
+
+        <div class="action-composer">
+          <label class="field action-select-field">
+            <span>Add action</span>
+            <select id="action-preset"></select>
+          </label>
+          <button class="button status add-button" id="add-action" type="button">Add Action</button>
+          <button class="button status save-button" id="save-actions" type="button">Save All</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="action-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Type</th>
+                <th>Route Valid</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="action-rows"></tbody>
+          </table>
+          <div class="empty-state" id="empty-state">No actions loaded.</div>
+        </div>
+      </section>
+
+      <details class="response-drawer">
+        <summary>
+          <span>Latest mock route response</span>
+          <button class="button" id="clear-log" type="button">Clear</button>
+        </summary>
+        <pre id="response-log">{}</pre>
+      </details>
+    </section>
+  </main>
+
+  <script>
+    const defaultActions = [
+      { action_name: "strafe", action_type: "axis" },
+      { action_name: "forward", action_type: "axis" },
+      { action_name: "pitch", action_type: "axis" },
+      { action_name: "yaw", action_type: "axis" },
+      { action_name: "roll", action_type: "axis" },
+      { action_name: "heave", action_type: "axis" },
+    ];
+
+    const starterFiles = {
+      "pool_test_actions.json": [
+        { action_name: "forward", action_type: "axis" },
+        { action_name: "yaw", action_type: "axis" },
+        { action_name: "heave", action_type: "axis" },
+      ],
+      "practice_actions.json": [
+        { action_name: "strafe", action_type: "axis" },
+        { action_name: "pitch", action_type: "axis" },
+      ],
+      "competition_check.json": [
+        { action_name: "forward", action_type: "axis" },
+        { action_name: "roll", action_type: "axis" },
+      ],
+    };
+
+    function cloneFiles(files) {
+      return JSON.parse(JSON.stringify(files));
+    }
+
+    const state = {
+      actions: [],
+      currentFile: "",
+      files: cloneFiles(starterFiles),
+      lastSelectedFileIndex: -1,
+      selectedFiles: new Set(),
+    };
+
+    const els = {
+      actionCount: document.getElementById("action-count"),
+      actionFile: document.getElementById("action-file"),
+      actionPreset: document.getElementById("action-preset"),
+      actionRows: document.getElementById("action-rows"),
+      addAction: document.getElementById("add-action"),
+      clearLog: document.getElementById("clear-log"),
+      deleteFile: document.getElementById("delete-file"),
+      editorTitle: document.getElementById("editor-title"),
+      emptyState: document.getElementById("empty-state"),
+      fileList: document.getElementById("file-list"),
+      lastRoute: document.getElementById("last-route"),
+      loadFile: document.getElementById("load-file"),
+      mergeFiles: document.getElementById("merge-files"),
+      mergedFile: document.getElementById("merged-file"),
+      newFile: document.getElementById("new-file"),
+      refreshFiles: document.getElementById("refresh-files"),
+      renameCurrent: document.getElementById("rename-current"),
+      renameFile: document.getElementById("rename-file"),
+      responseLog: document.getElementById("response-log"),
+      saveActions: document.getElementById("save-actions"),
+      statusBanner: document.getElementById("status-banner"),
+      themeToggle: document.getElementById("theme-toggle"),
+      validationCount: document.getElementById("validation-count"),
+    };
+
+    function setTheme(theme) {
+      document.body.dataset.theme = theme;
+      els.themeToggle.textContent = theme === "dark" ? "Light Mode" : "Dark Mode";
+      localStorage.setItem("sel-action-dashboard-demo-theme", theme);
+    }
+
+    function setStatus(tone, label, message) {
+      els.statusBanner.className = `notification ${tone}`;
+      els.statusBanner.replaceChildren();
+      const labelElement = document.createElement("strong");
+      const messageElement = document.createElement("span");
+      labelElement.textContent = label;
+      messageElement.textContent = message;
+      els.statusBanner.append(labelElement, messageElement);
+    }
+
+    function writeLog(route, payload) {
+      els.lastRoute.textContent = route;
+      els.responseLog.textContent = JSON.stringify({
+        route,
+        status: 200,
+        ...payload,
+      }, null, 2);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;",
+      }[character]));
+    }
+
+    function normalizeFileName(value) {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return "";
+      }
+      return trimmed.endsWith(".json") ? trimmed : `${trimmed}.json`;
+    }
+
+    function validateFileName(fileName) {
+      if (!fileName) {
+        return "Choose or enter an action file.";
+      }
+      if (fileName.includes("/") || fileName.includes("\\") || fileName.includes("..")) {
+        return "Use a filename only, without folders.";
+      }
+      return "";
+    }
+
+    function sortedFileNames() {
+      return Object.keys(state.files).sort();
+    }
+
+    function defaultKey(action) {
+      return `${action.action_name}:${action.action_type}`;
+    }
+
+    function isPredefinedAction(action) {
+      return defaultActions.some((option) => defaultKey(option) === defaultKey(action));
+    }
+
+    function currentFileName() {
+      return normalizeFileName(els.actionFile.value || state.currentFile);
+    }
+
+    function renderFiles() {
+      const files = sortedFileNames();
+      els.fileList.innerHTML = files.length
+        ? files.map((fileName, index) => `
+          <div class="file-row ${state.selectedFiles.has(fileName) ? "is-selected" : ""} ${fileName === state.currentFile ? "is-loaded" : ""}">
+            <button type="button" data-file-name="${escapeHtml(fileName)}" data-file-index="${index}">
+              <span>${escapeHtml(fileName)}</span>
+            </button>
+          </div>
+        `).join("")
+        : '<div class="empty-state">No saved files found.</div>';
+    }
+
+    function selectFile(fileName, index, event) {
+      const files = sortedFileNames();
+      if (event.shiftKey && state.lastSelectedFileIndex >= 0) {
+        const start = Math.min(state.lastSelectedFileIndex, index);
+        const end = Math.max(state.lastSelectedFileIndex, index);
+        state.selectedFiles.clear();
+        files.slice(start, end + 1).forEach((selectedFile) => {
+          state.selectedFiles.add(selectedFile);
+        });
+      } else if (event.metaKey || event.ctrlKey) {
+        if (state.selectedFiles.has(fileName)) {
+          state.selectedFiles.delete(fileName);
+        } else {
+          state.selectedFiles.add(fileName);
+        }
+        state.lastSelectedFileIndex = index;
+      } else {
+        state.selectedFiles.clear();
+        state.selectedFiles.add(fileName);
+        state.lastSelectedFileIndex = index;
+      }
+
+      els.actionFile.value = fileName;
+      renderFiles();
+    }
+
+    function renderPresetOptions() {
+      const used = new Set(state.actions.map((action) => action.action_name));
+      const available = defaultActions.filter((action) => !used.has(action.action_name));
+      els.actionPreset.innerHTML = available.length
+        ? available.map((action) => (
+          `<option value="${escapeHtml(defaultKey(action))}">${escapeHtml(action.action_name)} (${escapeHtml(action.action_type)})</option>`
+        )).join("")
+        : '<option value="">All predefined actions added</option>';
+      els.addAction.disabled = available.length === 0;
+    }
+
+    function renderActions() {
+      els.editorTitle.textContent = state.currentFile || "Unsaved Action File";
+      els.actionCount.textContent = String(state.actions.length);
+
+      const invalidCount = state.actions.filter((action) => !isPredefinedAction(action)).length;
+      els.validationCount.textContent = invalidCount ? `${invalidCount} invalid` : "OK";
+      els.validationCount.style.color = invalidCount ? "var(--error)" : "var(--status)";
+
+      els.emptyState.classList.toggle("is-hidden", state.actions.length > 0);
+      els.actionRows.innerHTML = state.actions.map((action, index) => {
+        const valid = isPredefinedAction(action);
+        return `
+          <tr data-index="${index}">
+            <td>
+              <select data-field="action_name" aria-label="Action name">
+                ${defaultActions.map((option) => `
+                  <option value="${escapeHtml(option.action_name)}" ${option.action_name === action.action_name ? "selected" : ""}>
+                    ${escapeHtml(option.action_name)}
+                  </option>
+                `).join("")}
+                ${valid ? "" : `<option value="${escapeHtml(action.action_name)}" selected>${escapeHtml(action.action_name)}</option>`}
+              </select>
+            </td>
+            <td>
+              <select data-field="action_type" aria-label="Action type">
+                ${["axis", "button", "js_axis", "js_button"].map((type) => `
+                  <option value="${type}" ${type === action.action_type ? "selected" : ""}>${type}</option>
+                `).join("")}
+              </select>
+            </td>
+            <td>
+              <span class="valid-pill ${valid ? "status" : "error"}">${valid ? "Yes" : "No"}</span>
+            </td>
+            <td class="row-actions">
+              <button class="button error" type="button" data-delete-index="${index}">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      renderPresetOptions();
+    }
+
+    function setCurrentFile(fileName, actions = state.actions) {
+      state.currentFile = fileName;
+      els.actionFile.value = fileName;
+      state.actions = actions.map((action) => ({
+        action_name: String(action.action_name || ""),
+        action_type: String(action.action_type || ""),
+      }));
+      renderFiles();
+      renderActions();
+    }
+
+    function loadCurrentFile() {
+      const fileName = currentFileName();
+      const error = validateFileName(fileName);
+      if (error) {
+        setStatus("error", "Error", error);
+        return;
+      }
+      if (!state.files[fileName]) {
+        setStatus("error", "Error", `${fileName} does not exist in this demo.`);
+        writeLog("/action_crud/load_actions", {
+          success: false,
+          message: "Mock file not found",
+        });
+        return;
+      }
+
+      setCurrentFile(fileName, state.files[fileName]);
+      writeLog("/action_crud/load_actions", {
+        success: true,
+        object: state.actions,
+      });
+      setStatus("status", "Status", `${fileName} loaded.`);
+    }
+
+    function getSaveValidationError() {
+      const fileName = currentFileName();
+      const fileError = validateFileName(fileName);
+      if (fileError) {
+        return fileError;
+      }
+
+      const invalid = state.actions.find((action) => !isPredefinedAction(action));
+      if (invalid) {
+        return `${invalid.action_name} is not one of the predefined route actions.`;
+      }
+
+      const names = state.actions.map((action) => action.action_name);
+      if (new Set(names).size !== names.length) {
+        return "Action names must be unique before saving.";
+      }
+
+      return "";
+    }
+
+    function saveActions() {
+      const validationError = getSaveValidationError();
+      if (validationError) {
+        setStatus("error", "Error", validationError);
+        return;
+      }
+
+      const fileName = currentFileName();
+      state.files[fileName] = state.actions.map((action) => ({ ...action }));
+      state.selectedFiles.clear();
+      state.selectedFiles.add(fileName);
+      setCurrentFile(fileName);
+      writeLog("/action_crud/add_actions", {
+        success: true,
+        message: "Mock object written successfully",
+      });
+      setStatus("status", "Status", `${fileName} saved in this demo.`);
+    }
+
+    function deleteAction(index) {
+      const action = state.actions[index];
+      if (!action) {
+        return;
+      }
+      state.actions.splice(index, 1);
+      renderActions();
+      writeLog("/action_crud/delete_action", {
+        success: true,
+        message: `${action.action_name} removed in demo state`,
+      });
+      setStatus("status", "Status", `${action.action_name} removed.`);
+    }
+
+    function deleteCurrentFile() {
+      const fileName = currentFileName();
+      const error = validateFileName(fileName);
+      if (error) {
+        setStatus("error", "Error", error);
+        return;
+      }
+      if (!state.files[fileName]) {
+        setStatus("error", "Error", `${fileName} does not exist in this demo.`);
+        return;
+      }
+
+      delete state.files[fileName];
+      state.selectedFiles.delete(fileName);
+      setCurrentFile("", []);
+      writeLog("/action_crud/delete_action_file", {
+        success: true,
+        message: "Mock file deleted successfully",
+      });
+      setStatus("status", "Status", `${fileName} deleted.`);
+    }
+
+    function renameCurrentFile() {
+      const oldFile = currentFileName();
+      const newFile = normalizeFileName(els.renameFile.value);
+      const error = validateFileName(oldFile) || validateFileName(newFile);
+      if (error) {
+        setStatus("error", "Error", error);
+        return;
+      }
+      if (!state.files[oldFile]) {
+        setStatus("error", "Error", `${oldFile} does not exist in this demo.`);
+        return;
+      }
+
+      state.files[newFile] = state.files[oldFile];
+      delete state.files[oldFile];
+      state.selectedFiles.delete(oldFile);
+      state.selectedFiles.add(newFile);
+      els.renameFile.value = "";
+      setCurrentFile(newFile);
+      writeLog("/action_crud/rename_action_file", {
+        success: true,
+        message: "Mock file renamed successfully",
+      });
+      setStatus("status", "Status", `${oldFile} renamed to ${newFile}.`);
+    }
+
+    function mergeSelectedFiles() {
+      const mergedFile = normalizeFileName(els.mergedFile.value);
+      const sourceFiles = [...state.selectedFiles];
+      const error = validateFileName(mergedFile);
+      if (sourceFiles.length < 2) {
+        setStatus("error", "Error", "Select at least two source files.");
+        return;
+      }
+      if (error) {
+        setStatus("error", "Error", error);
+        return;
+      }
+
+      const mergedActions = sourceFiles.flatMap((fileName) => state.files[fileName] || []);
+      const names = mergedActions.map((action) => action.action_name);
+      if (new Set(names).size !== names.length) {
+        setStatus("error", "Error", "Duplicate action names found.");
+        writeLog("/action_crud/merge_action_files", {
+          success: false,
+          message: "Duplicate action names found",
+        });
+        return;
+      }
+
+      state.files[mergedFile] = mergedActions.map((action) => ({ ...action }));
+      state.selectedFiles.clear();
+      state.selectedFiles.add(mergedFile);
+      els.mergedFile.value = "";
+      setCurrentFile(mergedFile, state.files[mergedFile]);
+      writeLog("/action_crud/merge_action_files", {
+        success: true,
+        message: "Mock action files merged successfully",
+      });
+      setStatus("status", "Status", `${mergedFile} created.`);
+    }
+
+    function addSelectedAction() {
+      const selected = defaultActions.find((action) => defaultKey(action) === els.actionPreset.value);
+      if (!selected) {
+        setStatus("warning", "Warning", "All predefined actions are already in this file.");
+        return;
+      }
+
+      state.actions.push({ ...selected });
+      renderActions();
+      setStatus("status", "Status", `${selected.action_name} added locally.`);
+    }
+
+    function resetDemo() {
+      state.files = cloneFiles(starterFiles);
+      state.selectedFiles.clear();
+      state.lastSelectedFileIndex = -1;
+      setCurrentFile("", []);
+      writeLog("demo/reset", {
+        success: true,
+        message: "Demo data reset",
+      });
+      setStatus("status", "Status", "Demo data reset.");
+    }
+
+    function bindEvents() {
+      els.themeToggle.addEventListener("click", () => {
+        setTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
+      });
+
+      els.fileList.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-file-name]");
+        if (button) {
+          selectFile(
+            button.dataset.fileName,
+            Number(button.dataset.fileIndex),
+            event,
+          );
+        }
+      });
+
+      els.fileList.addEventListener("dblclick", (event) => {
+        const button = event.target.closest("[data-file-name]");
+        if (button) {
+          loadCurrentFile();
+        }
+      });
+
+      els.actionRows.addEventListener("change", (event) => {
+        const row = event.target.closest("tr");
+        if (!row || !event.target.dataset.field) {
+          return;
+        }
+        state.actions[Number(row.dataset.index)][event.target.dataset.field] = event.target.value;
+        renderActions();
+      });
+
+      els.actionRows.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-delete-index]");
+        if (button) {
+          deleteAction(Number(button.dataset.deleteIndex));
+        }
+      });
+
+      els.addAction.addEventListener("click", addSelectedAction);
+      els.clearLog.addEventListener("click", (event) => {
+        event.preventDefault();
+        els.responseLog.textContent = "{}";
+      });
+      els.deleteFile.addEventListener("click", deleteCurrentFile);
+      els.loadFile.addEventListener("click", loadCurrentFile);
+      els.mergeFiles.addEventListener("click", mergeSelectedFiles);
+      els.newFile.addEventListener("click", () => {
+        const fileName = normalizeFileName(els.actionFile.value) || "new_actions.json";
+        state.selectedFiles.clear();
+        setCurrentFile(fileName, []);
+        writeLog("demo/new_file", {
+          success: true,
+          message: "Draft file created",
+        });
+        setStatus("status", "Status", `${fileName} ready.`);
+      });
+      els.refreshFiles.addEventListener("click", resetDemo);
+      els.renameCurrent.addEventListener("click", renameCurrentFile);
+      els.saveActions.addEventListener("click", saveActions);
+    }
+
+    function init() {
+      setTheme(localStorage.getItem("sel-action-dashboard-demo-theme") || "dark");
+      bindEvents();
+      renderFiles();
+      renderActions();
+      writeLog("demo/ready", {
+        success: true,
+        message: "Standalone demo loaded",
+      });
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -44,7 +44,7 @@ setup(
             'mediamtx/*.md',
         ],
     },
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'Flask'],
     zip_safe=True,
     maintainer='LegionaryOfLogic',
     maintainer_email='calebhof11@gmail.com',

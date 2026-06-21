@@ -1,9 +1,65 @@
-/*
- * Starter stylesheet for the MVP web UI.
- * Later tasks should expand this into the shared dark theme and mode
- * layouts without moving ROS2 or Flask behavior into frontend files.
- */
-
 :root {
-  color-scheme: dark;
+  --status: #6bbcff;
+  --status-strong: #2087e5;
+  --warning: #f2b84b;
+  --warning-strong: #b56d00;
+  --error: #ff5a67;
+  --error-strong: #c72235;
+  --radius: 8px;
+  color-scheme: dark light;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+body[data-theme="dark"] {
+  --page-bg: #0b1016;
+  --page-panel: #141b24;
+  --page-panel-2: #1b2530;
+  --page-panel-3: #202b37;
+  --border: #334252;
+  --text: #f3f7fb;
+  --muted: #a7b5c4;
+  --shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+}
+
+body[data-theme="light"] {
+  --page-bg: #eef3f7;
+  --page-panel: #ffffff;
+  --page-panel-2: #f6f8fb;
+  --page-panel-3: #e8eef5;
+  --border: #c8d4df;
+  --text: #17202a;
+  --muted: #556575;
+  --shadow: 0 18px 50px rgba(50, 70, 90, 0.16);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--page-bg);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+p {
+  color: var(--muted);
+  line-height: 1.45;
 }

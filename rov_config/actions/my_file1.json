@@ -1,8 +1,12 @@
 {
   "actions": [
     {
-      "action_name": "my_action",
-      "action_type": "js_axis"
+      "action_name": "heave",
+      "action_type": "axis"
+    },
+    {
+      "action_name": "forward",
+      "action_type": "axis"
     }
   ]
 }

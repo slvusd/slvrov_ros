@@ -3,10 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SLVROV MVP</title>
+    <title>{% block title %}SLVROV MVP{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    {% block styles %}{% endblock %}
   </head>
-  <body>
-    <!-- Future Flask templates can extend this shared shell. -->
+  <body data-theme="dark">
     {% block content %}{% endblock %}
+    {% block scripts %}{% endblock %}
   </body>
 </html>

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}SEL Action Setup{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/action_dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+  <header class="app-header">
+    <div class="brand-group">
+      <span class="brand-mark">SEL</span>
+      <div>
+        <p class="eyebrow">Setup dashboard</p>
+        <h1>Action Configuration</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="route-pill">/action_crud</span>
+      <button class="button" id="theme-toggle" type="button">Light Mode</button>
+    </div>
+  </header>
+
+  <main class="dashboard-shell">
+    <aside class="file-pane panel" aria-label="Action files">
+      <div class="file-pane-header">
+        <p class="eyebrow">Files</p>
+        <h2>Action Files</h2>
+      </div>
+
+      <label class="field file-name-field">
+        <span>File name</span>
+        <input id="action-file" autocomplete="off" placeholder="pool_test_actions.json">
+      </label>
+
+      <div class="file-list" id="file-list" aria-label="Saved action files"></div>
+
+      <div class="file-footer">
+        <div class="file-action-grid">
+          <button class="button error" id="delete-file" type="button">Delete</button>
+          <button class="button" id="rename-current" type="button">Rename</button>
+          <button class="button status" id="load-file" type="button">View</button>
+        </div>
+        <input id="rename-file" autocomplete="off" placeholder="rename_to.json" aria-label="Rename file to">
+        <div class="file-action-grid secondary">
+          <button class="button" id="refresh-files" type="button">Refresh</button>
+          <button class="button" id="new-file" type="button">New</button>
+        </div>
+        <div class="merge-footer">
+          <input id="merged-file" autocomplete="off" placeholder="merged.json" aria-label="Merged file name">
+          <button class="button status" id="merge-files" type="button">Merge</button>
+        </div>
+      </div>
+    </aside>
+
+    <section class="workspace" aria-label="Action editor">
+      <section class="notification status" id="status-banner" role="status" aria-live="polite">
+        <strong>Status</strong>
+        <span>Ready to load an action file.</span>
+      </section>
+
+      <section class="panel editor-panel">
+        <div class="editor-toolbar">
+          <div>
+            <p class="eyebrow">Editor</p>
+            <h2 id="editor-title">No File Loaded</h2>
+          </div>
+          <div class="editor-meta" aria-label="Action file summary">
+            <span><strong id="action-count">0</strong> actions</span>
+            <span><strong id="validation-count">Ready</strong> validation</span>
+            <span><strong id="last-route">None</strong> route</span>
+          </div>
+        </div>
+
+        <div class="action-composer">
+          <label class="field action-select-field">
+            <span>Add action</span>
+            <select id="action-preset"></select>
+          </label>
+          <button class="button status add-button" id="add-action" type="button">Add Action</button>
+          <button class="button status save-button" id="save-actions" type="button">Save All</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="action-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Type</th>
+                <th>Route Valid</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="action-rows"></tbody>
+          </table>
+          <div class="empty-state" id="empty-state">No actions loaded.</div>
+        </div>
+      </section>
+
+      <details class="response-drawer">
+        <summary>
+          <span>Latest route response</span>
+          <button class="button" id="clear-log" type="button">Clear</button>
+        </summary>
+        <pre id="response-log">{}</pre>
+      </details>
+    </section>
+  </main>
+
+  <script id="default-actions-data" type="application/json">{{ default_actions|tojson }}</script>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/action_dashboard.js') }}"></script>
+{% endblock %}
