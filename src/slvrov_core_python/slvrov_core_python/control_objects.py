@@ -92,12 +92,6 @@ class DefaultROVActions(Enum):
     ROLL = ("roll", ROVActionType.AXIS)
     HEAVE = ("heave", ROVActionType.AXIS)
 
-    def is_valid_action_name(self, action_name: str) -> bool:
-        for action in self:
-            if action.value[0] == action_name:
-                return True
-            
-        return False
 
 @dataclass
 class MappingCandidate:

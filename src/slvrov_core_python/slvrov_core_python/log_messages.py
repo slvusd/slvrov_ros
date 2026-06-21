@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Union
 
 
 class BaseLogMessagesFunctions:
@@ -37,6 +38,14 @@ class BaseLogMessages(BaseLogMessagesFunctions, Enum):
     CLIENT_WAIT_ON_SERVICE = "client waiting for service to become available"
     NODE_READY = "node ready"
     NO_PATH_PROVIDED = "no path provided"
+    PATH_NOT_FOUND = "path not found"
+    DIRECTORY_NOT_FOUND = "directory not found"
+    PERMISSION_DENIED = "permission denied"
+    INVALID_JSON = "invalid json"
+    JSON_ROOT_INVALID = "json root must be an object"
+    DELETE_FILE = "delete file"
+    RENAME_FILE = "rename file"
+    LIST_DIRECTORY = "list directory"
     MISSING_FIELD = "missing field"
 
 
@@ -64,3 +73,56 @@ class JoystickMapperLogMessages(BaseLogMessagesFunctions, Enum):
     EDIT_MAPPING = "edit mapping"
     ADD_MAPPING = "add mapping"
     VIEW_MAPPING = "view mapping"
+
+
+LogMessage = Union[BaseLogMessagesFunctions, str]
+
+
+def build_error_message(operation: LogMessage, reason: LogMessage) -> str:
+    """Build a standard failure message from log fragments.
+
+    Args:
+        operation (BaseLogMessagesFunctions | str): Operation that failed.
+        reason (BaseLogMessagesFunctions | str): Failure reason.
+
+    Returns:
+        str: Formatted failure message.
+    """
+
+    return operation + BaseLogMessages.SERVICE_CALL_FAILED + reason
+
+
+class WebCrudLogMessages(BaseLogMessagesFunctions, Enum):
+    """Log message fragments for shared web CRUD helpers."""
+
+    RESOLVE_PATH = "resolve file path"
+    LOAD_JSON = "load json"
+    WRITE_JSON = "write json"
+    LOAD_JSON_ARRAY = "load json array"
+    DELETE_JSON_OBJECT = "delete json object"
+    UPDATE_JSON_OBJECT = "update json object"
+
+
+class ActionCrudLogMessages(BaseLogMessagesFunctions, Enum):
+    """Log message fragments for action CRUD routes."""
+
+    ADD_ACTIONS = "add actions"
+    LOAD_ACTIONS = "load actions"
+    DELETE_ACTION = "delete action"
+    DELETE_ACTION_FILE = "delete action file"
+    MERGE_ACTION_FILES = "merge action files"
+    RENAME_ACTION_FILE = "rename action file"
+    UPDATE_ACTION = "update action"
+    CREATE_ACTIONS = "create actions"
+
+
+class MotorCrudLogMessages(BaseLogMessagesFunctions, Enum):
+    """Log message fragments for motor CRUD routes."""
+
+    CREATE_MOTORS = "create motors"
+    LOAD_MOTORS = "load motors"
+    UPDATE_MOTOR = "update motor"
+    DELETE_MOTOR = "delete motor"
+    DELETE_MOTOR_FILE = "delete motor file"
+    MERGE_MOTOR_FILES = "merge motor files"
+    RENAME_MOTOR_FILE = "rename motor file"
